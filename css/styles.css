@@ -6,15 +6,19 @@
     --color-body: #918ca4;
 }
 
+
+/* Typography */
+
 html {
+    /* 62.5% of 16px = 10px */
     font-size: 62.5%;
 }
 
 body {
     font-family: Inter, Arial, Helvetica, sans-serif;
-    color: var(--color-body);
     font-size: 2.4rem;
     line-height: 1.5;
+    color: var(--color-body);
 }
 
 h1,
@@ -33,15 +37,14 @@ h2 {
 }
 
 h3 {
-    font-size: 3 rem;
-    margin-bottom: 1rem;
+    font-size: 3rem;
 }
 
 p {
     margin-top: 0;
 }
 
-@media screen and(min-width: 1024px) {
+@media screen and (min-width: 1024px) {
     body {
         font-size: 1.8rem;
     }
@@ -53,6 +56,35 @@ p {
     }
     h3 {
         font-size: 2.4rem;
-        margin-bottom: 1rem;
+    }
+}
+
+
+/* Links */
+
+a {
+    text-decoration: none;
+}
+
+.link-arrow {
+    color: var(--color-accent);
+    text-transform: uppercase;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.link-arrow::after {
+    content: "-->";
+    margin-left: 5px;
+    transition: margin 0.15s;
+}
+
+.link-arrow:hover::after {
+    margin-left: 10px;
+}
+
+@media screen and (min-width: 1024px) {
+    .link-arrow {
+        font-size: 1.5rem;
     }
 }
