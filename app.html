@@ -15,6 +15,7 @@
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
+  <script src="data/gtins.js" defer></script>
 </head>
 <body class="app-body">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -55,8 +56,9 @@
           shop is cheapest for the whole basket.
         </p>
                   <p class="app-intro__note">
-          Scanned barcodes are looked up in Open Food Facts, and searches also query Grocer's
-          public product catalogue, so names, brands, sizes and store coverage are real.
+          Scanned barcodes match products by their real GTIN, with a fallback to Open Food
+          Facts. Searches also query Grocer's public product catalogue, so names, brands,
+          sizes and store coverage are real.
           Grocer doesn't publish prices, so prices are estimates — except the PAK'nSAVE
           and New World shelf prices checked every night. Browse the full catalogue
           pulled from those two stores, merged with the demo staples.

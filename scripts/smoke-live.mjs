@@ -5,9 +5,11 @@
   It replays the per-store availability check against the deployed site:
   a PAK'nSAVE-only product, a New World-only product and a mixed basket must
   show "not stocked" instead of an invented price, and a chain missing an item
-  must not be ranked or totalled. It also verifies demo staples do not show an
-  invented barcode and decodes a known real GTIN with the site's own vendored
-  ZXing build, so a broken barcode image fails the post-deploy check. It also
+  must not be ranked or totalled. It also verifies products show their real
+  GTINs (including the V can's 8-digit EAN-8) and decodes the rendered images
+  with the site's own vendored ZXing build, so a broken barcode image fails the
+  post-deploy check. Products without a valid GTIN must show no barcode card.
+  It also
   requires a loaded product picture plus the import banner's last price-check
   time and shelf-price coverage summary.
 
@@ -56,6 +58,13 @@ const NW_ONLY = {
 const DEMO_STAPLE = {
   id: "milk-2l",
   name: "Anchor Blue Milk",
+  gtin: "94152210",
+};
+const CATALOGUE_GTIN = {
+  sku: "5007495-EA-000",
+  name: "V Blue Guarana Energy Drink",
+  search: "V Blue Guarana",
+  gtin: "94129045",
 };
 const REAL_GTIN = "9300617075462";
 
@@ -91,6 +100,7 @@ async function decodeRenderedBarcode(page, selector) {
     return {
       text: result.getText(),
       ean13: result.getBarcodeFormat() === ZXing.BarcodeFormat.EAN_13,
+      ean8: result.getBarcodeFormat() === ZXing.BarcodeFormat.EAN_8,
     };
   }, png.toString("base64"));
 }
@@ -169,7 +179,10 @@ async function main() {
       `price-coverage summary missing: ${coverageLine}`
     );
 
-    step(`demo staple has no invented barcode: ${DEMO_STAPLE.name}`);
+    step("loading the demo's barcode decoder");
+    await page.addScriptTag({ url: new URL("vendor/zxing.min.js", TARGET).href });
+
+    step(`demo staple shows its real EAN-8 barcode: ${DEMO_STAPLE.name}`);
     await page.waitForSelector(`#product-grid [data-product="${DEMO_STAPLE.id}"]`, {
       timeout: 5000,
     });
@@ -177,19 +190,25 @@ async function main() {
     await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
     const stapleBarcodes = await page.locator("#product-dialog .barcode-card").count();
     assert(
-      stapleBarcodes === 0,
-      `demo staple should not show an invented barcode, saw ${stapleBarcodes}`
+      stapleBarcodes === 1,
+      `demo staple should show its one real barcode, saw ${stapleBarcodes}`
     );
-    const barcodeNote = normalize(await page.locator("#product-dialog .dialog__barcode-note").innerText());
+    const stapleCode = await page
+      .locator("#product-dialog [data-copy-barcode]")
+      .getAttribute("data-copy-barcode");
     assert(
-      barcodeNote.includes("No EAN-13 barcode is recorded"),
-      `demo staple should explain the missing barcode: ${barcodeNote}`
+      stapleCode === DEMO_STAPLE.gtin,
+      `demo staple barcode is ${stapleCode}, expected ${DEMO_STAPLE.gtin}`
+    );
+    const stapleKind = normalize(await page.locator("#product-dialog .barcode-card__title").innerText());
+    assert(stapleKind.includes("EAN-8"), `demo staple should be labelled EAN-8: ${stapleKind}`);
+    const stapleDecoded = await decodeRenderedBarcode(page, "#product-dialog .barcode-card__svg");
+    assert(
+      stapleDecoded.ean8 && stapleDecoded.text === DEMO_STAPLE.gtin,
+      `demo staple barcode decoded as ${stapleDecoded.text} (${stapleKind})`
     );
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
-
-    step("loading the demo's barcode decoder");
-    await page.addScriptTag({ url: new URL("vendor/zxing.min.js", TARGET).href });
 
     step(`rendering real GTIN: ${REAL_GTIN}`);
     await page.evaluate((code) => {
@@ -197,7 +216,7 @@ async function main() {
       mount.id = "smoke-barcode";
       mount.style.cssText =
         "position:fixed;left:0;top:0;width:234px;height:144px;background:#fff;z-index:99999";
-      mount.innerHTML = ean13Svg(code);
+      mount.innerHTML = barcodeSvg(code);
       document.body.append(mount);
     }, REAL_GTIN);
     const barcodeLabel = await page.locator("#smoke-barcode svg").getAttribute("aria-label");
@@ -222,6 +241,26 @@ async function main() {
       "catalogue mode toggle should be removed"
     );
 
+    step(`catalogue product shows its real barcode: ${CATALOGUE_GTIN.name}`);
+    await searchProduct(page, { name: CATALOGUE_GTIN.search, sku: CATALOGUE_GTIN.sku });
+    await page.locator(`#product-grid [data-product="${CATALOGUE_GTIN.sku}"]`).click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const vBarcodes = await page.locator("#product-dialog .barcode-card").count();
+    assert(vBarcodes === 1, `V can should show its one barcode, saw ${vBarcodes}`);
+    const vCode = await page
+      .locator("#product-dialog [data-copy-barcode]")
+      .getAttribute("data-copy-barcode");
+    assert(vCode === CATALOGUE_GTIN.gtin, `V can barcode is ${vCode}, expected ${CATALOGUE_GTIN.gtin}`);
+    const vKind = normalize(await page.locator("#product-dialog .barcode-card__title").innerText());
+    assert(vKind.includes("EAN-8"), `V can should be labelled EAN-8: ${vKind}`);
+    const vDecoded = await decodeRenderedBarcode(page, "#product-dialog .barcode-card__svg");
+    assert(
+      vDecoded.ean8 && vDecoded.text === CATALOGUE_GTIN.gtin,
+      `V can barcode decoded as ${vDecoded.text} (${vKind})`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+
     step(`PAK'nSAVE-only product: ${PAK_ONLY.name}`);
     let card = await searchProduct(page, PAK_ONLY);
     assert(card.includes("Not at New World"), `PAK'nSAVE-only card missing stock note: ${card}`);
@@ -240,6 +279,13 @@ async function main() {
     assert(
       catalogueBarcodes === 0,
       `catalogue product without a GTIN should not show a barcode card, saw ${catalogueBarcodes}`
+    );
+    const missingBarcodeNote = normalize(
+      await page.locator("#product-dialog .dialog__barcode-note").innerText()
+    );
+    assert(
+      missingBarcodeNote.includes("No barcode is recorded"),
+      `product without a GTIN should explain the missing barcode: ${missingBarcodeNote}`
     );
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
