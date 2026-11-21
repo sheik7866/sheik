@@ -462,6 +462,75 @@ PRODUCTS.forEach((p) => {
   p.code = demoBarcode(p.id);
 });
 
+/* EAN-13 encoding for the scannable barcode in the product dialog. */
+const EAN13_L = [
+  "0001101", "0011001", "0010011", "0111101", "0100011",
+  "0110001", "0101111", "0111011", "0110111", "0001011",
+];
+const EAN13_G = [
+  "0100111", "0110011", "0011011", "0100001", "0011101",
+  "0111001", "0000101", "0010001", "0001001", "0010111",
+];
+const EAN13_R = [
+  "1110010", "1100110", "1101100", "1000010", "1011100",
+  "1001110", "1010000", "1000100", "1001000", "1110100",
+];
+const EAN13_PARITY = [
+  "LLLLLL", "LLGLGG", "LLGGLG", "LLGGGL", "LGLLGG",
+  "LGGLLG", "LGGGLL", "LGLGLG", "LGLGGL", "LGGLGL",
+];
+
+function ean13Digits(raw) {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (digits.length === 12) return `0${digits}`; // UPC-A is an EAN-13 with a leading zero.
+  return digits.length === 13 ? digits : "";
+}
+
+function ean13Svg(raw) {
+  const code = ean13Digits(raw);
+  if (!code) return "";
+  if (Number(code[12]) !== ean13CheckDigit(code.slice(0, 12))) return "";
+
+  const parity = EAN13_PARITY[Number(code[0])];
+  let bits = "101";
+  for (let index = 0; index < 6; index += 1) {
+    const digit = Number(code[index + 1]);
+    bits += parity[index] === "L" ? EAN13_L[digit] : EAN13_G[digit];
+  }
+  bits += "01010";
+  for (let index = 7; index < 13; index += 1) {
+    bits += EAN13_R[Number(code[index])];
+  }
+  bits += "101";
+
+  const quiet = 11;
+  const bars = [...bits]
+    .map((bit, index) => {
+      if (bit !== "1") return "";
+      const guard = index < 3 || (index >= 45 && index < 50) || index >= 92;
+      return `<rect x="${quiet + index}" y="3" width="1" height="${guard ? 58 : 52}"/>`;
+    })
+    .join("");
+
+  return `<svg class="barcode-card__svg" viewBox="0 0 117 72" role="img" aria-label="EAN-13 barcode ${code}" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"><rect width="117" height="72" fill="#fff"/><g fill="#000">${bars}</g><text x="58.5" y="68" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="7" letter-spacing="1.1">${code}</text></svg>`;
+}
+
+function barcodeCard(product) {
+  const svg = ean13Svg(product.code);
+  if (!svg) return "";
+  const code = ean13Digits(product.code);
+  return `
+    <section class="barcode-card" aria-label="EAN-13 barcode">
+      <div class="barcode-card__head">
+        <span class="barcode-card__title">EAN-13 barcode</span>
+        <button class="barcode-card__copy" type="button" data-copy-barcode="${code}">Copy barcode</button>
+      </div>
+      ${svg}
+      <p class="barcode-card__hint">Scan with the demo scanner or any barcode app.</p>
+      <p class="barcode-card__status" role="status" aria-live="polite"></p>
+    </section>`;
+}
+
 /* ---------- Derived helpers ---------- */
 
 function selectedStores() {
@@ -865,22 +934,46 @@ function closeReceipt() {
   else el.receiptDialog.removeAttribute("open");
 }
 
+async function writeTextToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const scratch = document.createElement("textarea");
+  scratch.value = text;
+  scratch.setAttribute("readonly", "");
+  scratch.style.position = "fixed";
+  scratch.style.opacity = "0";
+  document.body.appendChild(scratch);
+  scratch.select();
+  const copied = document.execCommand("copy");
+  scratch.remove();
+  if (!copied) throw new Error("copy failed");
+}
+
+async function copyBarcode(button) {
+  const code = button.dataset.copyBarcode || "";
+  const card = button.closest(".barcode-card");
+  const status = card ? card.querySelector(".barcode-card__status") : null;
+  try {
+    await writeTextToClipboard(code);
+    if (status) {
+      status.textContent = `Copied ${code}`;
+      status.dataset.tone = "ok";
+    }
+    toast("Barcode copied.");
+  } catch {
+    if (status) {
+      status.textContent = "Couldn't copy automatically — select the number instead.";
+      status.removeAttribute("data-tone");
+    }
+  }
+}
+
 async function copyReceiptSummary() {
   const text = receiptSummaryText(receiptGroups());
   try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-    } else {
-      const scratch = document.createElement("textarea");
-      scratch.value = text;
-      scratch.setAttribute("readonly", "");
-      scratch.style.position = "fixed";
-      scratch.style.opacity = "0";
-      document.body.appendChild(scratch);
-      scratch.select();
-      document.execCommand("copy");
-      scratch.remove();
-    }
+    await writeTextToClipboard(text);
     el.receiptStatus.textContent = "Summary copied — paste it into a message or note.";
     el.receiptStatus.dataset.tone = "ok";
     toast("Receipt summary copied.");
@@ -1195,6 +1288,8 @@ function openProduct(productId) {
       <button class="dialog__close" type="button" data-close-dialog aria-label="Close">×</button>
     </div>
 
+    ${barcodeCard(product)}
+
     ${
       anyEstimate
         ? `          <p class="dialog__estimate">${
@@ -1365,6 +1460,11 @@ el.listItems.addEventListener("click", (event) => {
 });
 
 el.dialogContent.addEventListener("click", (event) => {
+  const copyBarcodeButton = event.target.closest("[data-copy-barcode]");
+  if (copyBarcodeButton) {
+    copyBarcode(copyBarcodeButton);
+    return;
+  }
   const removePriceButton = event.target.closest("[data-remove-price]");
   if (removePriceButton) {
     removeRecordedPrice(dialogProductId, removePriceButton.dataset.removePrice);

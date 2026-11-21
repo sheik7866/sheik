@@ -1642,6 +1642,76 @@ button.grocer-item__price:disabled {
   color: var(--ink-mute);
 }
 
+.barcode-card {
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.8rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.barcode-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.barcode-card__title {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.barcode-card__copy {
+  flex: none;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--leaf-deep);
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.barcode-card__copy:hover {
+  border-color: var(--leaf);
+}
+
+.barcode-card__svg {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  margin: 0.5rem auto 0;
+}
+
+.barcode-card__hint {
+  margin-top: 0.35rem;
+  text-align: center;
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: var(--ink-mute);
+}
+
+.barcode-card__status {
+  min-height: 0.9rem;
+  margin-top: 0.15rem;
+  text-align: center;
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: var(--ink-mute);
+}
+
+.barcode-card__status[data-tone="ok"] {
+  font-weight: 600;
+  color: var(--leaf-deep);
+}
+
 .dialog__close {
   flex: none;
   width: 32px;
