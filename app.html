@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="app.css" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
+  <script src="data/catalogue.js" defer></script>
 </head>
 <body class="app-body">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -53,12 +54,13 @@
           prices the item across your stores, keeps a shopping list and adds up which
           shop is cheapest for the whole basket.
         </p>
-        <p class="app-intro__note">
+                  <p class="app-intro__note">
           Scanned barcodes are looked up in Open Food Facts, and searches also query Grocer's
           public product catalogue, so names, brands, sizes and store coverage are real.
           Grocer doesn't publish prices, so prices are estimates — except the PAK'nSAVE
-          and New World staple prices imported on 21 Nov 2026, which are those stores'
-          shelf prices on that day. Nothing here is live supermarket pricing.
+          and New World shelf prices imported on 21 Nov 2026. Switch to “All products”
+          to browse the full 16,626-product catalogue pulled from those two stores.
+          Nothing here is live supermarket pricing.
         </p>
       </div>
     </div>
@@ -91,6 +93,10 @@
               <span>Scan</span>
             </button>
           </div>
+          <div class="catalog-mode" id="catalog-mode" role="group" aria-label="Catalogue">
+            <button class="catalog-mode__btn is-on" type="button" data-mode="demo" aria-pressed="true">Demo staples</button>
+            <button class="catalog-mode__btn" type="button" data-mode="all" aria-pressed="false">All products</button>
+          </div>
           <div class="chips" id="categories" role="group" aria-label="Filter by category"></div>
         </div>
 
@@ -101,6 +107,7 @@
           <button class="link-btn" type="button" id="off-lookup-button">Look up on Open Food Facts</button>
         </p>
         <ul class="product-grid" id="product-grid"></ul>
+        <button class="btn btn--outline btn--sm show-more" type="button" id="show-more" hidden>Show more products</button>
 
         <section class="grocer-live" id="grocer-panel" hidden aria-labelledby="grocer-live-heading">
           <div class="grocer-live__head">

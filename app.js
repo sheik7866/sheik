@@ -20,7 +20,7 @@ function product(id, name, size, category, base) {
   return { id, name, size, category, base };
 }
 
-const PRODUCTS = [
+const DEMO_PRODUCTS = [
   product("milk-2l", "Anchor Blue Milk", "2L", "Dairy & eggs", 4.99),
   product("eggs-12", "Free Range Eggs", "12 pack", "Dairy & eggs", 9.49),
   product("butter-500", "Salted Butter", "500g", "Dairy & eggs", 7.29),
@@ -58,7 +58,47 @@ const PRODUCTS = [
 ];
 
 const MONTHS = ["Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov"];
-const CATEGORIES = ["All", ...Array.from(new Set(PRODUCTS.map((p) => p.category)))];
+
+/* The full PAK'nSAVE + New World catalogue, pulled from the stores' public
+   pages. Each row is [id, name, brand, size, department, subcategory,
+   paknsavePrice, newworldPrice, paknsaveUnit, newworldUnit] with prices in
+   cents. This is the "All products" catalogue; the curated staples above stay
+   the default demo so barcodes and the existing worked examples keep working. */
+const CATALOGUE = window.GROCER_CATALOGUE || null;
+const CATALOGUE_ROWS = Array.isArray(CATALOGUE?.items) ? CATALOGUE.items : [];
+
+function catalogueBase(pnsPrice, nwPrice) {
+  const prices = [pnsPrice, nwPrice].filter((price) => price > 0);
+  return prices.length ? Math.min(...prices) / 100 : 4.99;
+}
+
+const STORE_PRODUCTS = CATALOGUE_ROWS.map(
+  ([id, name, brand, size, department, subcategory, pnsPrice, nwPrice]) => ({
+    id,
+    name,
+    brand,
+    size,
+    category: department,
+    subcategory,
+    base: catalogueBase(pnsPrice, nwPrice),
+    source: "catalogue",
+    estimated: true,
+    code: "",
+    stores: (pnsPrice ? 1 : 0) + (nwPrice ? 1 : 0),
+  })
+);
+
+const PRODUCTS = [...DEMO_PRODUCTS, ...STORE_PRODUCTS];
+const DEMO_CATEGORIES = ["All", ...Array.from(new Set(DEMO_PRODUCTS.map((p) => p.category)))];
+const STORE_CATEGORIES = ["All", ...Array.from(new Set(STORE_PRODUCTS.map((p) => p.category)))];
+const CATEGORIES = [...new Set([...DEMO_CATEGORIES, ...STORE_CATEGORIES])];
+const PAGE_SIZE = 60;
+let visibleLimit = PAGE_SIZE;
+
+function categoriesForMode(mode) {
+  return mode === "all" ? STORE_CATEGORIES : DEMO_CATEGORIES;
+}
+
 const MAX_FREE_STORES = 6;
 const MAX_PRO_STORES = 30;
 const STORAGE_KEY = "grocer-demo-v1";
@@ -110,11 +150,33 @@ const PRICE_HINTS = [
 const STORE_MAP = new Map(STORES.map((s) => [s.id, s]));
 const PRODUCT_MAP = new Map(PRODUCTS.map((p) => [p.id, p]));
 
-/* Small dated imports (data/*-import.js): real shelf prices for a handful of
-   staples, one store each, one day. */
-const IMPORTS = [window.GROCER_PAKNSAVE_IMPORT, window.GROCER_NEWWORLD_IMPORT].filter(
+/* Small dated imports (data/*-import.js) plus the full catalogue price maps.
+   Both are one store, one day; the catalogue file holds every product the
+   store returned. */
+const BASE_IMPORTS = [window.GROCER_PAKNSAVE_IMPORT, window.GROCER_NEWWORLD_IMPORT].filter(
   (imp) => imp && imp.storeId && imp.items
 );
+const CATALOGUE_PRICES = { paknsave: {}, newworld: {} };
+for (const row of CATALOGUE_ROWS) {
+  if (row[6]) CATALOGUE_PRICES.paknsave[row[0]] = { price: row[6] / 100 };
+  if (row[7]) CATALOGUE_PRICES.newworld[row[0]] = { price: row[7] / 100 };
+}
+const IMPORTS = ["paknsave", "newworld"]
+  .map((storeId) => {
+    const base = BASE_IMPORTS.find((imp) => imp.storeId === storeId);
+    const meta = CATALOGUE?.stores?.[storeId];
+    const catalogueItems = CATALOGUE_PRICES[storeId];
+    return {
+      storeId,
+      store: base?.store || meta?.name || storeId,
+      branch: base?.branch || meta?.branch || "",
+      fetchedAt: base?.fetchedAt || CATALOGUE?.fetchedAt || "",
+      source: base?.source || CATALOGUE?.source || "",
+      productCount: Object.keys(catalogueItems).length || Object.keys(base?.items || {}).length,
+      items: { ...(base?.items || {}), ...catalogueItems },
+    };
+  })
+  .filter((imp) => Object.keys(imp.items).length > 0);
 const money = new Intl.NumberFormat("en-NZ", { style: "currency", currency: "NZD" });
 
 const el = {
@@ -123,8 +185,10 @@ const el = {
   storeHint: document.getElementById("store-hint"),
   storeFoot: document.getElementById("store-foot"),
   search: document.getElementById("search"),
+  catalogMode: document.getElementById("catalog-mode"),
   categories: document.getElementById("categories"),
   resultsLine: document.getElementById("results-line"),
+  showMore: document.getElementById("show-more"),
   grocerPanel: document.getElementById("grocer-panel"),
   grocerCount: document.getElementById("grocer-live-count"),
   grocerStatus: document.getElementById("grocer-live-status"),
@@ -166,6 +230,7 @@ const defaults = {
   live: [],
   prices: {},
   category: "All",
+  mode: "demo",
 };
 
 function todayIso() {
@@ -184,6 +249,8 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return fresh();
     const parsed = JSON.parse(raw);
+    const mode = parsed.mode === "all" ? "all" : "demo";
+    const modeCategories = categoriesForMode(mode);
 
     // Discovered products must exist before the saved list is filtered,
     // otherwise their basket rows would be dropped on reload.
@@ -238,7 +305,8 @@ function loadState() {
             .filter((row) => row && PRODUCT_MAP.has(row.id) && Number.isFinite(row.qty) && row.qty > 0)
             .map((row) => ({ id: row.id, qty: Math.min(Math.round(row.qty), 99) }))
         : [],
-      category: CATEGORIES.includes(parsed.category) ? parsed.category : "All",
+      category: modeCategories.includes(parsed.category) ? parsed.category : "All",
+      mode,
       live,
     };
   } catch {
@@ -365,8 +433,9 @@ function demoBarcode(seed) {
 }
 
 PRODUCTS.forEach((p) => {
-  // Products discovered live already carry their real barcode.
-  if (p.code) return;
+  // Products discovered live or imported from a store already carry their own
+  // identity; only the curated demo staples get a derived demo barcode.
+  if (p.code || p.source === "catalogue") return;
   p.code = demoBarcode(p.id);
 });
 
@@ -398,14 +467,18 @@ function bestOffer(productId) {
 
 function visibleProducts() {
   const query = (el.search.value || "").trim().toLowerCase();
-  return PRODUCTS.filter((p) => {
+  const source =
+    state.mode === "all" ? STORE_PRODUCTS : PRODUCTS.filter((p) => p.source !== "catalogue");
+  return source.filter((p) => {
     if (state.category !== "All" && p.category !== state.category) return false;
     if (!query) return true;
     return (
       p.name.toLowerCase().includes(query) ||
+      (p.brand || "").toLowerCase().includes(query) ||
       p.category.toLowerCase().includes(query) ||
+      (p.subcategory || "").toLowerCase().includes(query) ||
       p.size.toLowerCase().includes(query) ||
-      p.code.includes(query)
+      (p.code || "").includes(query)
     );
   });
 }
@@ -455,16 +528,32 @@ function renderStores() {
 }
 
 function renderCategories() {
-  el.categories.innerHTML = CATEGORIES.map(
-    (category) => `
+  el.categories.innerHTML = categoriesForMode(state.mode)
+    .map(
+      (category) => `
       <button class="chip${state.category === category ? " is-on" : ""}" type="button" data-category="${escapeHtml(category)}" aria-pressed="${state.category === category}">
         ${escapeHtml(category)}
       </button>`
-  ).join("");
+    )
+    .join("");
+}
+
+function renderCatalogueMode() {
+  if (!el.catalogMode) return;
+  [...el.catalogMode.querySelectorAll("[data-mode]")].forEach((button) => {
+    const on = button.dataset.mode === state.mode;
+    button.classList.toggle("is-on", on);
+    button.setAttribute("aria-pressed", String(on));
+  });
+  el.search.placeholder =
+    state.mode === "all"
+      ? `Search ${STORE_PRODUCTS.length.toLocaleString("en-NZ")} products…`
+      : "Search a product or type a barcode…";
 }
 
 function renderProducts() {
-  const products = visibleProducts();
+  const allProducts = visibleProducts();
+  const products = allProducts.slice(0, visibleLimit);
   const stores = selectedStores();
 
   el.productGrid.innerHTML = products
@@ -477,7 +566,7 @@ function renderProducts() {
         <li class="product">
           <button class="product__open" type="button" data-product="${product.id}" aria-label="View prices for ${escapeHtml(product.name)}">
             <span class="product__name">${escapeHtml(product.name)}</span>
-            <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
+            <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
             <span class="product__best">
               ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(best.store.name)}</small>` : `<b>—</b><small>no stores selected</small>`}
             </span>
@@ -489,18 +578,23 @@ function renderProducts() {
     .join("");
 
   const grocerActive = grocerStatus !== "idle";
-  el.emptyProducts.hidden = products.length > 0 || grocerActive;
-  el.resultsLine.textContent = products.length
-    ? `${products.length} product${products.length === 1 ? "" : "s"}${state.category !== "All" ? ` in ${state.category}` : ""}${stores.length ? ` · priced at ${stores.length} store${stores.length === 1 ? "" : "s"}` : ""}`
+  el.emptyProducts.hidden = allProducts.length > 0 || grocerActive;
+  el.resultsLine.textContent = allProducts.length
+    ? `${allProducts.length.toLocaleString("en-NZ")} product${allProducts.length === 1 ? "" : "s"}${state.category !== "All" ? ` in ${state.category}` : ""}${state.mode === "all" ? ` · showing ${products.length.toLocaleString("en-NZ")}` : ""}${stores.length ? ` · priced at ${stores.length} store${stores.length === 1 ? "" : "s"}` : ""}`
     : grocerStatus === "ready" && grocerHits.size
       ? `${grocerHits.size} live match${grocerHits.size === 1 ? "" : "es"} from Grocer's catalogue`
       : grocerStatus === "loading"
         ? "Searching Grocer's catalogue…"
         : "No products found";
 
+  if (el.showMore) {
+    el.showMore.hidden = allProducts.length <= visibleLimit;
+    el.showMore.textContent = `Show ${Math.min(PAGE_SIZE, allProducts.length - visibleLimit)} more products`;
+  }
+
   // A long digit string is probably a real barcode: offer a live lookup.
   const query = normalizeBarcode(el.search.value || "");
-  const offerLookup = products.length === 0 && query.length >= 8 && query.length <= 14;
+  const offerLookup = allProducts.length === 0 && query.length >= 8 && query.length <= 14;
   el.offLookup.hidden = !offerLookup;
   if (offerLookup) {
     el.offLookupText.textContent = `Barcode ${query} isn't in the demo catalogue.`;
@@ -747,6 +841,7 @@ async function shareReceiptSummary() {
 
 function renderAll() {
   renderStores();
+  renderCatalogueMode();
   renderCategories();
   renderProducts();
   renderList();
@@ -811,8 +906,9 @@ function clearList() {
 }
 
 function setCategory(category) {
-  if (!CATEGORIES.includes(category)) return;
+  if (!categoriesForMode(state.mode).includes(category)) return;
   state.category = category;
+  visibleLimit = PAGE_SIZE;
   saveState();
   renderCategories();
   renderProducts();
@@ -1015,13 +1111,15 @@ function openProduct(productId) {
       <div class="dialog__head-main">
         <p class="dialog__eyebrow">${escapeHtml(product.category)}</p>
         <h2 id="dialog-title">${escapeHtml(product.name)}</h2>
-        <p class="dialog__meta">${product.brand ? `${escapeHtml(product.brand)} · ` : ""}${escapeHtml(product.size || "size not listed")}${product.source === "grocer" ? " · Grocer catalogue" : ` · Barcode ${product.code}`}</p>
+        <p class="dialog__meta">${product.brand ? `${escapeHtml(product.brand)} · ` : ""}${escapeHtml(product.size || "size not listed")}${product.source === "grocer" ? " · Grocer catalogue" : product.code ? ` · Barcode ${product.code}` : ""}</p>
         ${
           product.source === "grocer"
             ? `<p class="dialog__source">Real product data from <a href="https://grocer.nz" target="_blank" rel="noopener">Grocer's catalogue</a>${product.stores ? ` · stocked at ${product.stores} stores` : ""}</p>`
-            : product.estimated
-              ? `<p class="dialog__source">Real product data from <a href="https://world.openfoodfacts.org/product/${product.code}" target="_blank" rel="noopener">Open Food Facts</a></p>`
-              : ""
+            : product.source === "catalogue"
+              ? `<p class="dialog__source">Shelf prices imported from PAK'nSAVE and New World on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · stocked at ${product.stores} of 2 stores</p>`
+              : product.estimated
+                ? `<p class="dialog__source">Real product data from <a href="https://world.openfoodfacts.org/product/${product.code}" target="_blank" rel="noopener">Open Food Facts</a></p>`
+                : ""
         }
       </div>
       ${product.image ? `<img class="dialog__thumb" src="${escapeHtml(product.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ""}
@@ -1151,6 +1249,26 @@ el.categories.addEventListener("click", (event) => {
   if (chip) setCategory(chip.dataset.category);
 });
 
+if (el.catalogMode) {
+  el.catalogMode.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-mode]");
+    if (!button || !["demo", "all"].includes(button.dataset.mode)) return;
+    if (button.dataset.mode === state.mode) return;
+    state.mode = button.dataset.mode;
+    state.category = "All";
+    visibleLimit = PAGE_SIZE;
+    saveState();
+    renderAll();
+  });
+}
+
+if (el.showMore) {
+  el.showMore.addEventListener("click", () => {
+    visibleLimit += PAGE_SIZE;
+    renderProducts();
+  });
+}
+
 el.productGrid.addEventListener("click", (event) => {
   const add = event.target.closest("[data-add]");
   if (add) {
@@ -1201,6 +1319,7 @@ el.dialog.addEventListener("click", (event) => {
 });
 
 el.search.addEventListener("input", () => {
+  visibleLimit = PAGE_SIZE;
   renderProducts();
   scheduleGrocerSearch();
 });
@@ -1311,9 +1430,11 @@ function matchBarcode(raw) {
   if (digits.length < 8) return null;
   const padded = digits.padStart(13, "0");
   return (
-    PRODUCTS.find((p) => p.code === digits) ||
-    PRODUCTS.find((p) => p.code === padded) ||
-    PRODUCTS.find((p) => digits.length >= 12 && (p.code.endsWith(digits) || digits.endsWith(p.code))) ||
+    PRODUCTS.find((p) => p.code && p.code === digits) ||
+    PRODUCTS.find((p) => p.code && p.code === padded) ||
+    PRODUCTS.find(
+      (p) => p.code && digits.length >= 12 && (p.code.endsWith(digits) || digits.endsWith(p.code))
+    ) ||
     null
   );
 }
@@ -1533,7 +1654,7 @@ if (scanButton) {
       toast("The camera scanner isn't available in this browser.");
       return;
     }
-    const demo = PRODUCTS[Math.floor(Math.random() * PRODUCTS.length)];
+    const demo = DEMO_PRODUCTS[Math.floor(Math.random() * DEMO_PRODUCTS.length)];
     window.GrocerScan({ onCode: handleScanCode, demoCode: demo.code });
   });
 }
@@ -1827,8 +1948,11 @@ function renderGrocerResults() {
 function renderImportBanner() {
   if (!el.importBanner || !IMPORTS.length) return;
   const labels = IMPORTS.map((imp) => `${imp.store} ${imp.branch}`).join(" and ");
-  const counts = IMPORTS.map((imp) => Object.keys(imp.items).length);
-  const countText = counts.every((n) => n === counts[0]) ? `${counts[0]} staples each` : "a basket of staples";
+  const counts = IMPORTS.map((imp) => imp.productCount || Object.keys(imp.items).length);
+  const countText =
+    counts.length === 2
+      ? `${counts[0].toLocaleString("en-NZ")} and ${counts[1].toLocaleString("en-NZ")} products`
+      : `${counts.reduce((sum, count) => sum + count, 0).toLocaleString("en-NZ")} products`;
   el.importBanner.textContent = `${labels} shelf prices for ${countText}, fetched ${importDateLabel()}. Everything else is an estimate unless you record it.`;
   el.importBanner.hidden = false;
 }
