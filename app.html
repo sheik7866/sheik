@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en-NZ">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grocer demo — compare your shop across stores</title>
+  <meta name="description" content="Interactive demo of Grocer: pick your supermarkets, search a product and compare prices, price history and basket totals. Demo data only." />
+  <meta name="theme-color" content="#fbf7ee" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23157a4b'/%3E%3Cpath d='M8 12h16l-1.6 8.8a2 2 0 0 1-2 1.7H11.6a2 2 0 0 1-2-1.7L8 12Z' fill='none' stroke='%23c6f26b' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M12.5 12 15 7M19.5 12 17 7' fill='none' stroke='%23c6f26b' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="app.css" />
+  <script src="data/paknsave-import.js" defer></script>
+  <script src="data/newworld-import.js" defer></script>
+</head>
+<body class="app-body">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="app-bar">
+    <div class="app-bar__inner">
+      <a class="brand" href="index.html" aria-label="Grocer home">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M4 9h16l-1.7 9.3a2 2 0 0 1-2 1.7H7.7a2 2 0 0 1-2-1.7L4 9Z" />
+            <path d="M8.5 9 11 3.5M15.5 9 13 3.5" />
+          </svg>
+        </span>
+        <span class="brand__name">Grocer</span>
+      </a>
+      <span class="app-bar__tag">Interactive demo</span>
+
+      <div class="app-bar__actions">
+        <label class="switch" for="pro-toggle">
+          <input type="checkbox" id="pro-toggle" />
+          <span class="switch__track" aria-hidden="true"></span>
+          <span class="switch__label">Pro <span class="switch__hint">12-month history</span></span>
+        </label>
+        <button class="app-bar__reset" type="button" id="reset-demo">Reset</button>
+        <a class="btn btn--sm btn--outline" href="index.html">Back to site</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="app-main">
+    <div class="app-intro">
+      <div>
+        <p class="eyebrow"><span class="eyebrow__dot"></span>Working demo</p>
+        <h1>Compare your shop.</h1>
+        <p>
+          Pick your supermarkets, then search for a product or type a barcode. Grocer
+          prices the item across your stores, keeps a shopping list and adds up which
+          shop is cheapest for the whole basket.
+        </p>
+        <p class="app-intro__note">
+          Scanned barcodes are looked up in Open Food Facts, and searches also query Grocer's
+          public product catalogue, so names, brands, sizes and store coverage are real.
+          Grocer doesn't publish prices, so prices are estimates — except the PAK'nSAVE
+          and New World staple prices imported on 21 Nov 2026, which are those stores'
+          shelf prices on that day. Nothing here is live supermarket pricing.
+        </p>
+      </div>
+    </div>
+
+    <div class="app-layout">
+      <section class="panel panel--stores" aria-labelledby="stores-heading">
+        <div class="panel__head">
+          <h2 id="stores-heading">Your stores</h2>
+          <span class="counter" id="store-counter">0 / 6</span>
+        </div>
+        <p class="panel__hint" id="store-hint">Pick at least one store to compare.</p>
+        <ul class="store-list" id="store-list"></ul>
+        <p class="panel__foot" id="store-foot"></p>
+      </section>
+
+      <section class="panel panel--catalog" aria-labelledby="catalog-heading">
+        <div class="catalog__head">
+          <h2 id="catalog-heading" class="sr-only">Products</h2>
+          <div class="search">
+            <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="6" />
+              <path d="m16 16 4 4" />
+            </svg>
+            <input id="search" type="search" placeholder="Search a product or type a barcode…" autocomplete="off" aria-label="Search products or enter a barcode" />
+            <button class="search__scan" type="button" id="scan-button" aria-haspopup="dialog">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
+                <path d="M4 12h16" />
+              </svg>
+              <span>Scan</span>
+            </button>
+          </div>
+          <div class="chips" id="categories" role="group" aria-label="Filter by category"></div>
+        </div>
+
+        <p class="results-line" id="results-line" aria-live="polite"></p>
+        <p class="import-banner" id="import-banner" hidden></p>
+        <p class="lookup-line" id="off-lookup" hidden>
+          <span id="off-lookup-text"></span>
+          <button class="link-btn" type="button" id="off-lookup-button">Look up on Open Food Facts</button>
+        </p>
+        <ul class="product-grid" id="product-grid"></ul>
+
+        <section class="grocer-live" id="grocer-panel" hidden aria-labelledby="grocer-live-heading">
+          <div class="grocer-live__head">
+            <h3 id="grocer-live-heading">Grocer catalogue</h3>
+            <span class="grocer-live__count" id="grocer-live-count"></span>
+          </div>
+          <p class="grocer-live__status" id="grocer-live-status" role="status" aria-live="polite"></p>
+          <ul class="grocer-list" id="grocer-results"></ul>
+          <p class="grocer-live__note">
+            Live product data from <a href="https://grocer.nz" target="_blank" rel="noopener">grocer.nz</a>'s
+            public catalogue. It publishes products, not prices, so anything you add stays
+            estimated until you record what you saw on the shelf.
+          </p>
+        </section>
+        <p class="empty" id="empty-products" hidden>
+          Nothing matches that search. Try “milk”, “cheese”, “coffee”, or a barcode from
+          the demo catalogue.
+        </p>
+      </section>
+
+      <aside class="panel panel--list" aria-labelledby="list-heading">
+        <div class="panel__head">
+          <h2 id="list-heading">Shopping list</h2>
+          <button class="link-btn" type="button" id="clear-list">Clear</button>
+        </div>
+
+        <ul class="list" id="list-items"></ul>
+        <p class="empty" id="empty-list">Your list is empty. Add a product to see which store is cheapest for the whole shop.</p>
+
+        <div class="totals" id="totals" aria-live="polite"></div>
+        <button class="btn btn--leaf receipt-open" type="button" id="bulk-price-button" hidden>Record shelf prices</button>
+        <button class="btn btn--outline receipt-open" type="button" id="receipt-button" hidden>View receipt</button>
+        <p class="demo-note" id="totals-note">Totals use estimates plus any shelf prices you've recorded or imported.</p>
+      </aside>
+    </div>
+  </main>
+
+  <dialog class="product-dialog" id="product-dialog" aria-labelledby="dialog-title">
+    <div class="dialog__inner" id="dialog-content"></div>
+  </dialog>
+
+  <dialog class="scan-dialog" id="scan-dialog" aria-labelledby="scan-title">
+    <div class="scan__inner">
+      <div class="scan__head">
+        <div>
+          <p class="scan__eyebrow">Barcode scan</p>
+          <h2 id="scan-title">Point at a barcode</h2>
+        </div>
+        <div class="scan__head-side">
+          <span class="scan__count" id="scan-count" hidden>0 scanned</span>
+          <button class="dialog__close" type="button" data-close-scan aria-label="Close scanner">×</button>
+        </div>
+      </div>
+
+      <div class="scan__viewport">
+        <video id="scan-video" playsinline muted autoplay></video>
+        <div class="scan__tools">
+          <button class="scan__tool" id="scan-torch" type="button" aria-pressed="false" aria-label="Toggle torch" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5Z" />
+            </svg>
+          </button>
+          <button class="scan__tool" id="scan-switch" type="button" aria-label="Switch camera" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 11a8 8 0 0 1 13.5-4.5L20 10" />
+              <path d="M21 5v5h-5" />
+              <path d="M21 13a8 8 0 0 1-13.5 4.5L4 14" />
+              <path d="M3 19v-5h5" />
+            </svg>
+          </button>
+        </div>
+        <div class="scan__reticle" aria-hidden="true"></div>
+        <p class="scan__status" id="scan-status" role="status" aria-live="polite">Starting camera…</p>
+      </div>
+
+      <p class="scan__hint" id="scan-hint">Hold the barcode inside the frame until it reads.</p>
+
+      <div class="scan__actions">
+        <button class="btn btn--outline btn--sm" type="button" id="scan-demo">Use a demo barcode</button>
+        <label class="switch scan__mode" for="scan-add-mode">
+          <input type="checkbox" id="scan-add-mode" />
+          <span class="switch__track" aria-hidden="true"></span>
+          <span class="scan__mode-label">Add scans to list</span>
+        </label>
+        <span class="scan__note">Frames are decoded on your device; nothing is uploaded.</span>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="receipt-dialog" id="receipt-dialog" aria-labelledby="receipt-title">
+    <div class="receipt-dialog__inner">
+      <div class="receipt-dialog__head">
+        <div>
+          <p class="receipt-dialog__eyebrow">Basket receipt</p>
+          <h2 id="receipt-title">Your shop, store by store</h2>
+        </div>
+        <button class="dialog__close" type="button" data-close-receipt aria-label="Close receipt">×</button>
+      </div>
+
+      <div class="receipt-dialog__scroll" id="receipt-body"></div>
+
+      <div class="receipt-dialog__share">
+        <button class="btn btn--leaf btn--sm" type="button" id="receipt-copy">Copy summary</button>
+        <button class="btn btn--outline btn--sm" type="button" id="receipt-share" hidden>Share…</button>
+        <p class="receipt-dialog__status" id="receipt-status" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="bulk-dialog" id="bulk-price-dialog" aria-labelledby="bulk-price-title">
+    <div class="bulk__inner">
+      <div class="receipt-dialog__head">
+        <div>
+          <p class="receipt-dialog__eyebrow">Shelf prices</p>
+          <h2 id="bulk-price-title">Record a whole receipt</h2>
+        </div>
+        <button class="dialog__close" type="button" data-close-bulk aria-label="Close price entry">×</button>
+      </div>
+
+      <p class="bulk__intro">
+        Pick the store on your receipt, then type what you paid for each item. Blank rows are skipped.
+      </p>
+
+      <div class="bulk__controls">
+        <label class="check-price__field">
+          <span>Store</span>
+          <select id="bulk-store"></select>
+        </label>
+        <label class="check-price__field">
+          <span>Seen on</span>
+          <input id="bulk-date" type="date" />
+        </label>
+      </div>
+
+      <div class="bulk__rows" id="bulk-rows"></div>
+      <p class="bulk__status" id="bulk-status" role="status" aria-live="polite"></p>
+
+      <div class="bulk__actions">
+        <button class="btn btn--leaf" type="button" id="bulk-save">Save prices</button>
+        <button class="btn btn--outline" type="button" data-close-bulk>Cancel</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js" defer></script>
+  <script src="scanner.js" defer></script>
+</body>
+</html>
