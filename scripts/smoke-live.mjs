@@ -5,11 +5,11 @@
   It replays the per-store availability check against the deployed site:
   a PAK'nSAVE-only product, a New World-only product and a mixed basket must
   show "not stocked" instead of an invented price, and a chain missing an item
-  must not be ranked or totalled. It also renders a demo product's barcode and
-  decodes the pixels with the site's own vendored ZXing build, so a broken
-  barcode image fails the post-deploy check, and it requires a loaded product
-  picture plus the import banner's last price-check time and shelf-price
-  coverage summary.
+  must not be ranked or totalled. It also verifies demo staples do not show an
+  invented barcode and decodes a known real GTIN with the site's own vendored
+  ZXing build, so a broken barcode image fails the post-deploy check. It also
+  requires a loaded product picture plus the import banner's last price-check
+  time and shelf-price coverage summary.
 
   Usage:
     npm run smoke:live
@@ -53,10 +53,11 @@ const NW_ONLY = {
   missingAt: "Pak'nSave",
 };
 
-const BARCODE_PRODUCT = {
+const DEMO_STAPLE = {
   id: "milk-2l",
   name: "Anchor Blue Milk",
 };
+const REAL_GTIN = "9300617075462";
 
 const step = (message) => console.log(`[smoke] ${message}`);
 const normalize = (value) => value.replace(/\s+/g, " ").trim();
@@ -168,34 +169,47 @@ async function main() {
       `price-coverage summary missing: ${coverageLine}`
     );
 
+    step(`demo staple has no invented barcode: ${DEMO_STAPLE.name}`);
+    await page.waitForSelector(`#product-grid [data-product="${DEMO_STAPLE.id}"]`, {
+      timeout: 5000,
+    });
+    await page.locator(`#product-grid [data-product="${DEMO_STAPLE.id}"]`).click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const stapleBarcodes = await page.locator("#product-dialog .barcode-card").count();
+    assert(
+      stapleBarcodes === 0,
+      `demo staple should not show an invented barcode, saw ${stapleBarcodes}`
+    );
+    const barcodeNote = normalize(await page.locator("#product-dialog .dialog__barcode-note").innerText());
+    assert(
+      barcodeNote.includes("No EAN-13 barcode is recorded"),
+      `demo staple should explain the missing barcode: ${barcodeNote}`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+
     step("loading the demo's barcode decoder");
     await page.addScriptTag({ url: new URL("vendor/zxing.min.js", TARGET).href });
 
-    step(`demo product barcode: ${BARCODE_PRODUCT.name}`);
-    await page.waitForSelector(`#product-grid [data-product="${BARCODE_PRODUCT.id}"]`, {
-      timeout: 5000,
-    });
-    await page.locator(`#product-grid [data-product="${BARCODE_PRODUCT.id}"]`).click();
-    await page.waitForSelector("#product-dialog[open] .barcode-card", { timeout: 5000 });
+    step(`rendering real GTIN: ${REAL_GTIN}`);
+    await page.evaluate((code) => {
+      const mount = document.createElement("div");
+      mount.id = "smoke-barcode";
+      mount.style.cssText =
+        "position:fixed;left:0;top:0;width:234px;height:144px;background:#fff;z-index:99999";
+      mount.innerHTML = ean13Svg(code);
+      document.body.append(mount);
+    }, REAL_GTIN);
+    const barcodeLabel = await page.locator("#smoke-barcode svg").getAttribute("aria-label");
+    assert(barcodeLabel?.includes(REAL_GTIN), `barcode image label does not name ${REAL_GTIN}: ${barcodeLabel}`);
 
-    const barcodeCode = await page
-      .locator("#product-dialog .barcode-card [data-copy-barcode]")
-      .getAttribute("data-copy-barcode");
-    assert(/^\d{13}$/.test(barcodeCode || ""), `barcode card has no EAN-13 code: ${barcodeCode}`);
-    const barcodeLabel = await page
-      .locator("#product-dialog .barcode-card svg.barcode-card__svg")
-      .getAttribute("aria-label");
-    assert(barcodeLabel?.includes(barcodeCode), `barcode image label does not name ${barcodeCode}: ${barcodeLabel}`);
-
-    const decoded = await decodeRenderedBarcode(page, "#product-dialog .barcode-card svg.barcode-card__svg");
+    const decoded = await decodeRenderedBarcode(page, "#smoke-barcode svg");
     assert(decoded.ean13, `rendered barcode is not an EAN-13 image: ${decoded.text}`);
     assert(
-      decoded.text === barcodeCode,
-      `rendered barcode decoded as ${decoded.text}, expected ${barcodeCode}`
+      decoded.text === REAL_GTIN,
+      `rendered barcode decoded as ${decoded.text}, expected ${REAL_GTIN}`
     );
-
-    await page.keyboard.press("Escape");
-    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+    await page.evaluate(() => document.querySelector("#smoke-barcode")?.remove());
 
     step("checking the merged catalogue");
     const resultsLine = normalize(await page.locator("#results-line").innerText());

@@ -1296,6 +1296,12 @@ button.grocer-item__price:disabled {
   text-underline-offset: 2px;
 }
 
+.dialog__barcode-note {
+  margin: 0 0 0.85rem;
+  font-size: 0.72rem;
+  color: var(--ink-mute);
+}
+
 .dialog__estimate {
   margin-top: 0.85rem;
   padding: 0.55rem 0.7rem;

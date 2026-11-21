@@ -504,9 +504,7 @@ function historyFor(productId, storeId, months) {
   return values;
 }
 
-/* Products get a stable demo barcode derived from their id.
-   The 13th digit is a real EAN-13 check digit, so these codes
-   behave like retail barcodes if printed or rendered. */
+/* EAN-13 check-digit validation for real GTINs shown in the product dialog. */
 function ean13CheckDigit(base12) {
   const sum = base12
     .slice(0, 12)
@@ -516,17 +514,9 @@ function ean13CheckDigit(base12) {
   return (10 - (sum % 10)) % 10;
 }
 
-function demoBarcode(seed) {
-  const base = `94${String(hash(seed) % 10000000000).padStart(10, "0")}`;
-  return `${base}${ean13CheckDigit(base)}`;
-}
-
-PRODUCTS.forEach((p) => {
-  // Products discovered live or imported from a store already carry their own
-  // identity; only the curated demo staples get a derived demo barcode.
-  if (p.code || p.source === "catalogue") return;
-  p.code = demoBarcode(p.id);
-});
+/* Barcodes are only rendered for products with a real GTIN. Curated staples
+   and Grocer's product index do not include one, so they show no barcode
+   rather than a made-up code. */
 
 /* EAN-13 encoding for the scannable barcode in the product dialog. */
 const EAN13_L = [
@@ -1320,6 +1310,7 @@ function openProduct(productId) {
   const unavailable = selectedStores().filter((store) => knownUnavailable(productId, store.id));
   const anyEstimate = offers.some((offer) => !priceIsChecked(productId, offer.store.id));
   const hasImport = offers.some((offer) => priceKind(productId, offer.store.id) === "imported");
+  const barcode = barcodeCard(product);
   dialogProductId = productId;
 
   el.dialogContent.innerHTML = `
@@ -1342,7 +1333,8 @@ function openProduct(productId) {
       <button class="dialog__close" type="button" data-close-dialog aria-label="Close">×</button>
     </div>
 
-    ${barcodeCard(product)}
+    ${barcode}
+    ${barcode ? "" : `<p class="dialog__barcode-note">No EAN-13 barcode is recorded for this product.</p>`}
 
     ${
       anyEstimate
@@ -1908,7 +1900,8 @@ function grocerRow(hit) {
   const id = `grocer-${hit.id}`;
   return {
     id,
-    code: demoBarcode(id),
+    // The public index does not expose a GTIN, so leave this blank.
+    code: "",
     name,
     brand: String(hit.brand || "").trim(),
     size: formatGrocerSize(hit.size),
