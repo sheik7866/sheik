@@ -5,7 +5,9 @@
   It replays the per-store availability check against the deployed site:
   a PAK'nSAVE-only product, a New World-only product and a mixed basket must
   show "not stocked" instead of an invented price, and a chain missing an item
-  must not be ranked or totalled.
+  must not be ranked or totalled. It also renders a demo product's barcode and
+  decodes the pixels with the site's own vendored ZXing build, so a broken
+  barcode image fails the post-deploy check.
 
   Usage:
     npm run smoke:live
@@ -49,6 +51,11 @@ const NW_ONLY = {
   missingAt: "Pak'nSave",
 };
 
+const BARCODE_PRODUCT = {
+  id: "milk-2l",
+  name: "Anchor Blue Milk",
+};
+
 const step = (message) => console.log(`[smoke] ${message}`);
 const normalize = (value) => value.replace(/\s+/g, " ").trim();
 
@@ -68,6 +75,23 @@ async function searchProduct(page, { name, sku }) {
   return cardText(page, sku);
 }
 
+async function decodeRenderedBarcode(page, selector) {
+  const svg = page.locator(selector);
+  await svg.waitFor({ state: "visible", timeout: 5000 });
+  const png = await svg.screenshot({ scale: "device" });
+  return page.evaluate(async (base64) => {
+    if (!window.ZXing) throw new Error("ZXing decoder is not loaded");
+    const image = new Image();
+    image.src = `data:image/png;base64,${base64}`;
+    const reader = new ZXing.BrowserMultiFormatReader();
+    const result = await reader.decodeFromImageElement(image);
+    return {
+      text: result.getText(),
+      ean13: result.getBarcodeFormat() === ZXing.BarcodeFormat.EAN_13,
+    };
+  }, png.toString("base64"));
+}
+
 async function addToList(page, sku, expectedCount) {
   await page.locator(`#product-grid [data-add="${sku}"]`).click();
   await page.waitForFunction(
@@ -81,6 +105,7 @@ async function main() {
   const browser = await chromium.launch();
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
+    deviceScaleFactor: 2,
     locale: "en-NZ",
   });
 
@@ -108,6 +133,35 @@ async function main() {
       () => Array.isArray(window.GROCER_CATALOGUE?.items) && window.GROCER_CATALOGUE.items.length > 0,
       { timeout: 20000 }
     );
+
+    step("loading the demo's barcode decoder");
+    await page.addScriptTag({ url: new URL("vendor/zxing.min.js", TARGET).href });
+
+    step(`demo product barcode: ${BARCODE_PRODUCT.name}`);
+    await page.waitForSelector(`#product-grid [data-product="${BARCODE_PRODUCT.id}"]`, {
+      timeout: 5000,
+    });
+    await page.locator(`#product-grid [data-product="${BARCODE_PRODUCT.id}"]`).click();
+    await page.waitForSelector("#product-dialog[open] .barcode-card", { timeout: 5000 });
+
+    const barcodeCode = await page
+      .locator("#product-dialog .barcode-card [data-copy-barcode]")
+      .getAttribute("data-copy-barcode");
+    assert(/^\d{13}$/.test(barcodeCode || ""), `barcode card has no EAN-13 code: ${barcodeCode}`);
+    const barcodeLabel = await page
+      .locator("#product-dialog .barcode-card svg.barcode-card__svg")
+      .getAttribute("aria-label");
+    assert(barcodeLabel?.includes(barcodeCode), `barcode image label does not name ${barcodeCode}: ${barcodeLabel}`);
+
+    const decoded = await decodeRenderedBarcode(page, "#product-dialog .barcode-card svg.barcode-card__svg");
+    assert(decoded.ean13, `rendered barcode is not an EAN-13 image: ${decoded.text}`);
+    assert(
+      decoded.text === barcodeCode,
+      `rendered barcode decoded as ${decoded.text}, expected ${barcodeCode}`
+    );
+
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
 
     step("switching to the full catalogue");
     await page.click('[data-mode="all"]');
@@ -190,7 +244,7 @@ async function main() {
       `browser console errors:\n${consoleErrors.join("\n")}`
     );
 
-    step("all availability checks passed");
+    step("all availability and barcode checks passed");
     console.log(`[smoke] PASS ${TARGET}`);
   } catch (error) {
     await page.screenshot({ path: "smoke-failure.png", fullPage: false }).catch(() => {});

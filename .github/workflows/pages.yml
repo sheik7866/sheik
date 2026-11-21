@@ -54,7 +54,7 @@ jobs:
         run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run live availability smoke test
+      - name: Run live availability and barcode smoke test
         run: npm run smoke:live
         env:
           SMOKE_URL: ${{ needs.deploy.outputs.page_url }}
