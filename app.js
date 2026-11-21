@@ -57,22 +57,62 @@ const DEMO_PRODUCTS = [
   product("toothpaste", "Toothpaste", "110g", "Household", 5.49),
 ];
 
+/* With one product list, use the catalogue's department names for the demo
+   staples too, so there aren't two chips for the same aisle. */
+const DEMO_CATEGORY_ALIASES = {
+  "Dairy & eggs": "Fridge, Deli & Eggs",
+  Produce: "Fruit & Vegetables",
+  "Meat & seafood": "Meat, Poultry & Seafood",
+  Drinks: "Hot & Cold Drinks",
+  Snacks: "Snacks, Treats & Easy Meals",
+  Household: "Household & Cleaning",
+};
+function normalizeCategory(category) {
+  return DEMO_CATEGORY_ALIASES[category] || category;
+}
+for (const item of DEMO_PRODUCTS) {
+  item.category = normalizeCategory(item.category);
+}
+
 const MONTHS = ["Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov"];
 
 /* The full PAK'nSAVE + New World catalogue, pulled from the stores' public
    pages. Each row is [id, name, brand, size, department, subcategory,
    paknsavePrice, newworldPrice, paknsaveUnit, newworldUnit] with prices in
-   cents. This is the "All products" catalogue; the curated staples above stay
-   the default demo so barcodes and the existing worked examples keep working. */
+   cents. Curated staples are merged into it below, so the demo has one
+   product list rather than a separate "All products" mode. */
 const CATALOGUE = window.GROCER_CATALOGUE || null;
 const CATALOGUE_ROWS = Array.isArray(CATALOGUE?.items) ? CATALOGUE.items : [];
+
+/* Dated imports for the curated staples, loaded before the catalogue so
+   catalogue rows already represented by a staple can be removed. */
+const BASE_IMPORTS = [window.GROCER_PAKNSAVE_IMPORT, window.GROCER_NEWWORLD_IMPORT].filter(
+  (imp) => imp && imp.storeId && imp.items
+);
 
 function catalogueBase(pnsPrice, nwPrice) {
   const prices = [pnsPrice, nwPrice].filter((price) => price > 0);
   return prices.length ? Math.min(...prices) / 100 : 4.99;
 }
 
-const STORE_PRODUCTS = CATALOGUE_ROWS.map(
+/* Catalogue ids look like 5000527-EA-000; import SKUs append a chain suffix
+   and use underscores (5000527_ea_000pns). */
+function skuProductId(sku) {
+  return String(sku || "")
+    .replace(/(?:pns|nw)$/i, "")
+    .replace(/_/g, "-")
+    .toUpperCase();
+}
+
+const CURATED_SKUS = new Set();
+for (const imp of BASE_IMPORTS) {
+  for (const item of Object.values(imp.items || {})) {
+    const id = skuProductId(item.sku);
+    if (id) CURATED_SKUS.add(id);
+  }
+}
+
+const STORE_PRODUCTS = CATALOGUE_ROWS.filter(([id]) => !CURATED_SKUS.has(id)).map(
   ([id, name, brand, size, department, subcategory, pnsPrice, nwPrice]) => ({
     id,
     name,
@@ -92,16 +132,12 @@ const STORE_PRODUCTS = CATALOGUE_ROWS.map(
   })
 );
 
+/* Curated staples keep their barcodes and imported prices; catalogue rows
+   they replace are already filtered out above. */
 const PRODUCTS = [...DEMO_PRODUCTS, ...STORE_PRODUCTS];
-const DEMO_CATEGORIES = ["All", ...Array.from(new Set(DEMO_PRODUCTS.map((p) => p.category)))];
-const STORE_CATEGORIES = ["All", ...Array.from(new Set(STORE_PRODUCTS.map((p) => p.category)))];
-const CATEGORIES = [...new Set([...DEMO_CATEGORIES, ...STORE_CATEGORIES])];
+const CATEGORIES = ["All", ...new Set(PRODUCTS.map((p) => p.category))];
 const PAGE_SIZE = 60;
 let visibleLimit = PAGE_SIZE;
-
-function categoriesForMode(mode) {
-  return mode === "all" ? STORE_CATEGORIES : DEMO_CATEGORIES;
-}
 
 const MAX_FREE_STORES = 6;
 const MAX_PRO_STORES = 30;
@@ -154,12 +190,9 @@ const PRICE_HINTS = [
 const STORE_MAP = new Map(STORES.map((s) => [s.id, s]));
 const PRODUCT_MAP = new Map(PRODUCTS.map((p) => [p.id, p]));
 
-/* Small dated imports (data/*-import.js) plus the full catalogue price maps.
+/* The dated imports (data/*-import.js) plus the full catalogue price maps.
    Both are one store, one day; the catalogue file holds every product the
    store returned. */
-const BASE_IMPORTS = [window.GROCER_PAKNSAVE_IMPORT, window.GROCER_NEWWORLD_IMPORT].filter(
-  (imp) => imp && imp.storeId && imp.items
-);
 const CATALOGUE_PRICES = { paknsave: {}, newworld: {} };
 for (const row of CATALOGUE_ROWS) {
   if (row[6]) CATALOGUE_PRICES.paknsave[row[0]] = { price: row[6] / 100 };
@@ -209,7 +242,6 @@ const el = {
   storeHint: document.getElementById("store-hint"),
   storeFoot: document.getElementById("store-foot"),
   search: document.getElementById("search"),
-  catalogMode: document.getElementById("catalog-mode"),
   categories: document.getElementById("categories"),
   resultsLine: document.getElementById("results-line"),
   showMore: document.getElementById("show-more"),
@@ -255,7 +287,6 @@ const defaults = {
   live: [],
   prices: {},
   category: "All",
-  mode: "demo",
 };
 
 function todayIso() {
@@ -274,8 +305,7 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return fresh();
     const parsed = JSON.parse(raw);
-    const mode = parsed.mode === "all" ? "all" : "demo";
-    const modeCategories = categoriesForMode(mode);
+    const savedCategory = normalizeCategory(parsed.category);
 
     // Discovered products must exist before the saved list is filtered,
     // otherwise their basket rows would be dropped on reload.
@@ -289,7 +319,7 @@ function loadState() {
               typeof row.name === "string" &&
               Number.isFinite(row.base) &&
               row.base > 0 &&
-              CATEGORIES.includes(row.category)
+              CATEGORIES.includes(normalizeCategory(row.category))
           )
           .slice(0, 200)
           .map((row) => ({
@@ -301,7 +331,7 @@ function loadState() {
             image: typeof row.image === "string" ? row.image : "",
             source: row.source === "grocer" ? "grocer" : "off",
             stores: Number.isFinite(row.stores) ? row.stores : 0,
-            category: row.category,
+            category: normalizeCategory(row.category),
             base: row.base,
           }))
       : [];
@@ -330,8 +360,7 @@ function loadState() {
             .filter((row) => row && PRODUCT_MAP.has(row.id) && Number.isFinite(row.qty) && row.qty > 0)
             .map((row) => ({ id: row.id, qty: Math.min(Math.round(row.qty), 99) }))
         : [],
-      category: modeCategories.includes(parsed.category) ? parsed.category : "All",
-      mode,
+      category: CATEGORIES.includes(savedCategory) ? savedCategory : "All",
       live,
     };
   } catch {
@@ -597,9 +626,7 @@ function bestOffer(productId) {
 
 function visibleProducts() {
   const query = (el.search.value || "").trim().toLowerCase();
-  const source =
-    state.mode === "all" ? STORE_PRODUCTS : PRODUCTS.filter((p) => p.source !== "catalogue");
-  return source.filter((p) => {
+  return PRODUCTS.filter((p) => {
     if (state.category !== "All" && p.category !== state.category) return false;
     if (!query) return true;
     return (
@@ -666,7 +693,7 @@ function renderStores() {
 }
 
 function renderCategories() {
-  el.categories.innerHTML = categoriesForMode(state.mode)
+  el.categories.innerHTML = CATEGORIES
     .map(
       (category) => `
       <button class="chip${state.category === category ? " is-on" : ""}" type="button" data-category="${escapeHtml(category)}" aria-pressed="${state.category === category}">
@@ -674,19 +701,6 @@ function renderCategories() {
       </button>`
     )
     .join("");
-}
-
-function renderCatalogueMode() {
-  if (!el.catalogMode) return;
-  [...el.catalogMode.querySelectorAll("[data-mode]")].forEach((button) => {
-    const on = button.dataset.mode === state.mode;
-    button.classList.toggle("is-on", on);
-    button.setAttribute("aria-pressed", String(on));
-  });
-  el.search.placeholder =
-    state.mode === "all"
-      ? `Search ${STORE_PRODUCTS.length.toLocaleString("en-NZ")} products…`
-      : "Search a product or type a barcode…";
 }
 
 function renderProducts() {
@@ -723,7 +737,7 @@ function renderProducts() {
   const grocerActive = grocerStatus !== "idle";
   el.emptyProducts.hidden = allProducts.length > 0 || grocerActive;
   el.resultsLine.textContent = allProducts.length
-    ? `${allProducts.length.toLocaleString("en-NZ")} product${allProducts.length === 1 ? "" : "s"}${state.category !== "All" ? ` in ${state.category}` : ""}${state.mode === "all" ? ` · showing ${products.length.toLocaleString("en-NZ")}` : ""}${stores.length ? ` · priced at ${stores.length} store${stores.length === 1 ? "" : "s"}` : ""}`
+    ? `${allProducts.length.toLocaleString("en-NZ")} product${allProducts.length === 1 ? "" : "s"}${state.category !== "All" ? ` in ${state.category}` : ""} · showing ${products.length.toLocaleString("en-NZ")}${stores.length ? ` · priced at ${stores.length} store${stores.length === 1 ? "" : "s"}` : ""}`
     : grocerStatus === "ready" && grocerHits.size
       ? `${grocerHits.size} live match${grocerHits.size === 1 ? "" : "es"} from Grocer's catalogue`
       : grocerStatus === "loading"
@@ -1041,7 +1055,7 @@ async function shareReceiptSummary() {
 
 function renderAll() {
   renderStores();
-  renderCatalogueMode();
+  el.search.placeholder = `Search ${PRODUCTS.length.toLocaleString("en-NZ")} products or type a barcode…`;
   renderCategories();
   renderProducts();
   renderList();
@@ -1106,7 +1120,7 @@ function clearList() {
 }
 
 function setCategory(category) {
-  if (!categoriesForMode(state.mode).includes(category)) return;
+  if (!CATEGORIES.includes(category)) return;
   state.category = category;
   visibleLimit = PAGE_SIZE;
   saveState();
@@ -1459,19 +1473,6 @@ el.categories.addEventListener("click", (event) => {
   if (chip) setCategory(chip.dataset.category);
 });
 
-if (el.catalogMode) {
-  el.catalogMode.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-mode]");
-    if (!button || !["demo", "all"].includes(button.dataset.mode)) return;
-    if (button.dataset.mode === state.mode) return;
-    state.mode = button.dataset.mode;
-    state.category = "All";
-    visibleLimit = PAGE_SIZE;
-    saveState();
-    renderAll();
-  });
-}
-
 if (el.showMore) {
   el.showMore.addEventListener("click", () => {
     visibleLimit += PAGE_SIZE;
@@ -1701,7 +1702,7 @@ function createLiveProduct(row) {
     code: row.code,
     name: row.name,
     size: row.size || "",
-    category: row.category,
+    category: normalizeCategory(row.category),
     base: row.base,
     brand: row.brand || "",
     image: row.image || "",
@@ -2167,20 +2168,22 @@ function renderGrocerResults() {
 }
 
 function renderCoverageLine() {
-  if (!el.coverageLine || !CATALOGUE_ROWS.length) return;
+  if (!el.coverageLine || !PRODUCTS.length) return;
   let both = 0;
   let one = 0;
   let neither = 0;
-  for (const row of CATALOGUE_ROWS) {
-    const stores = (row[6] ? 1 : 0) + (row[7] ? 1 : 0);
+  for (const product of PRODUCTS) {
+    const stores =
+      (importedPrice(product.id, "paknsave") ? 1 : 0) +
+      (importedPrice(product.id, "newworld") ? 1 : 0);
     if (stores === 2) both += 1;
     else if (stores === 1) one += 1;
     else neither += 1;
   }
   const count = (value) => value.toLocaleString("en-NZ");
   el.coverageLine.textContent =
-    `Catalogue price coverage: ${count(both)} products priced at both stores, ` +
-    `${count(one)} at one store, ${count(neither)} at neither (${count(CATALOGUE_ROWS.length)} total).`;
+    `Shelf-price coverage: ${count(both)} products priced at both stores, ` +
+    `${count(one)} at one store, ${count(neither)} at neither (${count(PRODUCTS.length)} total).`;
   el.coverageLine.hidden = false;
 }
 

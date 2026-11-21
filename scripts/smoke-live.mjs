@@ -8,8 +8,8 @@
   must not be ranked or totalled. It also renders a demo product's barcode and
   decodes the pixels with the site's own vendored ZXing build, so a broken
   barcode image fails the post-deploy check, and it requires a loaded product
-  picture plus the import banner's last price-check time and catalogue
-  price-coverage summary.
+  picture plus the import banner's last price-check time and shelf-price
+  coverage summary.
 
   Usage:
     npm run smoke:live
@@ -130,10 +130,13 @@ async function main() {
   try {
     step(`opening ${TARGET}`);
     await page.goto(TARGET, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await page.waitForSelector('[data-mode="all"]', { timeout: 20000 });
     await page.waitForFunction(
       () => Array.isArray(window.GROCER_CATALOGUE?.items) && window.GROCER_CATALOGUE.items.length > 0,
       { timeout: 20000 }
+    );
+    await page.waitForFunction(
+      () => document.querySelectorAll("#product-grid li.product").length >= 50,
+      { timeout: 10000 }
     );
 
     step("checking product pictures");
@@ -194,20 +197,15 @@ async function main() {
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
 
-    step("switching to the full catalogue");
-    await page.click('[data-mode="all"]');
-    await page.waitForFunction(
-      () => document.querySelectorAll("#product-grid li.product").length >= 50,
-      { timeout: 10000 }
-    );
-
-    const catalogueCount = await page.evaluate(
-      () => window.GROCER_CATALOGUE.productCount || window.GROCER_CATALOGUE.items.length
-    );
+    step("checking the merged catalogue");
     const resultsLine = normalize(await page.locator("#results-line").innerText());
     assert(
-      resultsLine.includes(`${new Intl.NumberFormat("en-NZ").format(catalogueCount)} products`),
-      `full catalogue not listed: ${resultsLine}`
+      /^\d[\d,]* products · showing \d/.test(resultsLine),
+      `merged catalogue not listed: ${resultsLine}`
+    );
+    assert(
+      (await page.locator("[data-mode]").count()) === 0,
+      "catalogue mode toggle should be removed"
     );
 
     step(`PAK'nSAVE-only product: ${PAK_ONLY.name}`);
