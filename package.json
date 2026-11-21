@@ -2,6 +2,7 @@
   "name": "grocer-demo",
   "private": true,
   "scripts": {
+    "prices:refresh": "node scripts/refresh-prices.mjs",
     "smoke:live": "node scripts/smoke-live.mjs"
   },
   "devDependencies": {

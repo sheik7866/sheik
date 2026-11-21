@@ -3,10 +3,14 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  schedule:
+    # Midnight in Auckland, including daylight-saving changes.
+    - cron: "0 0 * * *"
+      timezone: "Pacific/Auckland"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -19,6 +23,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Refresh store prices
+        if: github.ref == 'refs/heads/main' && github.event_name != 'push'
+        run: npm run prices:refresh
+      - name: Commit refreshed prices
+        if: github.ref == 'refs/heads/main' && github.event_name != 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "Prices unchanged."
+            exit 0
+          fi
+          git commit -m "Refresh store prices for $(TZ=Pacific/Auckland date +%F)"
+          git push origin HEAD:main
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:

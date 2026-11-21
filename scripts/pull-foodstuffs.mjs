@@ -29,20 +29,66 @@ const BRANDS = {
 
 const brandKey = process.env.BRAND;
 const brand = BRANDS[brandKey];
-const token = process.env.TOKEN;
-const storeId = process.env.STORE_ID;
+let token = process.env.TOKEN || "";
+let storeId = process.env.STORE_ID || "";
+const storeName = process.env.STORE_NAME || "";
 const outPath = process.env.OUT;
 
-if (!brand || !token || !storeId || !outPath) {
-  console.error("Set BRAND (pns|nw), TOKEN, STORE_ID and OUT.");
+if (!brand || !outPath) {
+  console.error(
+    "Set BRAND (pns|nw) and OUT. Set TOKEN and STORE_ID, or STORE_NAME to discover them."
+  );
   process.exit(1);
 }
 
 const PAGE_SIZE = 50;
 const CONCURRENCY = 4;
 const MAX_PAGES = 20; // API ceiling: 20 × 50 = 1000 rows per query.
+const USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/* The shop's own web client gets a short-lived anonymous JWT from this
+   endpoint. It needs no account, so a scheduled refresh can fetch a fresh
+   token instead of storing one that expires. */
+async function guestToken() {
+  const res = await fetch(`${brand.site}/api/user/get-current-user`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: brand.site,
+      Referer: `${brand.site}/`,
+      "User-Agent": USER_AGENT,
+    },
+    body: JSON.stringify({ fingerprintUser: "grocer-demo-price-check" }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Guest token ${res.status}: ${text.slice(0, 300)}`);
+  }
+  const json = await res.json();
+  if (!json.access_token) throw new Error("Guest token response had no access_token");
+  return json.access_token;
+}
+
+async function findStoreId(name) {
+  const res = await fetch(`${brand.api}/store`, {
+    headers: { Authorization: `Bearer ${token}`, "User-Agent": USER_AGENT },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Store list ${res.status}: ${text.slice(0, 300)}`);
+  }
+  const json = await res.json();
+  const stores = Array.isArray(json) ? json : json.stores || [];
+  const match = stores.find((store) =>
+    String(store.name || "").toLowerCase().includes(name.toLowerCase())
+  );
+  if (!match) throw new Error(`No ${brand.name} store matching "${name}"`);
+  console.log(`  using ${match.name} (${match.id})`);
+  return match.id;
+}
 
 async function api(body, attempt = 0) {
   const res = await fetch(`${brand.api}/search/paginated/products`, {
@@ -175,6 +221,14 @@ async function fetchLeaf(filter, label) {
 }
 
 async function main() {
+  if (!token) {
+    console.log(`  requesting a guest token for ${brand.name}`);
+    token = await guestToken();
+  }
+  if (!storeId) {
+    if (!storeName) throw new Error("Set STORE_ID or STORE_NAME.");
+    storeId = await findStoreId(storeName);
+  }
   console.log(`${brand.name} — store ${storeId}`);
   const base = `stores:${storeId}`;
 

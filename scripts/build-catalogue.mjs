@@ -91,7 +91,8 @@ const rows = [...byId.values()].sort(
     a.name.localeCompare(b.name, "en-NZ")
 );
 
-const fetchedAt = String(pns.fetchedAt || nw.fetchedAt || "").slice(0, 10);
+const fetchedAt =
+  process.env.FETCHED_AT || String(pns.fetchedAt || nw.fetchedAt || "").slice(0, 10);
 const items = rows.map((row) => [
   row.id,
   row.name,
