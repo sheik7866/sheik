@@ -2,9 +2,10 @@
 /* Refresh the dated PAK'nSAVE and New World prices in the demo.
  *
  * Called by .github/workflows/pages.yml at midnight Pacific/Auckland. It pulls
- * both stores' public catalogues with the existing Foodstuffs puller (which
- * discovers a fresh guest token and store UUID), rebuilds data/catalogue.js,
- * and updates the curated demo-staple imports from the same pulls.
+ * one representative branch per banner per island with the existing
+ * Foodstuffs puller (which discovers a fresh guest token and store UUID),
+ * refreshes the full branch directory, rebuilds data/catalogue.js, and updates
+ * the curated demo-staple imports from the North Island pulls.
  *
  * Usage:
  *   node scripts/refresh-prices.mjs
@@ -23,6 +24,9 @@ const TODAY = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Pacific/Auckland",
 }).format(new Date());
 
+/* Prices are the same across a banner within an island, so one representative
+   branch per banner per island covers every PAK'nSAVE and New World branch.
+   Only the two North Island branches have hand-curated staple imports. */
 const STORES = [
   {
     brand: "pns",
@@ -38,6 +42,8 @@ const STORES = [
     importFile: "data/newworld-import.js",
     globalName: "GROCER_NEWWORLD_IMPORT",
   },
+  { brand: "pns", name: "Riccarton", raw: "paknsave-si.json" },
+  { brand: "nw", name: "Ilam", raw: "newworld-si.json" },
 ];
 
 function run(script, env) {
@@ -159,6 +165,10 @@ function updateImport(store, checkedAt) {
 function main() {
   fs.mkdirSync(RAW_DIR, { recursive: true });
 
+  // The branch directory changes rarely, but keeping it in the nightly run
+  // means a new or closed branch shows up without a manual step.
+  run("scripts/pull-stores.mjs", {});
+
   for (const store of STORES) pullStore(store);
 
   const checkedAt = new Date().toISOString();
@@ -169,7 +179,9 @@ function main() {
     CHECKED_AT: checkedAt,
   });
 
-  for (const store of STORES) updateImport(store, checkedAt);
+  for (const store of STORES) {
+    if (store.importFile) updateImport(store, checkedAt);
+  }
 
   console.log(`\n[refresh] prices checked for ${TODAY} (Pacific/Auckland)`);
 }

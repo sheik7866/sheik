@@ -51,6 +51,17 @@ const BRANDS = {
   },
 };
 
+/* Product detail is store-scoped: a South Island-only product is not found
+   via the North Island anchors. Each price-list zone maps to a store that
+   stocks it, and the catalogue row says which zones carry the product. */
+const ZONE_STORES = {
+  "pns-ni": { brand: "pns", storeId: "b2e98a14-c8ca-401e-99ed-edf74570c6f6" },
+  "nw-ni": { brand: "nw", storeId: "871ff39f-99b5-4030-b035-b2dab7225082" },
+  "pns-si": { brand: "pns", storeId: "4a279605-eaa8-470d-bcd4-0a9e3c9ab43b" },
+  "nw-si": { brand: "nw", storeId: "c6abac35-b75f-4a02-9b43-7ad5a7c7aa37" },
+};
+const ZONE_KEYS = Object.keys(ZONE_STORES);
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /* Mirrors the browser-side check, so a code is only stored if the demo can
@@ -93,14 +104,14 @@ function skuProductId(sku) {
     .toUpperCase();
 }
 
-function readCatalogueIds() {
+function readCatalogueRows() {
   if (!fs.existsSync(CATALOGUE)) throw new Error(`No catalogue at ${CATALOGUE}`);
   const source = fs.readFileSync(CATALOGUE, "utf8");
   const sandbox = { window: {} };
   vm.runInNewContext(source, sandbox, { filename: CATALOGUE });
   const items = sandbox.window.GROCER_CATALOGUE?.items;
   if (!Array.isArray(items)) throw new Error(`No GROCER_CATALOGUE.items in ${CATALOGUE}`);
-  return items.map((row) => String(row[0] || "")).filter(Boolean);
+  return items;
 }
 
 function readImportIds() {
@@ -232,25 +243,24 @@ async function apiGet(brand, endpoint) {
   throw new Error(`${brand.name} API kept failing after retries`);
 }
 
-async function findStoreId(brand) {
-  const json = await apiGet(brand, "/store");
-  const stores = Array.isArray(json) ? json : json?.stores || [];
-  const match = stores.find((store) =>
-    String(store.name || "").toLowerCase().includes(brand.storeName.toLowerCase())
-  );
-  if (!match) throw new Error(`No ${brand.name} store matching ${brand.storeName}`);
-  return match.id;
+async function productDetail(brand, storeId, productId) {
+  return apiGet(brand, `/store/${storeId}/product/${encodeURIComponent(productId)}`);
 }
 
-async function productDetail(brand, productId) {
-  return apiGet(brand, `/store/${brand.storeId}/product/${encodeURIComponent(productId)}`);
-}
+async function findGtin(productId, zones = []) {
+  const candidates = (zones.length ? zones : ["nw-ni", "pns-ni"])
+    .map((zone) => ZONE_STORES[zone])
+    .filter(Boolean)
+    .map(({ brand, storeId }) => ({ brand: BRANDS[brand], storeId }));
+  const tried = new Set();
 
-async function findGtin(productId) {
-  for (const brand of [BRANDS.nw, BRANDS.pns]) {
+  for (const { brand, storeId } of candidates) {
+    const key = `${brand.name}|${storeId}`;
+    if (tried.has(key)) continue;
+    tried.add(key);
     let product;
     try {
-      product = await productDetail(brand, productId);
+      product = await productDetail(brand, storeId, productId);
     } catch (error) {
       console.warn(`  ${productId} ${brand.name}: ${error.message}`);
       continue;
@@ -263,20 +273,24 @@ async function findGtin(productId) {
 }
 
 async function main() {
-  console.log("Resolving store ids…");
-  for (const brand of Object.values(BRANDS)) {
-    try {
-      brand.storeId = process.env[`${brand.name === "New World" ? "NW" : "PNS"}_STORE_ID`] ||
-        (await findStoreId(brand));
-      console.log(`  ${brand.name}: ${brand.storeId}`);
-    } catch (error) {
-      console.warn(`  ${brand.name}: ${error.message}; using ${brand.storeId}`);
-    }
+  const catalogueRows = readCatalogueRows();
+  const zonesById = new Map();
+  for (const row of catalogueRows) {
+    const id = String(row[0] || "");
+    if (!id) continue;
+    zonesById.set(
+      id,
+      ZONE_KEYS.filter((zone, index) => Boolean(row[6 + index]))
+    );
   }
 
-  const catalogueIds = readCatalogueIds();
   const importIds = readImportIds();
-  const ids = [...new Set([...catalogueIds, ...importIds])];
+  const ids = [
+    ...new Set([
+      ...catalogueRows.map((row) => String(row[0] || "")).filter(Boolean),
+      ...importIds,
+    ]),
+  ];
   const existing = ALL ? {} : readExisting();
   const cache = readCache();
   for (const [id, gtin] of Object.entries(existing)) {
@@ -307,7 +321,7 @@ async function main() {
       const id = todo[cursor];
       cursor += 1;
       try {
-        const gtin = await findGtin(id);
+        const gtin = await findGtin(id, zonesById.get(id) || []);
         if (gtin) {
           cache.gtins[id] = gtin;
           found += 1;

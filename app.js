@@ -3,18 +3,57 @@
    Client-side only: demo catalogue, demo stores, localStorage.
    ========================================================= */
 
-const STORES = [
-  { id: "paknsave", name: "Pak'nSave", branch: "Mt Albert", factor: 0.92, tint: "#f3c623" },
-  { id: "woolworths", name: "Woolworths", branch: "Grey Lynn", factor: 1.0, tint: "#2f8f4e" },
-  { id: "newworld", name: "New World", branch: "Point Chevalier", factor: 1.07, tint: "#c22032" },
-  { id: "freshchoice", name: "FreshChoice", branch: "Parnell", factor: 1.04, tint: "#1d7a45" },
-  { id: "supervalue", name: "SuperValue", branch: "Kingsland", factor: 1.01, tint: "#e05a2b" },
-  { id: "warehouse", name: "The Warehouse", branch: "St Lukes", factor: 0.95, tint: "#1f5fbf" },
-  { id: "farro", name: "Farro Fresh", branch: "Grey Lynn", factor: 1.25, tint: "#7a5a34" },
-  { id: "bininn", name: "Bin Inn", branch: "Karangahape Rd", factor: 1.1, tint: "#9b7a2f" },
-  { id: "moorewilson", name: "Moore Wilson's", branch: "City", factor: 1.18, tint: "#4c5b6b" },
-  { id: "huckleberry", name: "Huckleberry", branch: "Wairau Valley", factor: 1.3, tint: "#4f7d4f" },
+/* Every PAK'nSAVE and New World branch, from the stores' public locators
+   (scripts/pull-stores.mjs). Both banners use one North Island and one South
+   Island price list, so each branch is priced from its island's list. The two
+   branches the demo has always priced keep their old ids so saved lists and
+   the dated staple imports keep working. */
+const ANCHOR_BRANCHES = {
+  "b2e98a14-c8ca-401e-99ed-edf74570c6f6": "paknsave",
+  "871ff39f-99b5-4030-b035-b2dab7225082": "newworld",
+};
+const BRAND_NAMES = { pns: "Pak'nSave", nw: "New World" };
+const BRAND_TINTS = { pns: "#f3c623", nw: "#c22032" };
+const BRANCH_DIRECTORY = Array.isArray(window.GROCER_STORES?.stores)
+  ? window.GROCER_STORES.stores
+  : [];
+
+function branchStore(store) {
+  return {
+    id: ANCHOR_BRANCHES[store.id] || `${store.brand}:${store.id}`,
+    chain: store.brand,
+    name: BRAND_NAMES[store.brand] || store.name,
+    branch: store.branch,
+    address: store.address || "",
+    region: store.region,
+    zone: `${store.brand}-${String(store.region || "").toLowerCase()}`,
+    factor: 1,
+    tint: BRAND_TINTS[store.brand] || "#4c5b6b",
+  };
+}
+
+const BRANCH_STORES = BRANCH_DIRECTORY.map(branchStore);
+if (!BRANCH_STORES.length) {
+  BRANCH_STORES.push(
+    { id: "paknsave", chain: "pns", name: "Pak'nSave", branch: "Mt Albert", address: "", region: "NI", zone: "pns-ni", factor: 1, tint: BRAND_TINTS.pns },
+    { id: "newworld", chain: "nw", name: "New World", branch: "Point Chevalier", address: "", region: "NI", zone: "nw-ni", factor: 1, tint: BRAND_TINTS.nw }
+  );
+}
+
+/* Demo-only chains: no public price feed, so these stay clearly-labelled
+   estimates. */
+const OTHER_STORES = [
+  { id: "woolworths", chain: "other", name: "Woolworths", branch: "Grey Lynn", factor: 1.0, tint: "#2f8f4e" },
+  { id: "freshchoice", chain: "other", name: "FreshChoice", branch: "Parnell", factor: 1.04, tint: "#1d7a45" },
+  { id: "supervalue", chain: "other", name: "SuperValue", branch: "Kingsland", factor: 1.01, tint: "#e05a2b" },
+  { id: "warehouse", chain: "other", name: "The Warehouse", branch: "St Lukes", factor: 0.95, tint: "#1f5fbf" },
+  { id: "farro", chain: "other", name: "Farro Fresh", branch: "Grey Lynn", factor: 1.25, tint: "#7a5a34" },
+  { id: "bininn", chain: "other", name: "Bin Inn", branch: "Karangahape Rd", factor: 1.1, tint: "#9b7a2f" },
+  { id: "moorewilson", chain: "other", name: "Moore Wilson's", branch: "City", factor: 1.18, tint: "#4c5b6b" },
+  { id: "huckleberry", chain: "other", name: "Huckleberry", branch: "Wairau Valley", factor: 1.3, tint: "#4f7d4f" },
 ];
+
+const STORES = [...BRANCH_STORES, ...OTHER_STORES];
 
 function product(id, name, size, category, base) {
   return { id, name, size, category, base };
@@ -96,11 +135,6 @@ const BASE_IMPORTS = [window.GROCER_PAKNSAVE_IMPORT, window.GROCER_NEWWORLD_IMPO
   (imp) => imp && imp.storeId && imp.items
 );
 
-function catalogueBase(pnsPrice, nwPrice) {
-  const prices = [pnsPrice, nwPrice].filter((price) => price > 0);
-  return prices.length ? Math.min(...prices) / 100 : 4.99;
-}
-
 /* Catalogue ids look like 5000527-EA-000; import SKUs append a chain suffix
    and use underscores (5000527_ea_000pns). */
 function skuProductId(sku) {
@@ -118,24 +152,57 @@ for (const imp of BASE_IMPORTS) {
   }
 }
 
+/* Which real catalogue pack each demo staple matches at each chain, so a
+   staple can be priced from any branch's island price list. */
+const DEMO_SKU_IDS = new Map();
+for (const imp of BASE_IMPORTS) {
+  const chain = imp.storeId === "paknsave" ? "pns" : imp.storeId === "newworld" ? "nw" : null;
+  if (!chain) continue;
+  for (const [demoId, item] of Object.entries(imp.items || {})) {
+    const id = skuProductId(item.sku);
+    if (!id) continue;
+    if (!DEMO_SKU_IDS.has(demoId)) DEMO_SKU_IDS.set(demoId, {});
+    if (!DEMO_SKU_IDS.get(demoId)[chain]) DEMO_SKU_IDS.get(demoId)[chain] = id;
+  }
+}
+
+/* Four price lists: PAK'nSAVE and New World on the North and South Island.
+   Catalogue rows are [id, name, brand, size, department, subcategory,
+   pnsNI, nwNI, pnsSI, nwSI, pnsNIUnit, nwNIUnit, pnsSIUnit, nwSIUnit]. */
+const ZONE_KEYS = ["pns-ni", "nw-ni", "pns-si", "nw-si"];
+const ZONE_META =
+  CATALOGUE?.zones && typeof CATALOGUE.zones === "object" ? CATALOGUE.zones : {};
+const ZONE_PRICES = Object.fromEntries(ZONE_KEYS.map((zone) => [zone, {}]));
+for (const row of CATALOGUE_ROWS) {
+  ZONE_KEYS.forEach((zone, index) => {
+    if (row[6 + index]) ZONE_PRICES[zone][row[0]] = row[6 + index] / 100;
+  });
+}
+
 const STORE_PRODUCTS = CATALOGUE_ROWS.filter(([id]) => !CURATED_SKUS.has(id)).map(
-  ([id, name, brand, size, department, subcategory, pnsPrice, nwPrice]) => ({
-    id,
-    name,
-    brand,
-    size,
-    category: department,
-    subcategory,
-    base: catalogueBase(pnsPrice, nwPrice),
-    source: "catalogue",
-    estimated: true,
-    code: normalizeGtin(GTINS[id] || ""),
-    // The chains whose pulled catalogue contained this product. A missing
-    // chain means the store did not stock it on the fetch date, not that we
-    // should fall back to a demo estimate there.
-    catalogueStores: [pnsPrice ? "paknsave" : null, nwPrice ? "newworld" : null].filter(Boolean),
-    stores: (pnsPrice ? 1 : 0) + (nwPrice ? 1 : 0),
-  })
+  ([id, name, brand, size, department, subcategory, ...prices]) => {
+    const zonePrices = {};
+    ZONE_KEYS.forEach((zone, index) => {
+      if (prices[index]) zonePrices[zone] = prices[index] / 100;
+    });
+    return {
+      id,
+      name,
+      brand,
+      size,
+      category: department,
+      subcategory,
+      base: Object.keys(zonePrices).length ? Math.min(...Object.values(zonePrices)) : 4.99,
+      source: "catalogue",
+      estimated: true,
+      code: normalizeGtin(GTINS[id] || ""),
+      // The price lists that contained this product. A missing zone means the
+      // store did not stock it on the fetch date, not that we should fall back
+      // to a demo estimate there.
+      catalogueZones: Object.keys(zonePrices),
+      stores: new Set(Object.keys(zonePrices).map((zone) => zone.split("-")[0])).size,
+    };
+  }
 );
 
 /* Curated staples keep their imported prices; catalogue rows they replace are
@@ -213,31 +280,12 @@ const PRICE_HINTS = [
 const STORE_MAP = new Map(STORES.map((s) => [s.id, s]));
 const PRODUCT_MAP = new Map(PRODUCTS.map((p) => [p.id, p]));
 
-/* The dated imports (data/*-import.js) plus the full catalogue price maps.
-   Both are one store, one day; the catalogue file holds every product the
-   store returned. */
-const CATALOGUE_PRICES = { paknsave: {}, newworld: {} };
-for (const row of CATALOGUE_ROWS) {
-  if (row[6]) CATALOGUE_PRICES.paknsave[row[0]] = { price: row[6] / 100 };
-  if (row[7]) CATALOGUE_PRICES.newworld[row[0]] = { price: row[7] / 100 };
-}
-const IMPORTS = ["paknsave", "newworld"]
-  .map((storeId) => {
-    const base = BASE_IMPORTS.find((imp) => imp.storeId === storeId);
-    const meta = CATALOGUE?.stores?.[storeId];
-    const catalogueItems = CATALOGUE_PRICES[storeId];
-    return {
-      storeId,
-      store: base?.store || meta?.name || storeId,
-      branch: base?.branch || meta?.branch || "",
-      fetchedAt: base?.fetchedAt || CATALOGUE?.fetchedAt || "",
-      checkedAt: base?.checkedAt || CATALOGUE?.checkedAt || "",
-      source: base?.source || CATALOGUE?.source || "",
-      productCount: Object.keys(catalogueItems).length || Object.keys(base?.items || {}).length,
-      items: { ...(base?.items || {}), ...catalogueItems },
-    };
-  })
-  .filter((imp) => Object.keys(imp.items).length > 0);
+/* The two dated staple imports (data/*-import.js). Everything else comes from
+   the catalogue's four price-list columns. */
+const IMPORTS = BASE_IMPORTS.map((base) => ({
+  ...base,
+  productCount: Object.keys(base.items || {}).length,
+})).filter((imp) => imp.productCount > 0);
 
 /* The stores' public image CDN keys product photos by the numeric part of
    the product id. Curated staples use the SKU in their dated import. */
@@ -305,6 +353,7 @@ const el = {
 
 const defaults = {
   stores: ["paknsave", "woolworths", "newworld"],
+  branches: { pns: "paknsave", nw: "newworld" },
   pro: false,
   list: [],
   live: [],
@@ -323,7 +372,14 @@ function shortDate(iso) {
 }
 
 function loadState() {
-  const fresh = () => ({ ...defaults, stores: [...defaults.stores], list: [], live: [], prices: {} });
+  const fresh = () => ({
+    ...defaults,
+    stores: [...defaults.stores],
+    branches: { ...defaults.branches },
+    list: [],
+    live: [],
+    prices: {},
+  });
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return fresh();
@@ -374,8 +430,25 @@ function loadState() {
       });
     }
 
+    const savedStores = Array.isArray(parsed.stores)
+      ? parsed.stores.filter((id) => STORE_MAP.has(id))
+      : [...defaults.stores];
+    const branches = { ...defaults.branches };
+    if (parsed.branches && typeof parsed.branches === "object") {
+      for (const chain of ["pns", "nw"]) {
+        const store = STORE_MAP.get(parsed.branches[chain]);
+        if (store && store.chain === chain) branches[chain] = store.id;
+      }
+    }
+    // A selected branch is also the branch the picker should remember.
+    for (const id of savedStores) {
+      const store = STORE_MAP.get(id);
+      if (store && (store.chain === "pns" || store.chain === "nw")) branches[store.chain] = store.id;
+    }
+
     return {
-      stores: Array.isArray(parsed.stores) ? parsed.stores.filter((id) => STORE_MAP.has(id)) : [...defaults.stores],
+      stores: savedStores,
+      branches,
       pro: Boolean(parsed.pro),
       prices,
       list: Array.isArray(parsed.list)
@@ -435,11 +508,33 @@ function importFor(storeId) {
   return IMPORTS.find((imp) => imp.storeId === storeId) || null;
 }
 
+/* A branch is priced from its banner's island price list. Demo staples are
+   keyed by their own id, so resolve the real pack they match at that chain. */
+function zonePriceFor(productId, store) {
+  if (!store?.zone) return null;
+  const prices = ZONE_PRICES[store.zone];
+  if (!prices) return null;
+  if (prices[productId]) return prices[productId];
+  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
+  return skuId && prices[skuId] ? prices[skuId] : null;
+}
+
 function importedPrice(productId, storeId) {
+  const store = STORE_MAP.get(storeId);
+  if (!store) return null;
   const imp = importFor(storeId);
-  if (!imp) return null;
-  const row = imp.items[productId];
-  return row && Number.isFinite(row.price) && row.price > 0 ? row : null;
+  const row = imp?.items?.[productId];
+  if (row && Number.isFinite(row.price) && row.price > 0) {
+    return { price: row.price, at: imp.fetchedAt };
+  }
+  const price = zonePriceFor(productId, store);
+  if (price) {
+    return {
+      price,
+      at: ZONE_META[store.zone]?.fetchedAt || CATALOGUE?.fetchedAt || "",
+    };
+  }
+  return null;
 }
 
 /* The real price for a product at a store: your own recorded price wins,
@@ -448,7 +543,7 @@ function priceState(productId, storeId) {
   const checked = checkedPrice(productId, storeId);
   if (checked) return { price: checked.price, at: checked.at, kind: "checked" };
   const imported = importedPrice(productId, storeId);
-  if (imported) return { price: imported.price, at: importFor(storeId).fetchedAt, kind: "imported" };
+  if (imported) return { price: imported.price, at: imported.at, kind: "imported" };
   return null;
 }
 
@@ -465,7 +560,11 @@ function importDateLabel(imp = IMPORTS[0]) {
 }
 
 function priceCheckLabel() {
-  const iso = IMPORTS.map((imp) => imp.checkedAt).find(Boolean) || CATALOGUE?.checkedAt || "";
+  const iso =
+    [...IMPORTS.map((imp) => imp.checkedAt), CATALOGUE?.checkedAt]
+      .filter(Boolean)
+      .sort()
+      .at(-1) || "";
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
@@ -484,22 +583,22 @@ function priceIsChecked(productId, storeId) {
   return Boolean(priceState(productId, storeId));
 }
 
-const CATALOGUE_STORE_IDS = new Set(["paknsave", "newworld"]);
-
-/* True only when we know the product is absent from that chain's catalogue.
+/* True only when we know the product is absent from that branch's price list.
    The app has no stock feed for the other demo stores, so they stay estimates. */
 function knownUnavailable(productId, storeId) {
   const product = PRODUCT_MAP.get(productId);
-  if (!product) return false;
-  // A price you recorded (or a dated import) is evidence the store had it,
+  const store = STORE_MAP.get(storeId);
+  if (!product || !store || store.chain === "other") return false;
+  // A price you recorded (or a price list) is evidence the store had it,
   // even if the catalogue pull missed it.
   if (priceState(productId, storeId)) return false;
-  return Boolean(
-    product.source === "catalogue" &&
-      CATALOGUE_STORE_IDS.has(storeId) &&
-      Array.isArray(product.catalogueStores) &&
-      !product.catalogueStores.includes(storeId)
-  );
+  if (product.source === "catalogue") {
+    return !Array.isArray(product.catalogueZones) || !product.catalogueZones.includes(store.zone);
+  }
+  // Demo staples only get a "not stocked" answer when we know which real pack
+  // they match at that chain; otherwise the demo keeps its estimate.
+  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
+  return Boolean(skuId) && !ZONE_PRICES[store.zone]?.[skuId];
 }
 
 function priceFor(productId, storeId) {
@@ -521,7 +620,7 @@ function historyFor(productId, storeId, months) {
     const monthIndex = 12 - months + index;
     const drift = (monthIndex - 11) * 0.004;
     const jitter = noise(hash(productId + storeId + monthIndex), -0.09, 0.09);
-    return roundPrice(p.base * s.factor * (1 + drift + jitter));
+    return roundPrice(current * (1 + drift + jitter));
   });
   values[values.length - 1] = current;
   return values;
@@ -702,10 +801,47 @@ function listTotals() {
 
 /* ---------- Rendering ---------- */
 
+function selectedBranch(chain) {
+  const chosen = STORE_MAP.get(state.branches?.[chain]);
+  if (chosen && chosen.chain === chain) return chosen;
+  return BRANCH_STORES.find((store) => store.chain === chain) || null;
+}
+
 function renderStores() {
-  el.storeList.innerHTML = STORES.map((store) => {
-        const on = state.stores.includes(store.id);
-        return `
+  const branchRows = ["pns", "nw"]
+    .map((chain) => {
+      const stores = BRANCH_STORES.filter((store) => store.chain === chain);
+      const chosen = selectedBranch(chain);
+      if (!chosen) return "";
+      const on = state.stores.includes(chosen.id);
+      const options = stores
+        .map(
+          (store) =>
+            `<option value="${store.id}"${store.id === chosen.id ? " selected" : ""}>${escapeHtml(store.branch)}</option>`
+        )
+        .join("");
+      return `
+          <li class="store-pick">
+            <button class="store-chip${on ? " is-on" : ""}" type="button" data-store="${chosen.id}" aria-pressed="${on}">
+              <span class="store-chip__dot" style="--dot:${chosen.tint}"></span>
+              <span class="store-chip__body">
+                <b>${escapeHtml(chosen.name)}</b>
+                <small>${escapeHtml(chosen.branch)} · ${chosen.region === "SI" ? "South Island" : "North Island"}</small>
+              </span>
+              <span class="store-chip__check" aria-hidden="true">✓</span>
+            </button>
+            <label class="store-branch">
+              <span class="sr-only">Choose a ${escapeHtml(chosen.name)} branch</span>
+              <select data-branch="${chain}" aria-label="${escapeHtml(chosen.name)} branch">${options}</select>
+            </label>
+          </li>`;
+    })
+    .join("");
+
+  const otherRows = STORES.filter((store) => store.chain === "other")
+    .map((store) => {
+      const on = state.stores.includes(store.id);
+      return `
           <li>
             <button class="store-chip${on ? " is-on" : ""}" type="button" data-store="${store.id}" aria-pressed="${on}">
               <span class="store-chip__dot" style="--dot:${store.tint}"></span>
@@ -716,13 +852,16 @@ function renderStores() {
               <span class="store-chip__check" aria-hidden="true">✓</span>
             </button>
           </li>`;
-      }).join("");
+    })
+    .join("");
+
+  el.storeList.innerHTML = branchRows + otherRows;
 
   el.storeCounter.textContent = `${state.stores.length} / ${state.pro ? "∞" : MAX_FREE_STORES}`;
   el.storeHint.textContent = state.stores.length
     ? state.stores.length === 1
       ? "Add another store to see a comparison."
-      : "Tap a store to include or remove it."
+      : "Tap a store to include it, or pick another branch."
     : "Pick at least one store to compare.";
   el.storeFoot.textContent = state.pro
     ? "Pro demo: every store unlocked."
@@ -1112,6 +1251,29 @@ function toggleStore(storeId) {
     return;
   }
   state.stores = selected ? state.stores.filter((id) => id !== storeId) : [...state.stores, storeId];
+  const store = STORE_MAP.get(storeId);
+  if (store && (store.chain === "pns" || store.chain === "nw")) state.branches[store.chain] = storeId;
+  saveState();
+  renderAll();
+}
+
+/* Switching branch keeps the chain selected; choosing a branch while the
+   chain is off turns it on. */
+function chooseBranch(chain, storeId) {
+  const store = STORE_MAP.get(storeId);
+  if (!store || store.chain !== chain) return;
+  const previousId = state.branches[chain];
+  if (previousId === storeId) return;
+  const wasSelected = state.stores.includes(previousId);
+  if (!wasSelected && state.stores.length >= storeCap()) {
+    toast(state.pro ? "That's every store in the demo." : "Free demo is limited to 6 stores — turn on Pro.");
+    renderStores();
+    return;
+  }
+  state.branches[chain] = storeId;
+  state.stores = wasSelected
+    ? state.stores.map((id) => (id === previousId ? storeId : id))
+    : [...state.stores, storeId];
   saveState();
   renderAll();
 }
@@ -1371,7 +1533,7 @@ function openProduct(productId) {
           product.source === "grocer"
             ? `<p class="dialog__source">Real product data from <a href="https://grocer.nz" target="_blank" rel="noopener">Grocer's catalogue</a>${product.stores ? ` · stocked at ${product.stores} stores` : ""}</p>`
             : product.source === "catalogue"
-              ? `<p class="dialog__source">Shelf prices imported from PAK'nSAVE and New World on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · stocked at ${product.stores} of 2 stores</p>`
+              ? `<p class="dialog__source">Shelf prices from each banner's North or South Island price list, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "stocked at both chains" : "stocked at one chain"}</p>`
               : product.estimated
                 ? `<p class="dialog__source">Real product data from <a href="https://world.openfoodfacts.org/product/${product.code}" target="_blank" rel="noopener">Open Food Facts</a></p>`
                 : ""
@@ -1388,7 +1550,7 @@ function openProduct(productId) {
       anyEstimate
         ? `          <p class="dialog__estimate">${
             hasImport
-              ? `${IMPORTS.map((imp) => imp.store).join(" and ")} prices here are shelf prices imported on ${importDateLabel()}. Anything else is an estimate from demo pricing.`
+              ? `PAK'nSAVE and New World prices here are shelf prices from each banner's island price list, imported on ${importDateLabel()}. Anything else is an estimate from demo pricing.`
               : product.estimated
                 ? "Product details are real, but prices and history are estimates from demo pricing."
                 : "Prices you haven't checked in store are estimates from demo pricing."
@@ -1405,11 +1567,12 @@ function openProduct(productId) {
               ${offers
                 .map((offer, index) => {
                   const kind = priceKind(productId, offer.store.id);
+                  const real = priceState(productId, offer.store.id);
                   const note =
                     kind === "checked"
                       ? `checked ${shortDate(checkedPrice(productId, offer.store.id).at)}`
-                      : kind === "imported"
-                        ? `imported ${shortDate(importFor(offer.store.id).fetchedAt)}`
+                      : kind === "imported" && real
+                        ? `imported ${shortDate(real.at)}`
                         : "";
                   return `
                 <tr class="${index === 0 ? "is-best" : ""}">
@@ -1506,6 +1669,11 @@ function closeDialog() {
 el.storeList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-store]");
   if (button) toggleStore(button.dataset.store);
+});
+
+el.storeList.addEventListener("change", (event) => {
+  const select = event.target.closest("[data-branch]");
+  if (select) chooseBranch(select.dataset.branch, select.value);
 });
 
 el.categories.addEventListener("click", (event) => {
@@ -2202,13 +2370,20 @@ function renderGrocerResults() {
 
 function renderCoverageLine() {
   if (!el.coverageLine || !PRODUCTS.length) return;
+  const pricedAt = (productId, chain) => {
+    if (ZONE_KEYS.some((zone) => zone.startsWith(`${chain}-`) && ZONE_PRICES[zone][productId])) {
+      return true;
+    }
+    const skuId = DEMO_SKU_IDS.get(productId)?.[chain];
+    return Boolean(
+      skuId && ZONE_KEYS.some((zone) => zone.startsWith(`${chain}-`) && ZONE_PRICES[zone][skuId])
+    );
+  };
   let both = 0;
   let one = 0;
   let neither = 0;
   for (const product of PRODUCTS) {
-    const stores =
-      (importedPrice(product.id, "paknsave") ? 1 : 0) +
-      (importedPrice(product.id, "newworld") ? 1 : 0);
+    const stores = (pricedAt(product.id, "pns") ? 1 : 0) + (pricedAt(product.id, "nw") ? 1 : 0);
     if (stores === 2) both += 1;
     else if (stores === 1) one += 1;
     else neither += 1;
@@ -2222,14 +2397,11 @@ function renderCoverageLine() {
 
 function renderImportBanner() {
   if (!el.importBanner || !IMPORTS.length) return;
-  const labels = IMPORTS.map((imp) => `${imp.store} ${imp.branch}`).join(" and ");
-  const counts = IMPORTS.map((imp) => imp.productCount || Object.keys(imp.items).length);
-  const countText =
-    counts.length === 2
-      ? `${counts[0].toLocaleString("en-NZ")} and ${counts[1].toLocaleString("en-NZ")} products`
-      : `${counts.reduce((sum, count) => sum + count, 0).toLocaleString("en-NZ")} products`;
   const checkedAt = priceCheckLabel();
-  el.importBanner.textContent = `${labels} shelf prices for ${countText}. Last successful price check: ${checkedAt || "not recorded"}. Import dated ${importDateLabel()}. Everything else is an estimate unless you record it.`;
+  el.importBanner.textContent =
+    `Every PAK'nSAVE and New World branch is priced from its banner's North or South Island ` +
+    `shelf-price list, and stock coverage follows the same list. Last successful price check: ${checkedAt || "not recorded"}. ` +
+    `Import dated ${importDateLabel()}. Everything else is an estimate unless you record it.`;
   el.importBanner.hidden = false;
 }
 

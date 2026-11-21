@@ -3,10 +3,14 @@
  *
  *   RAW_DIR=/tmp/foodstuffs node scripts/build-catalogue.mjs
  *
- * Raw files are produced by scripts/pull-foodstuffs.mjs. The generated file is
- * a compact union of both stores, keyed by productId (the SKU shared by both
- * Foodstuffs banners). Prices are integers in cents; 0 means the store did not
- * return that product.
+ * Raw files are produced by scripts/pull-foodstuffs.mjs. Prices are the same
+ * across a banner within an island (the stores use one North Island and one
+ * South Island price list), so the demo pulls one representative store per
+ * banner per island and gives every branch that island's prices.
+ *
+ * The generated file is a compact union of the four pulls, keyed by productId
+ * (the SKU shared by both Foodstuffs banners). Prices are integers in cents;
+ * 0 means that price list did not return the product.
  */
 
 import fs from "node:fs";
@@ -15,8 +19,42 @@ import path from "node:path";
 const rawDir = process.env.RAW_DIR || "/tmp/foodstuffs";
 const outPath = process.env.OUT || "data/catalogue.js";
 
-const pns = JSON.parse(fs.readFileSync(path.join(rawDir, "paknsave.json"), "utf8"));
-const nw = JSON.parse(fs.readFileSync(path.join(rawDir, "newworld.json"), "utf8"));
+/* One representative branch per banner per island. Branch prices are the same
+   within an island, so these four pulls stand in for every branch. */
+const PULLS = [
+  {
+    file: "paknsave.json",
+    zone: "pns-ni",
+    brand: "pns",
+    name: "PAK'nSAVE",
+    branch: "Mt Albert",
+    island: "North Island",
+  },
+  {
+    file: "newworld.json",
+    zone: "nw-ni",
+    brand: "nw",
+    name: "New World",
+    branch: "Point Chevalier",
+    island: "North Island",
+  },
+  {
+    file: "paknsave-si.json",
+    zone: "pns-si",
+    brand: "pns",
+    name: "PAK'nSAVE",
+    branch: "Riccarton",
+    island: "South Island",
+  },
+  {
+    file: "newworld-si.json",
+    zone: "nw-si",
+    brand: "nw",
+    name: "New World",
+    branch: "Ilam",
+    island: "South Island",
+  },
+];
 
 const PROMO_DEPARTMENTS = new Set(["Featured", "Cracker Deals"]);
 
@@ -45,10 +83,19 @@ function unitPrice(product) {
   return `$${(cp.pricePerUnit / 100).toFixed(2)}/${cp.measureDescription}`;
 }
 
+const pulls = PULLS.map((pull) => {
+  const filePath = path.join(rawDir, pull.file);
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Missing ${filePath} — run scripts/pull-foodstuffs.mjs first`);
+  }
+  const raw = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  return { ...pull, raw, products: Array.isArray(raw.products) ? raw.products : [] };
+});
+
 const byId = new Map();
 
-function addProducts(products, storeKey) {
-  for (const product of products) {
+for (const pull of pulls) {
+  for (const product of pull.products) {
     if (!product?.productId) continue;
     const price = product.singlePrice?.price;
     if (!Number.isFinite(price)) continue;
@@ -63,26 +110,17 @@ function addProducts(products, storeKey) {
         size: String(product.displayName || "").trim(),
         department: tree?.level0 || "Other",
         subcategory: tree?.level1 || "",
-        pns: 0,
-        nw: 0,
-        pnsUnit: null,
-        nwUnit: null,
+        prices: {},
+        units: {},
       };
       byId.set(product.productId, row);
     }
-    if (storeKey === "pns" && !row.pns) {
-      row.pns = price;
-      row.pnsUnit = unitPrice(product);
-    }
-    if (storeKey === "nw" && !row.nw) {
-      row.nw = price;
-      row.nwUnit = unitPrice(product);
+    if (!row.prices[pull.zone]) {
+      row.prices[pull.zone] = price;
+      row.units[pull.zone] = unitPrice(product);
     }
   }
 }
-
-addProducts(pns.products, "pns");
-addProducts(nw.products, "nw");
 
 const rows = [...byId.values()].sort(
   (a, b) =>
@@ -92,14 +130,23 @@ const rows = [...byId.values()].sort(
 );
 
 const fetchedAt =
-  process.env.FETCHED_AT || String(pns.fetchedAt || nw.fetchedAt || "").slice(0, 10);
+  process.env.FETCHED_AT ||
+  String(
+    pulls
+      .map((pull) => String(pull.raw.fetchedAt || "").slice(0, 10))
+      .filter(Boolean)
+      .sort()
+      .at(-1) || ""
+  );
 const checkedAt =
   process.env.CHECKED_AT ||
-  pns.checkedAt ||
-  pns.fetchedAt ||
-  nw.checkedAt ||
-  nw.fetchedAt ||
+  pulls
+    .map((pull) => pull.raw.checkedAt || pull.raw.fetchedAt || "")
+    .filter(Boolean)
+    .sort()
+    .at(-1) ||
   "";
+
 const items = rows.map((row) => [
   row.id,
   row.name,
@@ -107,28 +154,30 @@ const items = rows.map((row) => [
   row.size,
   row.department,
   row.subcategory,
-  row.pns,
-  row.nw,
-  row.pnsUnit,
-  row.nwUnit,
+  ...PULLS.map((pull) => row.prices[pull.zone] || 0),
+  ...PULLS.map((pull) => row.units[pull.zone] || null),
 ]);
+
+const zones = Object.fromEntries(
+  pulls.map((pull) => [
+    pull.zone,
+    {
+      name: pull.name,
+      branch: pull.branch,
+      island: pull.island,
+      storeId: pull.raw.storeId || "",
+      count: pull.products.filter((product) => product?.productId).length,
+      fetchedAt: String(pull.raw.checkedAt || pull.raw.fetchedAt || "").slice(0, 10),
+      checkedAt: pull.raw.checkedAt || pull.raw.fetchedAt || "",
+    },
+  ])
+);
 
 const output = {
   fetchedAt,
   checkedAt,
   source: "PAK'nSAVE and New World public online store pages",
-  stores: {
-    paknsave: {
-      name: "PAK'nSAVE",
-      branch: "Mt Albert",
-      count: rows.filter((row) => row.pns).length,
-    },
-    newworld: {
-      name: "New World",
-      branch: "Point Chevalier",
-      count: rows.filter((row) => row.nw).length,
-    },
-  },
+  zones,
   productCount: rows.length,
   items,
 };
@@ -137,8 +186,9 @@ fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(
   outPath,
   `/* Generated by scripts/build-catalogue.mjs from the dated public store pulls.
-   ${rows.length.toLocaleString("en-NZ")} products; prices are store shelf prices in
-   cents, fetched ${fetchedAt}. 0 means that store did not return the product.
+   ${rows.length.toLocaleString("en-NZ")} products; prices are shelf prices in
+   cents from each banner's North Island and South Island price lists, fetched
+   ${fetchedAt}. 0 means that price list did not return the product.
    Do not edit by hand — re-run the pull and build scripts instead. */
 window.GROCER_CATALOGUE = ${JSON.stringify(output)};
 `
@@ -147,5 +197,8 @@ window.GROCER_CATALOGUE = ${JSON.stringify(output)};
 console.log(
   `Wrote ${rows.length} products (${items.length} rows) to ${outPath} ` +
     `(${(fs.statSync(outPath).size / 1024 / 1024).toFixed(2)} MB); ` +
-    `PAK'nSAVE ${output.stores.paknsave.count}, New World ${output.stores.newworld.count}`
+    PULLS.map(
+      (pull) =>
+        `${pull.zone} ${items.filter((row) => row[6 + PULLS.indexOf(pull)]).length}`
+    ).join(", ")
 );

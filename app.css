@@ -274,6 +274,27 @@
   background: var(--lime-soft);
 }
 
+/* Foodstuffs chains: the chip toggles the chain, the select picks a branch. */
+.store-pick {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.store-branch select {
+  width: 100%;
+  padding: 0.34rem 0.45rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #fbfdf9;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.72rem;
+}
+
+.store-branch select:hover {
+  border-color: rgba(21, 121, 75, 0.45);
+}
+
 .store-chip__dot {
   width: 9px;
   height: 9px;
