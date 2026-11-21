@@ -490,8 +490,9 @@
 }
 
 .product__open {
-  display: grid;
-  gap: 0.12rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
   padding: 0;
   border: 0;
   background: none;
@@ -499,6 +500,23 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.product__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.product__thumb {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: #fff;
 }
 
 .product__name {
@@ -2239,6 +2257,17 @@ button.grocer-item__price:disabled {
 }
 
 @media (max-width: 430px) {
+  .product__open {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+  }
+
+  .product__thumb {
+    width: 100%;
+    height: 88px;
+  }
+
   .app-bar .btn--sm {
     padding: 0.5rem 0.7rem;
     font-size: 0.76rem;

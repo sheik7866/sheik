@@ -182,6 +182,25 @@ const IMPORTS = ["paknsave", "newworld"]
     };
   })
   .filter((imp) => Object.keys(imp.items).length > 0);
+
+/* The stores' public image CDN keys product photos by the numeric part of
+   the product id. Curated staples use the SKU in their dated import. */
+const FOODSTUFFS_IMAGE_ID = /^(\d+)[-_]/;
+const DEMO_IMAGE_IDS = new Map();
+for (const imp of BASE_IMPORTS) {
+  for (const [demoId, item] of Object.entries(imp.items || {})) {
+    const match = FOODSTUFFS_IMAGE_ID.exec(String(item.sku || ""));
+    if (match && !DEMO_IMAGE_IDS.has(demoId)) DEMO_IMAGE_IDS.set(demoId, match[1]);
+  }
+}
+for (const product of PRODUCTS) {
+  if (product.image) continue;
+  const imageId = DEMO_IMAGE_IDS.get(product.id) || FOODSTUFFS_IMAGE_ID.exec(product.id)?.[1];
+  if (imageId) {
+    product.image = `https://a.fsimg.co.nz/product/retail/fan/image/200x200/${imageId}.png`;
+  }
+}
+
 const money = new Intl.NumberFormat("en-NZ", { style: "currency", currency: "NZD" });
 
 const el = {
@@ -685,13 +704,16 @@ function renderProducts() {
       return `
         <li class="product">
           <button class="product__open" type="button" data-product="${product.id}" aria-label="View prices for ${escapeHtml(product.name)}">
-            <span class="product__name">${escapeHtml(product.name)}</span>
-            <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
-            <span class="product__best">
-              ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(best.store.name)}</small>` : `<b>—</b><small>${stores.length ? "not stocked" : "no stores selected"}</small>`}
+            ${product.image ? `<img class="product__thumb" src="${escapeHtml(product.image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="56" height="56" />` : ""}
+            <span class="product__body">
+              <span class="product__name">${escapeHtml(product.name)}</span>
+              <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
+              <span class="product__best">
+                ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(best.store.name)}</small>` : `<b>—</b><small>${stores.length ? "not stocked" : "no stores selected"}</small>`}
+              </span>
+              <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
+              ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(store.name)).join(" & ")}</span>` : ""}
             </span>
-            <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
-            ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(store.name)).join(" & ")}</span>` : ""}
           </button>
           <button class="product__add" type="button" data-add="${product.id}">Add to list</button>
         </li>`;
@@ -1466,6 +1488,12 @@ el.productGrid.addEventListener("click", (event) => {
   const open = event.target.closest("[data-product]");
   if (open) openProduct(open.dataset.product);
 });
+
+function hideBrokenImage(event) {
+  if (event.target instanceof HTMLImageElement) event.target.hidden = true;
+}
+el.productGrid.addEventListener("error", hideBrokenImage, true);
+el.dialogContent.addEventListener("error", hideBrokenImage, true);
 
 el.listItems.addEventListener("click", (event) => {
   const step = event.target.closest("[data-step]");
