@@ -193,6 +193,11 @@ async function main() {
     );
     const priceRows = await page.locator("#product-dialog table tbody tr").count();
     assert(priceRows === 2, `PAK'nSAVE-only dialog should show 2 store rows, saw ${priceRows}`);
+    const catalogueBarcodes = await page.locator("#product-dialog .barcode-card").count();
+    assert(
+      catalogueBarcodes === 0,
+      `catalogue product without a GTIN should not show a barcode card, saw ${catalogueBarcodes}`
+    );
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
 
