@@ -8,7 +8,8 @@
   must not be ranked or totalled. It also renders a demo product's barcode and
   decodes the pixels with the site's own vendored ZXing build, so a broken
   barcode image fails the post-deploy check, and it requires the import banner
-  to show the last successful price-check time.
+  to show the last successful price-check time plus the catalogue price-coverage
+  summary.
 
   Usage:
     npm run smoke:live
@@ -141,6 +142,15 @@ async function main() {
       importBanner.includes("Last successful price check:") &&
         /\d{1,2}:\d{2}\s*(am|pm)/i.test(importBanner),
       `import banner has no price-check time: ${importBanner}`
+    );
+
+    step("checking the price-coverage summary");
+    const coverageLine = normalize(await page.locator("#coverage-line").innerText());
+    assert(
+      coverageLine.includes("at both stores") &&
+        coverageLine.includes("at one store") &&
+        coverageLine.includes("at neither"),
+      `price-coverage summary missing: ${coverageLine}`
     );
 
     step("loading the demo's barcode decoder");

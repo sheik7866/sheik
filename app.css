@@ -443,6 +443,17 @@
   display: none;
 }
 
+.coverage-line {
+  margin: -0.35rem 0 0.8rem;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.coverage-line[hidden] {
+  display: none;
+}
+
 .results-line {
   margin-bottom: 0.7rem;
   font-size: 0.72rem;

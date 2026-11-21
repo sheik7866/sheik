@@ -221,6 +221,7 @@ const el = {
   bulkStatus: document.getElementById("bulk-status"),
   bulkSave: document.getElementById("bulk-save"),
   importBanner: document.getElementById("import-banner"),
+  coverageLine: document.getElementById("coverage-line"),
   proToggle: document.getElementById("pro-toggle"),
   reset: document.getElementById("reset-demo"),
   dialog: document.getElementById("product-dialog"),
@@ -2137,6 +2138,24 @@ function renderGrocerResults() {
   renderProducts();
 }
 
+function renderCoverageLine() {
+  if (!el.coverageLine || !CATALOGUE_ROWS.length) return;
+  let both = 0;
+  let one = 0;
+  let neither = 0;
+  for (const row of CATALOGUE_ROWS) {
+    const stores = (row[6] ? 1 : 0) + (row[7] ? 1 : 0);
+    if (stores === 2) both += 1;
+    else if (stores === 1) one += 1;
+    else neither += 1;
+  }
+  const count = (value) => value.toLocaleString("en-NZ");
+  el.coverageLine.textContent =
+    `Catalogue price coverage: ${count(both)} products priced at both stores, ` +
+    `${count(one)} at one store, ${count(neither)} at neither (${count(CATALOGUE_ROWS.length)} total).`;
+  el.coverageLine.hidden = false;
+}
+
 function renderImportBanner() {
   if (!el.importBanner || !IMPORTS.length) return;
   const labels = IMPORTS.map((imp) => `${imp.store} ${imp.branch}`).join(" and ");
@@ -2151,6 +2170,7 @@ function renderImportBanner() {
 }
 
 renderImportBanner();
+renderCoverageLine();
 renderAll();
 
 /* ---------- Small utilities ---------- */
