@@ -84,6 +84,10 @@ const STORE_PRODUCTS = CATALOGUE_ROWS.map(
     source: "catalogue",
     estimated: true,
     code: "",
+    // The chains whose pulled catalogue contained this product. A missing
+    // chain means the store did not stock it on the fetch date, not that we
+    // should fall back to a demo estimate there.
+    catalogueStores: [pnsPrice ? "paknsave" : null, nwPrice ? "newworld" : null].filter(Boolean),
     stores: (pnsPrice ? 1 : 0) + (nwPrice ? 1 : 0),
   })
 );
@@ -391,12 +395,30 @@ function priceIsChecked(productId, storeId) {
   return Boolean(priceState(productId, storeId));
 }
 
+const CATALOGUE_STORE_IDS = new Set(["paknsave", "newworld"]);
+
+/* True only when we know the product is absent from that chain's catalogue.
+   The app has no stock feed for the other demo stores, so they stay estimates. */
+function knownUnavailable(productId, storeId) {
+  const product = PRODUCT_MAP.get(productId);
+  if (!product) return false;
+  // A price you recorded (or a dated import) is evidence the store had it,
+  // even if the catalogue pull missed it.
+  if (priceState(productId, storeId)) return false;
+  return Boolean(
+    product.source === "catalogue" &&
+      CATALOGUE_STORE_IDS.has(storeId) &&
+      Array.isArray(product.catalogueStores) &&
+      !product.catalogueStores.includes(storeId)
+  );
+}
+
 function priceFor(productId, storeId) {
   const real = priceState(productId, storeId);
   if (real) return real.price;
   const p = PRODUCT_MAP.get(productId);
   const s = STORE_MAP.get(storeId);
-  if (!p || !s) return 0;
+  if (!p || !s || knownUnavailable(productId, storeId)) return null;
   const jitter = noise(hash(productId + storeId), -0.06, 0.06);
   return roundPrice(p.base * s.factor * (1 + jitter));
 }
@@ -404,14 +426,15 @@ function priceFor(productId, storeId) {
 function historyFor(productId, storeId, months) {
   const p = PRODUCT_MAP.get(productId);
   const s = STORE_MAP.get(storeId);
-  if (!p || !s) return [];
+  const current = priceFor(productId, storeId);
+  if (!p || !s || current == null) return [];
   const values = MONTHS.slice(12 - months).map((label, index) => {
     const monthIndex = 12 - months + index;
     const drift = (monthIndex - 11) * 0.004;
     const jitter = noise(hash(productId + storeId + monthIndex), -0.09, 0.09);
     return roundPrice(p.base * s.factor * (1 + drift + jitter));
   });
-  values[values.length - 1] = priceFor(productId, storeId);
+  values[values.length - 1] = current;
   return values;
 }
 
@@ -457,6 +480,7 @@ function offersFor(productId) {
   const stores = selectedStores();
   return stores
     .map((store) => ({ store, price: priceFor(productId, store.id) }))
+    .filter((offer) => offer.price != null)
     .sort((a, b) => a.price - b.price);
 }
 
@@ -486,15 +510,23 @@ function visibleProducts() {
 function listTotals() {
   const stores = selectedStores();
   if (!stores.length || !state.list.length) return null;
-  const rows = stores
-    .map((store) => ({
-      store,
-      total: state.list.reduce((sum, row) => sum + priceFor(row.id, store.id) * row.qty, 0),
-    }))
-    .sort((a, b) => a.total - b.total);
-  const cheapest = rows[0];
-  const dearest = rows[rows.length - 1];
-  return { rows, cheapest, dearest, savings: dearest.total - cheapest.total };
+  const rows = stores.map((store) => {
+    const lines = state.list.map((row) => ({ row, price: priceFor(row.id, store.id) }));
+    const missing = lines.filter((line) => line.price == null).length;
+    const total = lines.reduce((sum, line) => sum + (line.price || 0) * line.row.qty, 0);
+    return { store, total, missing, available: missing === 0 };
+  });
+  const available = rows.filter((row) => row.available).sort((a, b) => a.total - b.total);
+  const unavailable = rows.filter((row) => !row.available).sort((a, b) => a.missing - b.missing);
+  const cheapest = available[0] || null;
+  const dearest = available[available.length - 1] || null;
+  return {
+    rows: [...available, ...unavailable],
+    cheapest,
+    dearest,
+    savings: cheapest && dearest ? dearest.total - cheapest.total : 0,
+    hasAvailable: available.length > 0,
+  };
 }
 
 /* ---------- Rendering ---------- */
@@ -560,7 +592,8 @@ function renderProducts() {
     .map((product) => {
       const best = bestOffer(product.id);
       const bestKind = best ? priceKind(product.id, best.store.id) : null;
-      const prices = stores.map((store) => priceFor(product.id, store.id));
+      const unavailableStores = stores.filter((store) => knownUnavailable(product.id, store.id));
+      const prices = stores.map((store) => priceFor(product.id, store.id)).filter((price) => price != null);
       const range = prices.length > 1 ? ` · ${money.format(Math.min(...prices))}–${money.format(Math.max(...prices))}` : "";
       return `
         <li class="product">
@@ -568,9 +601,10 @@ function renderProducts() {
             <span class="product__name">${escapeHtml(product.name)}</span>
             <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
             <span class="product__best">
-              ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(best.store.name)}</small>` : `<b>—</b><small>no stores selected</small>`}
+              ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(best.store.name)}</small>` : `<b>—</b><small>${stores.length ? "not stocked" : "no stores selected"}</small>`}
             </span>
-            <span class="product__range">${best ? `${stores.length} store${stores.length === 1 ? "" : "s"}${range}` : "Choose a store to price this"}</span>
+            <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
+            ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(store.name)).join(" & ")}</span>` : ""}
           </button>
           <button class="product__add" type="button" data-add="${product.id}">Add to list</button>
         </li>`;
@@ -638,22 +672,28 @@ function renderTotals() {
     return;
   }
   const itemCount = state.list.reduce((sum, row) => sum + row.qty, 0);
+  const availableRows = totals.rows.filter((row) => row.available);
+  const summary = !totals.hasAvailable
+    ? "No selected store has a price for every item on this list."
+    : availableRows.length === 1
+      ? `Only ${escapeHtml(totals.cheapest.store.name)} has a price for every item on this list.`
+      : totals.savings > 0.004
+        ? `Save ${money.format(totals.savings)} shopping at ${escapeHtml(totals.cheapest.store.name)}.`
+        : "Prices are level across your stores for this basket.";
   el.totals.innerHTML = `
     <h3>Basket total <span>${itemCount} item${itemCount === 1 ? "" : "s"}</span></h3>
     <ul class="total-rows">
       ${totals.rows
         .map(
-          (row, index) => `
-        <li class="total-row${index === 0 ? " is-best" : ""}">
-          <span>${escapeHtml(row.store.name)}${index === 0 ? ' <em>cheapest</em>' : ""}</span>
-          <b>${money.format(row.total)}</b>
+          (row) => `
+        <li class="total-row${row.available && row === totals.cheapest && availableRows.length > 1 ? " is-best" : ""}${row.available ? "" : " is-unavailable"}">
+          <span>${escapeHtml(row.store.name)}${row.available && row === totals.cheapest && availableRows.length > 1 ? ' <em>cheapest</em>' : ""}${row.available ? "" : ` <em class="total-row__missing">${row.missing} not stocked</em>`}</span>
+          <b>${row.available ? money.format(row.total) : "—"}</b>
         </li>`
         )
         .join("")}
     </ul>
-    <p class="totals__save">
-      ${totals.savings > 0.004 ? `Save ${money.format(totals.savings)} shopping at ${escapeHtml(totals.cheapest.store.name)}.` : "Prices are level across your stores for this basket."}
-    </p>`;
+    <p class="totals__save">${summary}</p>`;
 }
 
 /* ---------- Basket receipt ---------- */
@@ -666,13 +706,27 @@ function receiptGroups() {
           const product = PRODUCT_MAP.get(row.id);
           if (!product) return null;
           const price = priceFor(row.id, store.id);
-          return { product, qty: row.qty, price, line: price * row.qty, checked: priceIsChecked(row.id, store.id) };
+          const unavailable = price == null;
+          const kind = unavailable ? null : priceKind(row.id, store.id);
+          return {
+            product,
+            qty: row.qty,
+            price,
+            line: unavailable ? 0 : price * row.qty,
+            checked: kind === "checked",
+            imported: kind === "imported",
+            unavailable,
+          };
         })
         .filter(Boolean);
+      const missing = lines.filter((line) => line.unavailable).length;
       const total = lines.reduce((sum, line) => sum + line.line, 0);
-      return { store, lines, total };
+      return { store, lines, total, missing, available: missing === 0 };
     })
-    .sort((a, b) => a.total - b.total);
+    .sort((a, b) => {
+      if (a.available !== b.available) return a.available ? -1 : 1;
+      return a.available ? a.total - b.total : a.missing - b.missing;
+    });
 }
 
 function receiptDate() {
@@ -681,23 +735,31 @@ function receiptDate() {
 
 function receiptSummaryText(groups) {
   const itemCount = listQuantity();
-  const best = groups[0];
-  const dearest = groups[groups.length - 1];
+  const availableGroups = groups.filter((group) => group.available);
+  const best = availableGroups[0] || null;
+  const dearest = availableGroups[availableGroups.length - 1] || null;
   const lines = [
     `Grocer demo basket — ${receiptDate()}`,
     `${itemCount} item${itemCount === 1 ? "" : "s"} · ${groups.length} store${groups.length === 1 ? "" : "s"} compared`,
     "",
   ];
   groups.forEach((group) => {
-    lines.push(
-      `${group.store.name} (${group.store.branch}) — ${money.format(group.total)}${group === best && groups.length > 1 ? "  ← cheapest" : ""}`
-    );
+    const status = group.available
+      ? `${money.format(group.total)}${group === best && availableGroups.length > 1 ? "  ← cheapest" : ""}`
+      : `not available — ${group.missing} item${group.missing === 1 ? "" : "s"} not stocked`;
+    lines.push(`${group.store.name} (${group.store.branch}) — ${status}`);
     group.lines.forEach((line) => {
-      lines.push(`  ${line.qty}× ${line.product.name} ${line.product.size}  ${money.format(line.line)}`);
+      lines.push(
+        `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? "not stocked" : `${money.format(line.line)}${line.checked ? " ✓" : line.imported ? " (imported)" : ""}`}`
+      );
     });
     lines.push("");
   });
-  if (best && dearest && groups.length > 1 && dearest.total - best.total > 0.004) {
+  if (groups.some((group) => !group.available)) {
+    lines.push("A store missing an item is shown as not available.");
+    lines.push("");
+  }
+  if (best && dearest && best !== dearest && dearest.total - best.total > 0.004) {
     lines.push(`Save ${money.format(dearest.total - best.total)} shopping at ${best.store.name}.`);
     lines.push("");
   }
@@ -715,9 +777,12 @@ function renderReceipt() {
     return;
   }
 
-  const best = groups[0];
-  const dearest = groups[groups.length - 1];
-  const savings = groups.length > 1 ? dearest.total - best.total : 0;
+  const availableGroups = groups.filter((group) => group.available);
+  const best = availableGroups[0] || null;
+  const dearest = availableGroups[availableGroups.length - 1] || null;
+  const savings = best && dearest && best !== dearest ? dearest.total - best.total : 0;
+  const hasChecked = groups.some((group) => group.lines.some((line) => line.checked));
+  const hasImported = groups.some((group) => group.lines.some((line) => line.imported));
 
   el.receiptBody.innerHTML = `
     <div class="receipt-paper">
@@ -731,13 +796,13 @@ function renderReceipt() {
         groups.length
           ? groups
               .map(
-                (group, index) => `
-        <section class="receipt-store${index === 0 && groups.length > 1 ? " is-best" : ""}" aria-label="${escapeHtml(group.store.name)} basket">
+                (group) => `
+        <section class="receipt-store${group === best && availableGroups.length > 1 ? " is-best" : ""}${group.available ? "" : " is-unavailable"}" aria-label="${escapeHtml(group.store.name)} basket">
           <div class="receipt-store__head">
             <h3 class="receipt-store__name">${escapeHtml(group.store.name)}<span class="receipt-store__branch">${escapeHtml(group.store.branch)}</span></h3>
             <p class="receipt-store__total">
-              ${money.format(group.total)}
-              ${index === 0 && groups.length > 1 ? '<span class="receipt-store__badge">Cheapest</span>' : ""}
+              ${group.available ? money.format(group.total) : "Not available"}
+              ${group === best && availableGroups.length > 1 ? '<span class="receipt-store__badge">Cheapest</span>' : ""}
             </p>
           </div>
           <ul class="receipt-lines">
@@ -747,14 +812,14 @@ function renderReceipt() {
               <li class="receipt-line">
                 <span class="receipt-line__qty">${line.qty}×</span>
                 <span class="receipt-line__name">${escapeHtml(line.product.name)}<small>${escapeHtml(line.product.size)}</small></span>
-                <span class="receipt-line__amount">${money.format(line.line)}${line.checked ? '<span class="receipt-line__checked" title="Price recorded in store">✓</span>' : ""}</span>
+                <span class="receipt-line__amount${line.unavailable ? " is-missing" : ""}">${line.unavailable ? "Not stocked" : money.format(line.line)}${line.checked ? '<span class="receipt-line__checked" title="Price recorded in store">✓</span>' : line.imported ? '<span class="receipt-line__imported" title="Shelf price imported from the store">imp.</span>' : ""}</span>
               </li>`
               )
               .join("")}
           </ul>
           <div class="receipt-store__foot">
-            <span>Basket total</span>
-            <b>${money.format(group.total)}</b>
+            <span>${group.available ? "Basket total" : "Missing items"}</span>
+            <b>${group.available ? money.format(group.total) : `${group.missing} not stocked`}</b>
           </div>
         </section>`
               )
@@ -763,15 +828,17 @@ function renderReceipt() {
       }
 
       ${
-        savings > 0.004
+        savings > 0.004 && best && dearest
           ? `<p class="receipt-save">Cheapest basket: ${escapeHtml(best.store.name)} at ${money.format(best.total)} — ${money.format(savings)} less than ${escapeHtml(dearest.store.name)}.</p>`
           : ""
       }
 
       <p class="receipt-note">${
-        groups.some((group) => group.lines.some((line) => line.checked))
-          ? "✓ price recorded in store. Other prices are estimates from the Grocer interactive demo."
-          : "Prices are illustrative demo data from the Grocer interactive demo."
+        hasChecked
+          ? `✓ price recorded in store${hasImported ? `; imported shelf prices dated ${importDateLabel()}` : ""}. Other prices are estimates from the Grocer interactive demo.`
+          : hasImported
+            ? `Imported shelf prices dated ${importDateLabel()}. Other prices are estimates from the Grocer interactive demo.`
+            : "Prices are illustrative demo data from the Grocer interactive demo."
       }</p>
     </div>`;
 
@@ -1014,15 +1081,16 @@ function renderBulkRows() {
       const checked = checkedPrice(row.id, storeId);
       const real = priceState(row.id, storeId);
       const estimate = priceFor(row.id, storeId);
+      const missing = estimate == null;
       return `
-        <label class="bulk-row${real ? " is-checked" : ""}">
+        <label class="bulk-row${real ? " is-checked" : ""}${missing ? " is-missing" : ""}">
           <span class="bulk-row__body">
             <b>${escapeHtml(product.name)}</b>
-            <small>${escapeHtml(product.size)} · ${row.qty} on list · ${real ? `${real.kind === "imported" ? "imported" : "checked"} ${shortDate(real.at)}` : `estimate ${money.format(estimate)}`}</small>
+            <small>${escapeHtml(product.size)} · ${row.qty} on list · ${missing ? "not stocked at this store" : real ? `${real.kind === "imported" ? "imported" : "checked"} ${shortDate(real.at)}` : `estimate ${money.format(estimate)}`}</small>
           </span>
           <span class="bulk-row__input">
             <span aria-hidden="true">$</span>
-            <input type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="${estimate.toFixed(2)}" aria-label="Price paid for ${escapeHtml(product.name)}" data-bulk-input="${row.id}" value="${checked ? checked.price.toFixed(2) : ""}" />
+            <input type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="${missing ? "—" : estimate.toFixed(2)}" aria-label="Price paid for ${escapeHtml(product.name)}" data-bulk-input="${row.id}" value="${checked ? checked.price.toFixed(2) : ""}"${missing ? " disabled" : ""} />
           </span>
         </label>`;
     })
@@ -1102,7 +1170,8 @@ function openProduct(productId) {
   const offers = offersFor(productId);
   const months = historyMonths();
   const recorded = recordedPricesFor(productId);
-  const anyEstimate = !offers.length || offers.some((offer) => !priceIsChecked(productId, offer.store.id));
+  const unavailable = selectedStores().filter((store) => knownUnavailable(productId, store.id));
+  const anyEstimate = offers.some((offer) => !priceIsChecked(productId, offer.store.id));
   const hasImport = offers.some((offer) => priceKind(productId, offer.store.id) === "imported");
   dialogProductId = productId;
 
@@ -1163,7 +1232,13 @@ function openProduct(productId) {
                 .join("")}
             </tbody>
           </table>`
-        : `<p class="dialog__empty">Select at least one store in the sidebar to price this product.</p>`
+        : `<p class="dialog__empty">${unavailable.length ? `Not stocked at ${unavailable.map((store) => escapeHtml(store.name)).join(" or ")}.` : "Select at least one store in the sidebar to price this product."}</p>`
+    }
+
+    ${
+      unavailable.length && offers.length
+        ? `<p class="dialog__stock">Not stocked at ${unavailable.map((store) => escapeHtml(store.name)).join(" or ")} — no price to compare there.</p>`
+        : ""
     }
 
     ${
@@ -1213,7 +1288,7 @@ function openProduct(productId) {
           ? `${sparkline(historyFor(productId, offers[0].store.id, months))}
              <div class="history-labels">${historyLabels(months).map((m) => `<span>${m}</span>`).join("")}</div>
              <p class="dialog__note">Showing ${escapeHtml(offers[0].store.name)}. Prices elsewhere move differently — that's the point.</p>`
-          : `<p class="dialog__empty">Pick a store to see its price history.</p>`
+          : `<p class="dialog__empty">${unavailable.length ? "No price history at your selected stores." : "Pick a store to see its price history."}</p>`
       }
     </section>
 
