@@ -7,7 +7,8 @@
   show "not stocked" instead of an invented price, and a chain missing an item
   must not be ranked or totalled. It also renders a demo product's barcode and
   decodes the pixels with the site's own vendored ZXing build, so a broken
-  barcode image fails the post-deploy check.
+  barcode image fails the post-deploy check, and it requires the import banner
+  to show the last successful price-check time.
 
   Usage:
     npm run smoke:live
@@ -134,6 +135,14 @@ async function main() {
       { timeout: 20000 }
     );
 
+    step("checking the last price-check time");
+    const importBanner = normalize(await page.locator("#import-banner").innerText());
+    assert(
+      importBanner.includes("Last successful price check:") &&
+        /\d{1,2}:\d{2}\s*(am|pm)/i.test(importBanner),
+      `import banner has no price-check time: ${importBanner}`
+    );
+
     step("loading the demo's barcode decoder");
     await page.addScriptTag({ url: new URL("vendor/zxing.min.js", TARGET).href });
 
@@ -249,7 +258,7 @@ async function main() {
       `browser console errors:\n${consoleErrors.join("\n")}`
     );
 
-    step("all availability and barcode checks passed");
+    step("all availability, barcode and price-check checks passed");
     console.log(`[smoke] PASS ${TARGET}`);
   } catch (error) {
     await page.screenshot({ path: "smoke-failure.png", fullPage: false }).catch(() => {});

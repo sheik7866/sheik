@@ -1,6 +1,6 @@
 /* A small, dated PAK'nSAVE price import.
    Shelf prices were read from PAK'nSAVE's public online store pages for the
-   Mt Albert store on 2026-11-21, one category page at a time. Only products
+   Mt Albert store on 2026-11-22, one category page at a time. Only products
    that matched a demo staple like-for-like were kept, so 28 of 34 demo
    products have a real shelf price; everything else stays an estimate.
    These are one store's prices on one day: treat them as dated, not live. */
@@ -8,7 +8,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
   storeId: "paknsave",
   store: "PAK'nSAVE",
   branch: "Mt Albert",
-  fetchedAt: "2026-11-21",
+  fetchedAt: "2026-11-22",
+  checkedAt: "2026-11-21T19:23:53.506Z",
   source: "https://www.paknsave.co.nz/shop/category/",
   items: {
     "milk-2l": {

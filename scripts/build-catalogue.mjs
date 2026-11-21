@@ -93,6 +93,13 @@ const rows = [...byId.values()].sort(
 
 const fetchedAt =
   process.env.FETCHED_AT || String(pns.fetchedAt || nw.fetchedAt || "").slice(0, 10);
+const checkedAt =
+  process.env.CHECKED_AT ||
+  pns.checkedAt ||
+  pns.fetchedAt ||
+  nw.checkedAt ||
+  nw.fetchedAt ||
+  "";
 const items = rows.map((row) => [
   row.id,
   row.name,
@@ -108,6 +115,7 @@ const items = rows.map((row) => [
 
 const output = {
   fetchedAt,
+  checkedAt,
   source: "PAK'nSAVE and New World public online store pages",
   stores: {
     paknsave: {

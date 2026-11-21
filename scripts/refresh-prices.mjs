@@ -71,8 +71,12 @@ function pullStore(store) {
 function formatImport(imported) {
   const lines = ["{"];
   for (const [key, value] of Object.entries(imported)) {
+    if (key === "checkedAt") continue;
     if (key !== "items") {
       lines.push(`  ${key}: ${JSON.stringify(value)},`);
+      if (key === "fetchedAt" && imported.checkedAt) {
+        lines.push(`  checkedAt: ${JSON.stringify(imported.checkedAt)},`);
+      }
       continue;
     }
     lines.push("  items: {");
@@ -96,7 +100,7 @@ function skuProductId(sku) {
     .toUpperCase();
 }
 
-function updateImport(store) {
+function updateImport(store, checkedAt) {
   const raw = JSON.parse(fs.readFileSync(path.join(RAW_DIR, store.raw), "utf8"));
   const products = new Map(
     (raw.products || []).map((product) => [String(product.productId).toUpperCase(), product])
@@ -137,6 +141,7 @@ function updateImport(store) {
   }
 
   imported.fetchedAt = TODAY;
+  imported.checkedAt = checkedAt;
   const header = text
     .slice(0, assignment)
     .replace(/on \d{4}-\d{2}-\d{2}/g, `on ${TODAY}`);
@@ -156,13 +161,15 @@ function main() {
 
   for (const store of STORES) pullStore(store);
 
+  const checkedAt = new Date().toISOString();
   run("scripts/build-catalogue.mjs", {
     RAW_DIR,
     OUT: CATALOGUE_OUT,
     FETCHED_AT: TODAY,
+    CHECKED_AT: checkedAt,
   });
 
-  for (const store of STORES) updateImport(store);
+  for (const store of STORES) updateImport(store, checkedAt);
 
   console.log(`\n[refresh] prices checked for ${TODAY} (Pacific/Auckland)`);
 }

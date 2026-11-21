@@ -175,6 +175,7 @@ const IMPORTS = ["paknsave", "newworld"]
       store: base?.store || meta?.name || storeId,
       branch: base?.branch || meta?.branch || "",
       fetchedAt: base?.fetchedAt || CATALOGUE?.fetchedAt || "",
+      checkedAt: base?.checkedAt || CATALOGUE?.checkedAt || "",
       source: base?.source || CATALOGUE?.source || "",
       productCount: Object.keys(catalogueItems).length || Object.keys(base?.items || {}).length,
       items: { ...(base?.items || {}), ...catalogueItems },
@@ -389,6 +390,22 @@ function importDateLabel(imp = IMPORTS[0]) {
   const date = new Date(`${imp.fetchedAt}T00:00:00`);
   if (Number.isNaN(date.getTime())) return imp.fetchedAt;
   return new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+
+function priceCheckLabel() {
+  const iso = IMPORTS.map((imp) => imp.checkedAt).find(Boolean) || CATALOGUE?.checkedAt || "";
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-NZ", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Pacific/Auckland",
+    timeZoneName: "short",
+  }).format(date);
 }
 
 function priceIsChecked(productId, storeId) {
@@ -2128,7 +2145,8 @@ function renderImportBanner() {
     counts.length === 2
       ? `${counts[0].toLocaleString("en-NZ")} and ${counts[1].toLocaleString("en-NZ")} products`
       : `${counts.reduce((sum, count) => sum + count, 0).toLocaleString("en-NZ")} products`;
-  el.importBanner.textContent = `${labels} shelf prices for ${countText}, fetched ${importDateLabel()}. Everything else is an estimate unless you record it.`;
+  const checkedAt = priceCheckLabel();
+  el.importBanner.textContent = `${labels} shelf prices for ${countText}. Last successful price check: ${checkedAt || "not recorded"}. Import dated ${importDateLabel()}. Everything else is an estimate unless you record it.`;
   el.importBanner.hidden = false;
 }
 
