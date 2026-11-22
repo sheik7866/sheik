@@ -534,10 +534,9 @@ async function main() {
     step("all availability, barcode, deal, picture and price-check checks passed");
     console.log(`[smoke] PASS ${TARGET}`);
   } catch (error) {
-    fs.writeFileSync(
-      "smoke-failure.txt",
-      `Stage: ${smokeStage}\nURL: ${page.url()}\n\n${error?.stack || error}\n`
-    );
+    const failure = `Stage: ${smokeStage}\nURL: ${page.url()}\n\n${error?.stack || error}`;
+    fs.writeFileSync("smoke-failure.txt", `${failure}\n`);
+    console.error(`::error title=Smoke failed::${failure.replace(/\s+/g, " ")}`);
     await page.screenshot({ path: "smoke-failure.png", fullPage: false }).catch(() => {});
     throw error;
   } finally {
