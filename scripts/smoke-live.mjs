@@ -84,7 +84,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "basket-pricing-2026-11-22",
+        () => window.TROLLEYBIRD_BUILD === "pooled-multibuy-2026-11-22",
         null,
         { timeout: 5000 }
       );
@@ -449,6 +449,81 @@ async function main() {
       null,
       { timeout: 5000 }
     );
+
+    step("checking an assorted multi-buy shared across different products");
+    await searchProduct(page, {
+      name: "Griffin's Gingernuts Biscuits",
+      sku: "5003306-EA-000",
+    });
+    await addToList(page, "5003306-EA-000", 1);
+    await searchProduct(page, {
+      name: "Griffin's Super Wine Biscuits",
+      sku: "5003309-EA-000",
+    });
+    await addToList(page, "5003309-EA-000", 2);
+    const pooledTotals = normalize(await page.locator("#totals").innerText());
+    assert(
+      pooledTotals.includes("$5.00"),
+      `assorted multi-buy did not pool across products: ${pooledTotals}`
+    );
+    assert(/saves \$1\.38/i.test(pooledTotals), `assorted multi-buy savings missing: ${pooledTotals}`);
+    const pooledList = normalize(await page.locator("#list-items").innerText());
+    assert(
+      (pooledList.match(/Multi-buy 2 for \$5\.00 applied/g) || []).length === 2,
+      `assorted multi-buy was not applied to both products: ${pooledList}`
+    );
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
+
+    step("checking that an assorted promotion has one shared limit");
+    await page.locator("label.club-toggle").click();
+    await page.waitForFunction(() => document.querySelector("#club-toggle")?.checked, null, {
+      timeout: 5000,
+    });
+    const limitedProducts = [
+      ["Cranberry With Blackcurrant", "5014930-EA-000"],
+      ["Apricot With Manuka Honey", "5014931-EA-000"],
+      ["Chocolate With Manuka Honey Bar", "5018413-EA-000"],
+    ];
+    for (let index = 0; index < limitedProducts.length; index += 1) {
+      const [name, sku] = limitedProducts[index];
+      await searchProduct(page, { name, sku });
+      await addToList(page, sku, index + 1);
+      const row = page.locator(`#list-items [data-row="${sku}"]`);
+      await row.locator('[data-step="1"]').click();
+      await page.waitForFunction(
+        (expectedSku) =>
+          document.querySelector(`#list-items [data-row="${expectedSku}"] output`)?.textContent ===
+          "2",
+        sku,
+        { timeout: 5000 }
+      );
+    }
+    const limitedTotals = normalize(await page.locator("#totals").innerText());
+    assert(
+      limitedTotals.includes("$103.94"),
+      `assorted promotion did not enforce its shared limit: ${limitedTotals}`
+    );
+    assert(/saves \$10\.00/i.test(limitedTotals), `shared-limit savings missing: ${limitedTotals}`);
+    const limitedList = normalize(await page.locator("#list-items").innerText());
+    assert(
+      (limitedList.match(/Club member \$16\.49 applied/g) || []).length === 2,
+      `shared limit did not stop the third product's discount: ${limitedList}`
+    );
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
+    await page.locator("label.club-toggle").click();
+    await page.waitForFunction(() => !document.querySelector("#club-toggle")?.checked, null, {
+      timeout: 5000,
+    });
 
     step(`PAK'nSAVE-only product: ${PAK_ONLY.name}`);
     let card = await searchProduct(page, PAK_ONLY);

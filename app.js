@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "basket-pricing-2026-11-22";
+window.TROLLEYBIRD_BUILD = "pooled-multibuy-2026-11-22";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -578,7 +578,7 @@ function storePriceEntry(store) {
 
 function normalizeDeal(raw) {
   if (!Array.isArray(raw) || raw.length < 3) return null;
-  const [threshold, priceCents, clubFlag, limit, description] = raw;
+  const [threshold, priceCents, clubFlag, limit, description, promoId, multiFlag] = raw;
   if (!Number.isInteger(threshold) || threshold < 1) return null;
   if (!Number.isFinite(priceCents) || priceCents <= 0) return null;
   if (threshold === 1 && !clubFlag) return null;
@@ -588,6 +588,9 @@ function normalizeDeal(raw) {
     club: Boolean(clubFlag),
     limit: Number.isFinite(Number(limit)) ? Number(limit) : 0,
     description: typeof description === "string" ? description : "",
+    promoId:
+      typeof promoId === "string" || typeof promoId === "number" ? String(promoId).trim() : "",
+    multiProducts: Boolean(multiFlag),
   };
 }
 
@@ -661,6 +664,114 @@ function basketLinePricing(productId, store, qty) {
   };
 }
 
+function dealGroupKey(deal) {
+  if (!deal?.multiProducts || !deal.promoId) return "";
+  return `${deal.promoId}|${deal.threshold}|${deal.price}|${deal.club ? 1 : 0}|${deal.limit}`;
+}
+
+/* Price every line at one store. Mix-and-match promotions share one deal group,
+   so three different products can make a "3 for" offer. The group limit is a
+   cap on promotional units across all products, and any units beyond it stay
+   at their own shelf price. Discounts are allocated by each line's share of
+   the promotional shelf value, so the line totals still add up to the group
+   total. */
+function basketPricingAtStore(store) {
+  const lines = state.list.map((row) => {
+    const shelfPrice = priceFor(row.id, store.id);
+    const count = Math.max(1, Math.min(Math.round(row.qty), 99));
+    const deal = shelfPrice == null ? null : storeDealFor(row.id, store);
+    return {
+      row,
+      productId: row.id,
+      qty: count,
+      shelfPrice,
+      shelfTotal: shelfPrice == null ? 0 : Math.round(shelfPrice * count * 100) / 100,
+      total: shelfPrice == null ? 0 : Math.round(shelfPrice * count * 100) / 100,
+      deal,
+      dealApplied: false,
+      dealGroups: 0,
+      dealUnits: 0,
+      dealRemainder: count,
+      savings: 0,
+      clubDealAvailable: Boolean(deal?.club),
+      missing: shelfPrice == null,
+      grouped: false,
+      promoUnits: 0,
+    };
+  });
+
+  const groups = new Map();
+  for (const line of lines) {
+    if (line.missing) continue;
+    const key = dealGroupKey(line.deal);
+    if (!key) continue;
+    if (line.deal.club && !state.clubCard) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(line);
+  }
+
+  for (const group of groups.values()) {
+    const deal = group[0].deal;
+    const totalQty = group.reduce((sum, line) => sum + line.qty, 0);
+    const eligibleQty = deal.limit > 0 ? Math.min(totalQty, deal.limit) : totalQty;
+    const dealGroups = Math.floor(eligibleQty / deal.threshold);
+    const dealUnits = dealGroups * deal.threshold;
+    if (!dealUnits) continue;
+
+    const totalShelf = group.reduce((sum, line) => sum + line.shelfTotal, 0);
+    let remainingUnits = dealUnits;
+    let promoUnitsShelf = 0;
+    for (const line of group) {
+      const take = Math.min(remainingUnits, line.qty);
+      line.promoUnits = take;
+      remainingUnits -= take;
+      promoUnitsShelf += take * line.shelfPrice;
+    }
+
+    const groupTotal = dealGroups * deal.price + (totalShelf - promoUnitsShelf);
+    const discount = Math.round((totalShelf - groupTotal) * 100) / 100;
+    if (discount <= 0.004) continue;
+
+    group.forEach((line) => {
+      line.grouped = true;
+      line.dealUnits = line.promoUnits;
+      line.dealRemainder = line.qty - line.promoUnits;
+    });
+    const receiving = group.filter((line) => line.promoUnits > 0);
+    let remainingDiscount = discount;
+    receiving.forEach((line, index) => {
+      const last = index === receiving.length - 1;
+      const weight = line.promoUnits * line.shelfPrice;
+      const share = last
+        ? remainingDiscount
+        : Math.round((discount * weight * 100) / promoUnitsShelf) / 100;
+      const lineDiscount = Math.max(0, Math.min(share, remainingDiscount, line.shelfTotal));
+      line.savings = Math.round(lineDiscount * 100) / 100;
+      line.total = Math.round((line.shelfTotal - line.savings) * 100) / 100;
+      line.dealApplied = line.savings > 0.004;
+      line.dealUnits = line.promoUnits;
+      line.dealGroups = Math.ceil(line.promoUnits / deal.threshold);
+      line.dealRemainder = line.qty - line.promoUnits;
+      line.grouped = true;
+      remainingDiscount = Math.round((remainingDiscount - line.savings) * 100) / 100;
+    });
+  }
+
+  for (const line of lines) {
+    if (line.missing || line.grouped) continue;
+    const pricing = basketLinePricing(line.productId, store, line.qty);
+    if (!pricing) continue;
+    Object.assign(line, pricing, {
+      missing: false,
+      shelfTotal: Math.round(pricing.shelfPrice * line.qty * 100) / 100,
+      grouped: false,
+      promoUnits: pricing.dealUnits,
+    });
+  }
+
+  return lines;
+}
+
 function dealLabel(deal) {
   if (!deal) return "";
   const price = money.format(deal.price);
@@ -675,6 +786,7 @@ function dealDetail(deal) {
   const parts = [dealLabel(deal)];
   if (deal.threshold > 1) parts.push(`${money.format(deal.price / deal.threshold)} each`);
   if (deal.club) parts.push("with club card");
+  if (deal.multiProducts) parts.push("mix & match");
   if (deal.description) parts.push(deal.description);
   if (deal.limit && !/limit/i.test(deal.description)) parts.push(`limit ${deal.limit}`);
   return parts.join(" · ");
@@ -958,10 +1070,16 @@ function bestOffer(productId) {
 }
 
 function bestBasketOffer(productId, qty) {
+  const inBasket = state.list.some((row) => row.id === productId);
   const offers = selectedStores()
     .map((store) => {
-      const pricing = basketLinePricing(productId, store, qty);
-      return pricing ? { store, ...pricing } : null;
+      let pricing;
+      if (inBasket) {
+        pricing = basketPricingAtStore(store).find((row) => row.productId === productId);
+      } else {
+        pricing = basketLinePricing(productId, store, qty);
+      }
+      return pricing && !pricing.missing ? { store, ...pricing, qty } : null;
     })
     .filter(Boolean)
     .sort((a, b) => a.total - b.total);
@@ -991,11 +1109,8 @@ function listTotals() {
   const stores = selectedStores();
   if (!stores.length || !state.list.length) return null;
   const rows = stores.map((store) => {
-    const lines = state.list.map((row) => {
-      const pricing = basketLinePricing(row.id, store, row.qty);
-      return pricing ? { row, ...pricing } : { row, shelfPrice: null, total: 0, savings: 0 };
-    });
-    const missing = lines.filter((line) => line.shelfPrice == null).length;
+    const lines = basketPricingAtStore(store);
+    const missing = lines.filter((line) => line.missing).length;
     const total = lines.reduce((sum, line) => sum + (line.total || 0), 0);
     const dealSavings = lines.reduce((sum, line) => sum + (line.savings || 0), 0);
     return {
@@ -1295,22 +1410,21 @@ function renderTotals() {
 function receiptGroups() {
   return selectedStores()
     .map((store) => {
-      const lines = state.list
-        .map((row) => {
-          const product = PRODUCT_MAP.get(row.id);
+      const lines = basketPricingAtStore(store)
+        .map((pricing) => {
+          const product = PRODUCT_MAP.get(pricing.productId);
           if (!product) return null;
-          const pricing = basketLinePricing(row.id, store, row.qty);
-          const unavailable = pricing == null;
-          const kind = unavailable ? null : priceKind(row.id, store.id);
+          const unavailable = pricing.missing;
+          const kind = unavailable ? null : priceKind(pricing.productId, store.id);
           return {
             product,
-            qty: row.qty,
-            price: pricing?.shelfPrice ?? null,
+            qty: pricing.qty,
+            price: pricing.shelfPrice,
             line: unavailable ? 0 : pricing.total,
-            deal: pricing?.deal || null,
-            dealApplied: Boolean(pricing?.dealApplied),
-            savings: pricing?.savings || 0,
-            clubDealAvailable: Boolean(pricing?.clubDealAvailable),
+            deal: pricing.deal || null,
+            dealApplied: Boolean(pricing.dealApplied),
+            savings: pricing.savings || 0,
+            clubDealAvailable: Boolean(pricing.clubDealAvailable),
             checked: kind === "checked",
             imported: kind === "imported",
             unavailable,
@@ -1370,7 +1484,7 @@ function receiptSummaryText(groups) {
     lines.push("");
   }
   if (groups.some((group) => group.dealSavings > 0.004)) {
-    lines.push("Multi-buy and club-card prices are applied where the quantity qualifies.");
+    lines.push("Multi-buy and club-card prices are applied where the quantity qualifies, including assorted offers shared across products.");
     lines.push("");
   }
   if (!state.clubCard && groups.some((group) => group.clubDealAvailable)) {
@@ -1404,7 +1518,7 @@ function renderReceipt() {
   const hasDeals = groups.some((group) => group.dealSavings > 0.004);
   const hasClubDeals = groups.some((group) => group.clubDealAvailable);
   const dealNote = hasDeals
-    ? " Multi-buy and club-card prices are applied where the quantity qualifies."
+    ? " Multi-buy and club-card prices are applied where the quantity qualifies, including assorted offers shared across products."
     : !state.clubCard && hasClubDeals
       ? " Club card is off; club prices are not included."
       : "";

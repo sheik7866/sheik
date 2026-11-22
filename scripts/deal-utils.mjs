@@ -1,11 +1,13 @@
 /* Turn a Foodstuffs product's promotion into a compact deal tuple.
  *
- * A tuple is [threshold, rewardValue, clubFlag, limit, description]:
- *   threshold   how many units must be bought (1 = single item)
- *   rewardValue total price in cents for that quantity
- *   clubFlag    1 when a club card is required
- *   limit       per-customer limit, or 0 when not stated
- *   description the promotion's own wording, or ""
+ * A tuple is [threshold, rewardValue, clubFlag, limit, description, promoId, multiProducts]:
+ *   threshold    how many units must be bought (1 = single item)
+ *   rewardValue  total price in cents for that quantity
+ *   clubFlag     1 when a club card is required
+ *   limit        per-customer limit, or 0 when not stated
+ *   description  the promotion's own wording, or ""
+ *   promoId      Foodstuffs promotion id, used to pool mix-and-match products
+ *   multiProducts 1 when different products can share the promotion
  *
  * Only multi-buys and club-card prices are kept, and only when their
  * per-unit price beats the branch's single-item shelf price. Ordinary
@@ -41,6 +43,10 @@ export function dealForProduct(product, priceCents) {
           ? Number(promotion.limit)
           : 0,
         typeof promotion?.description === "string" ? promotion.description.trim() : "",
+        typeof promotion?.promoId === "string" || typeof promotion?.promoId === "number"
+          ? String(promotion.promoId).trim()
+          : "",
+        promotion?.multiProducts === true ? 1 : 0,
       ],
     };
 
