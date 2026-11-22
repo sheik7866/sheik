@@ -4,6 +4,7 @@
   "scripts": {
     "prices:refresh": "node scripts/refresh-prices.mjs",
     "stores:pull": "node scripts/pull-stores.mjs",
+    "coverage:pull": "node scripts/pull-coverage.mjs",
     "gtins:pull": "node scripts/pull-gtins.mjs",
     "smoke:live": "node scripts/smoke-live.mjs"
   },

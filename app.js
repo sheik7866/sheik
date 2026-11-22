@@ -5,9 +5,10 @@
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Both banners use one North Island and one South
-   Island price list, so each branch is priced from its island's list. The two
-   branches the demo has always priced keep their old ids so saved lists and
-   the dated staple imports keep working. */
+   Island price list, so each branch is priced from its island's list; stock
+   coverage is that branch's own product range (scripts/pull-coverage.mjs). The
+   two branches the demo has always priced keep their old ids so saved lists
+   and the dated staple imports keep working. */
 const ANCHOR_BRANCHES = {
   "b2e98a14-c8ca-401e-99ed-edf74570c6f6": "paknsave",
   "871ff39f-99b5-4030-b035-b2dab7225082": "newworld",
@@ -21,6 +22,7 @@ const BRANCH_DIRECTORY = Array.isArray(window.GROCER_STORES?.stores)
 function branchStore(store) {
   return {
     id: ANCHOR_BRANCHES[store.id] || `${store.brand}:${store.id}`,
+    storeId: store.id,
     chain: store.brand,
     name: BRAND_NAMES[store.brand] || store.name,
     branch: store.branch,
@@ -35,8 +37,8 @@ function branchStore(store) {
 const BRANCH_STORES = BRANCH_DIRECTORY.map(branchStore);
 if (!BRANCH_STORES.length) {
   BRANCH_STORES.push(
-    { id: "paknsave", chain: "pns", name: "Pak'nSave", branch: "Mt Albert", address: "", region: "NI", zone: "pns-ni", factor: 1, tint: BRAND_TINTS.pns },
-    { id: "newworld", chain: "nw", name: "New World", branch: "Point Chevalier", address: "", region: "NI", zone: "nw-ni", factor: 1, tint: BRAND_TINTS.nw }
+    { id: "paknsave", storeId: "b2e98a14-c8ca-401e-99ed-edf74570c6f6", chain: "pns", name: "Pak'nSave", branch: "Mt Albert", address: "", region: "NI", zone: "pns-ni", factor: 1, tint: BRAND_TINTS.pns },
+    { id: "newworld", storeId: "871ff39f-99b5-4030-b035-b2dab7225082", chain: "nw", name: "New World", branch: "Point Chevalier", address: "", region: "NI", zone: "nw-ni", factor: 1, tint: BRAND_TINTS.nw }
   );
 }
 
@@ -177,6 +179,50 @@ for (const row of CATALOGUE_ROWS) {
   ZONE_KEYS.forEach((zone, index) => {
     if (row[6 + index]) ZONE_PRICES[zone][row[0]] = row[6 + index] / 100;
   });
+}
+
+/* Per-branch stock coverage: one base64 bitmap per branch over COVERAGE_IDS
+   (scripts/pull-coverage.mjs). A branch missing from the last pull falls back
+   to its island price list, so old saved state and partial pulls still work. */
+const COVERAGE =
+  window.GROCER_COVERAGE && typeof window.GROCER_COVERAGE === "object"
+    ? window.GROCER_COVERAGE
+    : null;
+const COVERAGE_IDS = Array.isArray(COVERAGE?.ids) ? COVERAGE.ids : [];
+const COVERAGE_INDEX = new Map(
+  COVERAGE_IDS.map((id, index) => [String(id).toUpperCase(), index])
+);
+const COVERAGE_BRANCHES =
+  COVERAGE?.branches && typeof COVERAGE.branches === "object" ? COVERAGE.branches : {};
+const COVERAGE_BYTES = new Map();
+
+function coverageFor(store) {
+  const id = store?.storeId;
+  const entry = id ? COVERAGE_BRANCHES[id] : null;
+  if (!entry || typeof entry.bits !== "string") return null;
+  let bytes = COVERAGE_BYTES.get(id);
+  if (!bytes) {
+    try {
+      const binary = atob(entry.bits);
+      bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+    } catch {
+      return null;
+    }
+    COVERAGE_BYTES.set(id, bytes);
+  }
+  return bytes;
+}
+
+/* true or false when that branch's range was checked, null when the branch or
+   product was not in the last coverage pull. */
+function branchStocks(productId, store) {
+  const bytes = coverageFor(store);
+  const index = COVERAGE_INDEX.get(String(productId || "").toUpperCase());
+  if (!bytes || index == null) return null;
+  return (bytes[index >> 3] & (0x80 >> (index & 7))) !== 0;
 }
 
 const STORE_PRODUCTS = CATALOGUE_ROWS.filter(([id]) => !CURATED_SKUS.has(id)).map(
@@ -583,21 +629,29 @@ function priceIsChecked(productId, storeId) {
   return Boolean(priceState(productId, storeId));
 }
 
-/* True only when we know the product is absent from that branch's price list.
-   The app has no stock feed for the other demo stores, so they stay estimates. */
+/* True only when that branch's own product range says it does not sell the
+   product. Falls back to the island price list when the branch was not in the
+   last coverage pull; the demo's other chains stay estimates. */
 function knownUnavailable(productId, storeId) {
   const product = PRODUCT_MAP.get(productId);
   const store = STORE_MAP.get(storeId);
   if (!product || !store || store.chain === "other") return false;
-  // A price you recorded (or a price list) is evidence the store had it,
-  // even if the catalogue pull missed it.
+  // A price you recorded in this store is evidence it had the product, even
+  // if the range pull missed it.
+  if (checkedPrice(productId, storeId)) return false;
+  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
+  const catalogueId = product.source === "catalogue" ? productId : skuId;
+  if (catalogueId) {
+    const stocked = branchStocks(catalogueId, store);
+    if (stocked !== null) return !stocked;
+  }
+  // No branch-level answer: fall back to the banner's island price list.
   if (priceState(productId, storeId)) return false;
   if (product.source === "catalogue") {
     return !Array.isArray(product.catalogueZones) || !product.catalogueZones.includes(store.zone);
   }
   // Demo staples only get a "not stocked" answer when we know which real pack
   // they match at that chain; otherwise the demo keeps its estimate.
-  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
   return Boolean(skuId) && !ZONE_PRICES[store.zone]?.[skuId];
 }
 
@@ -1533,7 +1587,7 @@ function openProduct(productId) {
           product.source === "grocer"
             ? `<p class="dialog__source">Real product data from <a href="https://grocer.nz" target="_blank" rel="noopener">Grocer's catalogue</a>${product.stores ? ` · stocked at ${product.stores} stores` : ""}</p>`
             : product.source === "catalogue"
-              ? `<p class="dialog__source">Shelf prices from each banner's North or South Island price list, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "stocked at both chains" : "stocked at one chain"}</p>`
+              ? `<p class="dialog__source">Shelf prices from each banner's North or South Island price list, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "listed by both chains" : "listed by one chain"} · stock checked per branch</p>`
               : product.estimated
                 ? `<p class="dialog__source">Real product data from <a href="https://world.openfoodfacts.org/product/${product.code}" target="_blank" rel="noopener">Open Food Facts</a></p>`
                 : ""
@@ -1550,7 +1604,7 @@ function openProduct(productId) {
       anyEstimate
         ? `          <p class="dialog__estimate">${
             hasImport
-              ? `PAK'nSAVE and New World prices here are shelf prices from each banner's island price list, imported on ${importDateLabel()}. Anything else is an estimate from demo pricing.`
+              ? `PAK'nSAVE and New World prices here are shelf prices from each banner's island price list, imported on ${importDateLabel()}. Stock coverage is each branch's own product range. Anything else is an estimate from demo pricing.`
               : product.estimated
                 ? "Product details are real, but prices and history are estimates from demo pricing."
                 : "Prices you haven't checked in store are estimates from demo pricing."
@@ -2398,9 +2452,13 @@ function renderCoverageLine() {
 function renderImportBanner() {
   if (!el.importBanner || !IMPORTS.length) return;
   const checkedAt = priceCheckLabel();
+  const branches = Object.keys(COVERAGE_BRANCHES).length;
+  const coverageAt = COVERAGE?.fetchedAt ? shortDate(COVERAGE.fetchedAt) : "";
   el.importBanner.textContent =
     `Every PAK'nSAVE and New World branch is priced from its banner's North or South Island ` +
-    `shelf-price list, and stock coverage follows the same list. Last successful price check: ${checkedAt || "not recorded"}. ` +
+    `shelf-price list. Stock coverage is that branch's own product range, not a shared island list` +
+    `${branches ? ` (${branches.toLocaleString("en-NZ")} branches checked ${coverageAt})` : ""}. ` +
+    `Last successful price check: ${checkedAt || "not recorded"}. ` +
     `Import dated ${importDateLabel()}. Everything else is an estimate unless you record it.`;
   el.importBanner.hidden = false;
 }

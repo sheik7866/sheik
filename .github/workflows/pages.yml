@@ -29,6 +29,14 @@ jobs:
       - name: Refresh store prices
         if: github.ref == 'refs/heads/main' && github.event_name != 'push'
         run: npm run prices:refresh
+      - name: Refresh branch stock coverage
+        if: github.ref == 'refs/heads/main' && github.event_name != 'push'
+        run: |
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "$(TZ=Pacific/Auckland date +%u)" != "7" ]; then
+            echo "Branch stock coverage refreshes on Sundays."
+            exit 0
+          fi
+          npm run coverage:pull
       - name: Commit refreshed prices
         if: github.ref == 'refs/heads/main' && github.event_name != 'push'
         run: |
