@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "typo-search-2026-11-23";
+window.TROLLEYBIRD_BUILD = "splash-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -3332,6 +3332,29 @@ renderCoverageLine();
 renderAll();
 setTab(state.tab || (state.stores.length ? "catalog" : "stores"));
 for (const storeId of state.stores) void ensureStorePrices(storeId);
+
+/* Keep the branded splash up briefly so a fast initial render does not make
+   it flash, then fade it away. */
+const splashScreen = document.getElementById("splash");
+const SPLASH_MIN_MS = 650;
+function dismissSplash() {
+  if (!splashScreen || splashScreen.dataset.dismissed) return;
+  splashScreen.dataset.dismissed = "true";
+  const wait = Math.max(0, SPLASH_MIN_MS - performance.now());
+  window.setTimeout(() => {
+    splashScreen.classList.add("is-hiding");
+    splashScreen.setAttribute("aria-hidden", "true");
+    let removed = false;
+    const remove = () => {
+      if (removed) return;
+      removed = true;
+      splashScreen.remove();
+    };
+    splashScreen.addEventListener("transitionend", remove, { once: true });
+    window.setTimeout(remove, 700);
+  }, wait);
+}
+dismissSplash();
 
 /* ---------- Small utilities ---------- */
 

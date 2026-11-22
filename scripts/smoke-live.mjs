@@ -176,7 +176,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "typo-search-2026-11-23",
+        () => window.TROLLEYBIRD_BUILD === "splash-2026-11-23",
         null,
         { timeout: 5000 }
       );
@@ -281,6 +281,8 @@ async function main() {
     await page.goto(TARGET, { waitUntil: "domcontentloaded", timeout: 30000 });
     step("waiting for the deployed basket-pricing build");
     await waitForCurrentBuild(page);
+    step("waiting for the splash screen to finish");
+    await page.waitForSelector("#splash", { state: "detached", timeout: 5000 });
     await page.waitForFunction(
       () => Array.isArray(window.GROCER_CATALOGUE?.items) && window.GROCER_CATALOGUE.items.length > 0,
       { timeout: 20000 }
