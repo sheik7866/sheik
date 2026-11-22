@@ -65,7 +65,8 @@
           uses its own price list where it differs from the banner's North or South
           Island base list, and stockedness comes from that branch's own product range;
           the branch search shows how many catalogue lines each one carries. Multi-buy
-          and club-member shelf tags are shown where the branch lists them. Browse the full catalogue pulled
+          and club-member shelf tags are shown where the branch lists them, and basket
+          totals apply multi-buy groups plus club prices when the club-card switch is on. Browse the full catalogue pulled
           from those two chains, merged with the demo staples.
           Nothing here is live supermarket pricing.
         </p>
@@ -146,13 +147,19 @@
           <button class="link-btn" type="button" id="clear-list">Clear</button>
         </div>
 
+        <label class="switch club-toggle" for="club-toggle" title="Apply club-card prices to basket totals">
+          <input type="checkbox" id="club-toggle" />
+          <span class="switch__track" aria-hidden="true"></span>
+          <span class="switch__label">Club card <span class="switch__hint">apply to basket</span></span>
+        </label>
+
         <ul class="list" id="list-items"></ul>
         <p class="empty" id="empty-list">Your list is empty. Add a product to see which store is cheapest for the whole shop.</p>
 
         <div class="totals" id="totals" aria-live="polite"></div>
         <button class="btn btn--leaf receipt-open" type="button" id="bulk-price-button" hidden>Record shelf prices</button>
         <button class="btn btn--outline receipt-open" type="button" id="receipt-button" hidden>View receipt</button>
-        <p class="demo-note" id="totals-note">Totals use estimates plus any shelf prices you've recorded or imported.</p>
+        <p class="demo-note" id="totals-note">Totals use estimates plus any shelf prices you've recorded or imported. Multi-buys apply at the stated quantity; turn on Club card for club prices.</p>
       </aside>
     </div>
   </main>

@@ -404,6 +404,7 @@ const el = {
   importBanner: document.getElementById("import-banner"),
   coverageLine: document.getElementById("coverage-line"),
   proToggle: document.getElementById("pro-toggle"),
+  clubToggle: document.getElementById("club-toggle"),
   reset: document.getElementById("reset-demo"),
   dialog: document.getElementById("product-dialog"),
   dialogContent: document.getElementById("dialog-content"),
@@ -413,6 +414,7 @@ const el = {
 const defaults = {
   stores: [],
   pro: false,
+  clubCard: false,
   list: [],
   live: [],
   prices: {},
@@ -494,6 +496,7 @@ function loadState() {
     return {
       stores: savedStores,
       pro: Boolean(parsed.pro),
+      clubCard: Boolean(parsed.clubCard),
       prices,
       list: Array.isArray(parsed.list)
         ? parsed.list
@@ -601,6 +604,57 @@ function storeDealFor(productId, store) {
   }
   const entry = storePriceEntry(store);
   return entry ? dealFromMap(entry.deals, productId, store) : null;
+}
+
+/* Price a basket line at its quantity, using the branch's own terms. Multi-buys
+   apply in whole groups, capped by any advertised limit, and club prices only
+   when the shopper says they have the card. The leftover units stay at the
+   shelf price; the result is a real cents total, not a rounded estimate. */
+function basketLinePricing(productId, store, qty) {
+  const shelfPrice = priceFor(productId, store.id);
+  if (shelfPrice == null) return null;
+  const count = Math.max(1, Math.min(Math.round(qty), 99));
+  const shelfTotal = Math.round(shelfPrice * count * 100) / 100;
+  const deal = storeDealFor(productId, store);
+  const clubDealAvailable = Boolean(deal?.club);
+  let total = shelfTotal;
+  let dealGroups = 0;
+  let dealUnits = 0;
+
+  if (deal && (!deal.club || state.clubCard)) {
+    const eligible = deal.limit > 0 ? Math.min(count, deal.limit) : count;
+    if (deal.threshold > 1) {
+      dealGroups = eligible >= deal.threshold ? Math.floor(eligible / deal.threshold) : 0;
+      dealUnits = dealGroups * deal.threshold;
+    } else {
+      dealUnits = eligible;
+      dealGroups = eligible;
+    }
+    if (dealUnits > 0) {
+      const candidate =
+        Math.round((dealGroups * deal.price + (count - dealUnits) * shelfPrice) * 100) / 100;
+      if (candidate < shelfTotal) total = candidate;
+      else {
+        dealGroups = 0;
+        dealUnits = 0;
+      }
+    }
+  }
+
+  const dealApplied = total < shelfTotal - 0.004;
+  return {
+    shelfPrice,
+    total,
+    qty: count,
+    unit: total / count,
+    deal,
+    dealApplied,
+    dealGroups,
+    dealUnits,
+    dealRemainder: count - dealUnits,
+    savings: Math.round((shelfTotal - total) * 100) / 100,
+    clubDealAvailable,
+  };
 }
 
 function dealLabel(deal) {
@@ -899,6 +953,17 @@ function bestOffer(productId) {
   return offers.length ? offers[0] : null;
 }
 
+function bestBasketOffer(productId, qty) {
+  const offers = selectedStores()
+    .map((store) => {
+      const pricing = basketLinePricing(productId, store, qty);
+      return pricing ? { store, ...pricing } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.total - b.total);
+  return offers.length ? offers[0] : null;
+}
+
 function visibleProducts() {
   const query = (el.search.value || "").trim().toLowerCase();
   return PRODUCTS.filter((p) => {
@@ -922,10 +987,22 @@ function listTotals() {
   const stores = selectedStores();
   if (!stores.length || !state.list.length) return null;
   const rows = stores.map((store) => {
-    const lines = state.list.map((row) => ({ row, price: priceFor(row.id, store.id) }));
-    const missing = lines.filter((line) => line.price == null).length;
-    const total = lines.reduce((sum, line) => sum + (line.price || 0) * line.row.qty, 0);
-    return { store, total, missing, available: missing === 0 };
+    const lines = state.list.map((row) => {
+      const pricing = basketLinePricing(row.id, store, row.qty);
+      return pricing ? { row, ...pricing } : { row, shelfPrice: null, total: 0, savings: 0 };
+    });
+    const missing = lines.filter((line) => line.shelfPrice == null).length;
+    const total = lines.reduce((sum, line) => sum + (line.total || 0), 0);
+    const dealSavings = lines.reduce((sum, line) => sum + (line.savings || 0), 0);
+    return {
+      store,
+      total: Math.round(total * 100) / 100,
+      missing,
+      available: missing === 0,
+      dealSavings: Math.round(dealSavings * 100) / 100,
+      clubDealAvailable: lines.some((line) => line.clubDealAvailable),
+      clubDealApplied: lines.some((line) => line.dealApplied && line.deal?.club),
+    };
   });
   const available = rows.filter((row) => row.available).sort((a, b) => a.total - b.total);
   const unavailable = rows.filter((row) => !row.available).sort((a, b) => a.missing - b.missing);
@@ -1143,13 +1220,14 @@ function renderList() {
     .map((row) => {
       const product = PRODUCT_MAP.get(row.id);
       if (!product) return "";
-      const best = bestOffer(row.id);
+      const best = bestBasketOffer(row.id, row.qty);
       const bestKind = best ? priceKind(row.id, best.store.id) : null;
       return `
         <li class="list-item" data-row="${row.id}">
           <span class="list-item__body">
             <b>${escapeHtml(product.name)}</b>
-            <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.price)} at ${escapeHtml(storeLabel(best.store))}` : ""}</small>
+            <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.shelfPrice)} at ${escapeHtml(storeLabel(best.store))}` : ""}</small>
+            ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied · save ${money.format(best.savings)}</small>` : ""}
           </span>
           <span class="qty">
             <button type="button" data-step="-1" data-id="${row.id}" aria-label="Decrease quantity of ${escapeHtml(product.name)}">−</button>
@@ -1182,6 +1260,15 @@ function renderTotals() {
       : totals.savings > 0.004
         ? `Save ${money.format(totals.savings)} shopping at ${escapeHtml(storeLabel(totals.cheapest.store))}.`
         : "Prices are level across your stores for this basket.";
+  const bestDealSaving = totals.cheapest?.dealSavings || 0;
+  const cardNote =
+    !state.clubCard && totals.rows.some((row) => row.clubDealAvailable)
+      ? "Club card is off — club prices are not included."
+      : state.clubCard && totals.rows.some((row) => row.clubDealApplied)
+        ? "Club-card prices applied."
+        : state.clubCard && totals.rows.some((row) => row.clubDealAvailable)
+          ? "Club-card prices apply at the listed quantity."
+          : "";
   el.totals.innerHTML = `
     <h3>Basket total <span>${itemCount} item${itemCount === 1 ? "" : "s"}</span></h3>
     <ul class="total-rows">
@@ -1189,13 +1276,14 @@ function renderTotals() {
         .map(
           (row) => `
         <li class="total-row${row.available && row === totals.cheapest && availableRows.length > 1 ? " is-best" : ""}${row.available ? "" : " is-unavailable"}">
-          <span>${escapeHtml(storeLabel(row.store))}${row.available && row === totals.cheapest && availableRows.length > 1 ? ' <em>cheapest</em>' : ""}${row.available ? "" : ` <em class="total-row__missing">${row.missing} not stocked</em>`}</span>
+          <span>${escapeHtml(storeLabel(row.store))}${row.available && row === totals.cheapest && availableRows.length > 1 ? ' <em>cheapest</em>' : ""}${row.available && row.dealSavings > 0.004 ? ` <em class="total-row__deal">saves ${money.format(row.dealSavings)}</em>` : ""}${row.available ? "" : ` <em class="total-row__missing">${row.missing} not stocked</em>`}</span>
           <b>${row.available ? money.format(row.total) : "—"}</b>
         </li>`
         )
         .join("")}
     </ul>
-    <p class="totals__save">${summary}</p>`;
+    <p class="totals__save">${summary}${bestDealSaving > 0.004 ? ` Includes ${money.format(bestDealSaving)} of multi-buy/club savings.` : ""}</p>
+    ${cardNote ? `<p class="totals__card">${cardNote}</p>` : ""}`;
 }
 
 /* ---------- Basket receipt ---------- */
@@ -1207,14 +1295,18 @@ function receiptGroups() {
         .map((row) => {
           const product = PRODUCT_MAP.get(row.id);
           if (!product) return null;
-          const price = priceFor(row.id, store.id);
-          const unavailable = price == null;
+          const pricing = basketLinePricing(row.id, store, row.qty);
+          const unavailable = pricing == null;
           const kind = unavailable ? null : priceKind(row.id, store.id);
           return {
             product,
             qty: row.qty,
-            price,
-            line: unavailable ? 0 : price * row.qty,
+            price: pricing?.shelfPrice ?? null,
+            line: unavailable ? 0 : pricing.total,
+            deal: pricing?.deal || null,
+            dealApplied: Boolean(pricing?.dealApplied),
+            savings: pricing?.savings || 0,
+            clubDealAvailable: Boolean(pricing?.clubDealAvailable),
             checked: kind === "checked",
             imported: kind === "imported",
             unavailable,
@@ -1223,7 +1315,16 @@ function receiptGroups() {
         .filter(Boolean);
       const missing = lines.filter((line) => line.unavailable).length;
       const total = lines.reduce((sum, line) => sum + line.line, 0);
-      return { store, lines, total, missing, available: missing === 0 };
+      const dealSavings = lines.reduce((sum, line) => sum + (line.savings || 0), 0);
+      return {
+        store,
+        lines,
+        total: Math.round(total * 100) / 100,
+        dealSavings: Math.round(dealSavings * 100) / 100,
+        clubDealAvailable: lines.some((line) => line.clubDealAvailable),
+        missing,
+        available: missing === 0,
+      };
     })
     .sort((a, b) => {
       if (a.available !== b.available) return a.available ? -1 : 1;
@@ -1252,13 +1353,24 @@ function receiptSummaryText(groups) {
     lines.push(`${group.store.name} (${group.store.branch}) — ${status}`);
     group.lines.forEach((line) => {
       lines.push(
-        `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? "not stocked" : `${money.format(line.line)}${line.checked ? " ✓" : line.imported ? " (imported)" : ""}`}`
+        `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? "not stocked" : `${money.format(line.line)}${line.dealApplied ? ` (${dealLabel(line.deal)})` : ""}${line.checked ? " ✓" : line.imported ? " (imported)" : ""}`}`
       );
     });
+    if (group.available && group.dealSavings > 0.004) {
+      lines.push(`  deals save ${money.format(group.dealSavings)} at this store`);
+    }
     lines.push("");
   });
   if (groups.some((group) => !group.available)) {
     lines.push("A store missing an item is shown as not available.");
+    lines.push("");
+  }
+  if (groups.some((group) => group.dealSavings > 0.004)) {
+    lines.push("Multi-buy and club-card prices are applied where the quantity qualifies.");
+    lines.push("");
+  }
+  if (!state.clubCard && groups.some((group) => group.clubDealAvailable)) {
+    lines.push("Club card is off; club prices are not included.");
     lines.push("");
   }
   if (best && dearest && best !== dearest && dearest.total - best.total > 0.004) {
@@ -1285,6 +1397,13 @@ function renderReceipt() {
   const savings = best && dearest && best !== dearest ? dearest.total - best.total : 0;
   const hasChecked = groups.some((group) => group.lines.some((line) => line.checked));
   const hasImported = groups.some((group) => group.lines.some((line) => line.imported));
+  const hasDeals = groups.some((group) => group.dealSavings > 0.004);
+  const hasClubDeals = groups.some((group) => group.clubDealAvailable);
+  const dealNote = hasDeals
+    ? " Multi-buy and club-card prices are applied where the quantity qualifies."
+    : !state.clubCard && hasClubDeals
+      ? " Club card is off; club prices are not included."
+      : "";
 
   el.receiptBody.innerHTML = `
     <div class="receipt-paper">
@@ -1313,14 +1432,14 @@ function renderReceipt() {
                 (line) => `
               <li class="receipt-line">
                 <span class="receipt-line__qty">${line.qty}×</span>
-                <span class="receipt-line__name">${escapeHtml(line.product.name)}<small>${escapeHtml(line.product.size)}</small></span>
+                <span class="receipt-line__name">${escapeHtml(line.product.name)}<small>${escapeHtml(line.product.size)}</small>${line.dealApplied ? `<small class="receipt-line__deal">${escapeHtml(dealLabel(line.deal))}</small>` : ""}</span>
                 <span class="receipt-line__amount${line.unavailable ? " is-missing" : ""}">${line.unavailable ? "Not stocked" : money.format(line.line)}${line.checked ? '<span class="receipt-line__checked" title="Price recorded in store">✓</span>' : line.imported ? '<span class="receipt-line__imported" title="Shelf price imported from the store">imp.</span>' : ""}</span>
               </li>`
               )
               .join("")}
           </ul>
           <div class="receipt-store__foot">
-            <span>${group.available ? "Basket total" : "Missing items"}</span>
+            <span>${group.available ? "Basket total" : "Missing items"}${group.available && group.dealSavings > 0.004 ? ` <em class="receipt-store__deal">deals save ${money.format(group.dealSavings)}</em>` : ""}</span>
             <b>${group.available ? money.format(group.total) : `${group.missing} not stocked`}</b>
           </div>
         </section>`
@@ -1341,7 +1460,7 @@ function renderReceipt() {
           : hasImported
             ? `Imported shelf prices dated ${importDateLabel()}. Other prices are estimates from the Trolleybird interactive demo.`
             : "Prices are illustrative demo data from the Trolleybird interactive demo."
-      }</p>
+      }${dealNote}</p>
     </div>`;
 
   el.receiptStatus.textContent = "";
@@ -1441,6 +1560,7 @@ function renderAll() {
   renderTotals();
   renderImportBanner();
   el.proToggle.checked = state.pro;
+  el.clubToggle.checked = state.clubCard;
   document.body.classList.toggle("is-pro", state.pro);
 }
 
@@ -1822,7 +1942,7 @@ function openProduct(productId) {
 
     ${
       hasDeals
-        ? `<p class="dialog__deal-note">Club prices need a club card; multi-buys apply at the stated quantity. Basket totals use the single-item shelf price.</p>`
+        ? `<p class="dialog__deal-note">Club prices need a club card; multi-buys apply at the stated quantity. Basket totals apply these terms when they qualify; turn on the Club card switch to include club prices.</p>`
         : ""
     }
 
@@ -2086,6 +2206,19 @@ el.proToggle.addEventListener("change", () => {
   saveState();
   renderAll();
   toast(state.pro ? "Pro demo on: all stores and 12 months of history." : "Free demo: 6 stores and 3 months of history.");
+});
+
+el.clubToggle.addEventListener("change", () => {
+  state.clubCard = el.clubToggle.checked;
+  saveState();
+  renderList();
+  renderTotals();
+  if (el.receiptDialog.open) renderReceipt();
+  toast(
+    state.clubCard
+      ? "Club-card prices applied to basket totals."
+      : "Club-card prices removed from basket totals."
+  );
 });
 
 el.reset.addEventListener("click", () => {

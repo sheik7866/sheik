@@ -6,12 +6,12 @@
   a PAK'nSAVE-only product, a New World-only product and a mixed basket must
   show "not stocked" instead of an invented price, and a chain missing an item
   must not be ranked or totalled. It also verifies products show their real
-  GTINs (including the V can's 8-digit EAN-8) and decodes the rendered images
+  GTINs (including the V can's 8-digit EAN-8) and   decodes the rendered images
   with the site's own vendored ZXing build, so a broken barcode image fails the
   post-deploy check. Products without a valid GTIN must show no barcode card.
-  It also
-  requires a loaded product picture plus the import banner's last price-check
-  time and shelf-price coverage summary.
+  It also checks quantity-aware multi-buy totals, the club-card toggle, and the
+  deal-adjusted receipt, and requires a loaded product picture plus the import
+  banner's last price-check time and shelf-price coverage summary.
 
   Usage:
     npm run smoke:live
@@ -351,6 +351,82 @@ async function main() {
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
 
+    step("checking quantity-aware multi-buy basket totals");
+    await searchProduct(page, {
+      name: "Eta Uppercuts Sweet Chilli Relish Potato Chips",
+      sku: "5092030-EA-000",
+    });
+    await addToList(page, "5092030-EA-000", 1);
+    const multiRow = page.locator('#list-items [data-row="5092030-EA-000"]');
+    await multiRow.locator('[data-step="1"]').click();
+    await multiRow.locator('[data-step="1"]').click();
+    await page.waitForFunction(
+      () => document.querySelector('#list-items [data-row="5092030-EA-000"] output')?.textContent === "3",
+      null,
+      { timeout: 5000 }
+    );
+    const multiTotals = normalize(await page.locator("#totals").innerText());
+    assert(multiTotals.includes("$5.50"), `multi-buy total for PAK'nSAVE missing: ${multiTotals}`);
+    assert(multiTotals.includes("$11.37"), `multi-buy comparison total missing: ${multiTotals}`);
+    assert(/saves \$0\.47/i.test(multiTotals), `multi-buy savings missing: ${multiTotals}`);
+    const multiListText = normalize(await page.locator("#list-items").innerText());
+    assert(
+      multiListText.includes("Multi-buy 3 for $5.50 applied"),
+      `quantity-aware deal not shown in the list: ${multiListText}`
+    );
+
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
+
+    step("checking the club-card toggle and basket pricing");
+    await searchProduct(page, {
+      name: "Cadbury Dairy Milk Caramello Chocolate Block",
+      sku: "5249645-EA-000",
+    });
+    await addToList(page, "5249645-EA-000", 1);
+    let clubTotals = normalize(await page.locator("#totals").innerText());
+    assert(clubTotals.includes("$6.99"), `club price applied while toggle was off: ${clubTotals}`);
+    assert(
+      clubTotals.includes("Club card is off"),
+      `club-card-off note missing from totals: ${clubTotals}`
+    );
+    await page.locator("label.club-toggle").click();
+    await page.waitForFunction(() => document.querySelector("#club-toggle")?.checked, null, {
+      timeout: 5000,
+    });
+    await page.waitForFunction(() => document.querySelector("#totals")?.textContent.includes("$4.49"), null, {
+      timeout: 5000,
+    });
+    clubTotals = normalize(await page.locator("#totals").innerText());
+    assert(clubTotals.includes("$4.49"), `club-card total not applied: ${clubTotals}`);
+    assert(clubTotals.includes("$5.89"), `shelf comparison missing: ${clubTotals}`);
+    assert(clubTotals.includes("Club-card prices applied."), `club-card-on note missing: ${clubTotals}`);
+    assert(/saves \$2\.50/i.test(clubTotals), `club-card savings missing: ${clubTotals}`);
+
+    await page.click("#receipt-button");
+    await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
+    const dealReceipt = normalize(await page.locator("#receipt-body").innerText());
+    assert(dealReceipt.includes("Club member $4.49"), `receipt is missing the club deal: ${dealReceipt}`);
+    assert(dealReceipt.includes("$4.49"), `receipt total is not club-priced: ${dealReceipt}`);
+    assert(dealReceipt.includes("deals save $2.50"), `receipt is missing deal savings: ${dealReceipt}`);
+    await page.click("[data-close-receipt]");
+    await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
+
+    await page.locator("label.club-toggle").click();
+    await page.waitForFunction(() => !document.querySelector("#club-toggle")?.checked, null, {
+      timeout: 5000,
+    });
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
+
     step(`PAK'nSAVE-only product: ${PAK_ONLY.name}`);
     let card = await searchProduct(page, PAK_ONLY);
     assert(card.includes("Not at New World"), `PAK'nSAVE-only card missing stock note: ${card}`);
@@ -432,7 +508,7 @@ async function main() {
       `browser console errors:\n${consoleErrors.join("\n")}`
     );
 
-    step("all availability, barcode, picture and price-check checks passed");
+    step("all availability, barcode, deal, picture and price-check checks passed");
     console.log(`[smoke] PASS ${TARGET}`);
   } catch (error) {
     await page.screenshot({ path: "smoke-failure.png", fullPage: false }).catch(() => {});
