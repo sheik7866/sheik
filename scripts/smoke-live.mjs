@@ -507,7 +507,9 @@ async function main() {
       totals.includes("No selected store has a price for every item on this list."),
       `incomplete basket not identified: ${totals}`
     );
-    const dashes = (totals.match(/—/g) || []).length;
+    const dashes = await page.locator("#totals .total-row b").evaluateAll(
+      (nodes) => nodes.filter((node) => node.textContent.trim() === "—").length
+    );
     assert(dashes === 2, `incomplete stores should show no total, saw ${dashes} dashes: ${totals}`);
 
     step("checking the basket receipt");

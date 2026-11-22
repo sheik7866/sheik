@@ -1267,7 +1267,7 @@ function renderTotals() {
   const bestDealSaving = totals.cheapest?.dealSavings || 0;
   const cardNote =
     !state.clubCard && totals.rows.some((row) => row.clubDealAvailable)
-      ? "Club card is off — club prices are not included."
+      ? "Club card is off; club prices are not included."
       : state.clubCard && totals.rows.some((row) => row.clubDealApplied)
         ? "Club-card prices applied."
         : state.clubCard && totals.rows.some((row) => row.clubDealAvailable)
