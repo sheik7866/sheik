@@ -324,6 +324,18 @@ async function main() {
     await page.waitForFunction(
       () => getComputedStyle(document.querySelector(".app-tabs")).display !== "none"
     );
+    const tabPosition = await page.locator(".app-tabs").evaluate((bar) => {
+      const rect = bar.getBoundingClientRect();
+      return {
+        bottom: Math.round(rect.bottom),
+        viewport: window.innerHeight,
+        position: getComputedStyle(bar).position,
+      };
+    });
+    assert(
+      tabPosition.position === "fixed" && Math.abs(tabPosition.bottom - tabPosition.viewport) <= 1,
+      `phone tabs should be fixed to the bottom of the viewport: ${JSON.stringify(tabPosition)}`
+    );
     const mobilePanels = async () => ({
       stores: await page.locator("#panel-stores").isVisible(),
       catalog: await page.locator("#panel-catalog").isVisible(),
