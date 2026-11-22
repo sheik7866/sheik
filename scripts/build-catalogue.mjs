@@ -184,7 +184,7 @@ const zones = Object.fromEntries(
       island: pull.island,
       storeId: pull.raw.storeId || "",
       count: pull.products.filter((product) => product?.productId).length,
-      fetchedAt: String(pull.raw.checkedAt || pull.raw.fetchedAt || "").slice(0, 10),
+      fetchedAt,
       checkedAt: pull.raw.checkedAt || pull.raw.fetchedAt || "",
       deals: zoneDeals[pull.zone],
     },

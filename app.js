@@ -426,13 +426,21 @@ const defaults = {
 };
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Auckland" }).format(new Date());
 }
 
 function shortDate(iso) {
-  const date = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return String(iso || "");
-  return new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short" }).format(date);
+  const text = String(iso || "");
+  if (!text) return "";
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(text)
+    ? new Date(`${text}T00:00:00Z`)
+    : new Date(text);
+  if (Number.isNaN(date.getTime())) return text;
+  return new Intl.DateTimeFormat("en-NZ", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Pacific/Auckland",
+  }).format(date);
 }
 
 function loadState() {
@@ -878,7 +886,7 @@ function importedPrice(productId, storeId) {
   if (price) {
     return {
       price,
-      at: ZONE_META[store.zone]?.fetchedAt || CATALOGUE?.fetchedAt || "",
+      at: CATALOGUE?.fetchedAt || ZONE_META[store.zone]?.fetchedAt || "",
     };
   }
   return null;
