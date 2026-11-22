@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "audit-2026-11-23";
+window.TROLLEYBIRD_BUILD = "unit-rows-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2060,11 +2060,13 @@ function renderList() {
       if (!product) return "";
       const best = bestBasketOffer(row.id, row.qty);
       const bestKind = best ? priceKind(row.id, best.store.id) : null;
+      const unit = best ? unitPriceFor(product, best.store) : null;
       return `
         <li class="list-item" data-row="${row.id}">
           <span class="list-item__body">
             <b title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</b>
             <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.shelfPrice)} at ${escapeHtml(storeLabel(best.store))}` : ""}</small>
+            ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
             ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied · save ${money.format(best.savings)}</small>` : ""}
           </span>
           <span class="qty">
@@ -2157,11 +2159,13 @@ function receiptGroups() {
           if (!product) return null;
           const unavailable = pricing.missing;
           const kind = unavailable ? null : priceKind(pricing.productId, store.id);
+          const unit = unavailable ? null : unitPriceFor(product, store);
           return {
             product,
             qty: pricing.qty,
             price: pricing.shelfPrice,
             line: unavailable ? 0 : pricing.total,
+            unit,
             deal: pricing.deal || null,
             dealApplied: Boolean(pricing.dealApplied),
             savings: pricing.savings || 0,
@@ -2218,7 +2222,7 @@ function receiptSummaryText(groups) {
     lines.push(`${group.store.name} (${group.store.branch}) — ${status}`);
     group.lines.forEach((line) => {
       lines.push(
-        `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? "not stocked" : `${money.format(line.line)}${line.dealApplied ? ` (${dealLabel(line.deal)})` : ""}${line.checked ? " ✓" : line.imported ? " (imported)" : ""}`}`
+        `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? "not stocked" : `${money.format(line.line)}${line.unit ? ` (${line.unit.display})` : ""}${line.dealApplied ? ` (${dealLabel(line.deal)})` : ""}${line.checked ? " ✓" : line.imported ? " (imported)" : ""}`}`
       );
     });
     group.groups.forEach((promo) => {
@@ -2303,7 +2307,7 @@ function renderReceipt() {
                 (line) => `
               <li class="receipt-line">
                 <span class="receipt-line__qty">${line.qty}×</span>
-                <span class="receipt-line__name">${escapeHtml(line.product.name)}<small>${escapeHtml(line.product.size)}</small>${line.dealApplied ? `<small class="receipt-line__deal">${escapeHtml(dealLabel(line.deal))}</small>` : ""}</span>
+                <span class="receipt-line__name">${escapeHtml(line.product.name)}<small>${escapeHtml(line.product.size)}</small>${line.unit ? `<small class="receipt-line__unit">${escapeHtml(line.unit.display)}</small>` : ""}${line.dealApplied ? `<small class="receipt-line__deal">${escapeHtml(dealLabel(line.deal))}</small>` : ""}</span>
                 <span class="receipt-line__amount${line.unavailable ? " is-missing" : ""}">${line.unavailable ? "Not stocked" : money.format(line.line)}${line.checked ? '<span class="receipt-line__checked" title="Price recorded in store">✓</span>' : line.imported ? '<span class="receipt-line__imported" title="Shelf price imported from the store">imp.</span>' : ""}</span>
               </li>`
               )
