@@ -167,6 +167,14 @@ const BASE_STORE_IDS = new Set(
     .map((zone) => zone.storeId)
     .filter(Boolean)
 );
+const ZONE_DEALS = Object.fromEntries(
+  ZONE_KEYS.map((zone) => [
+    zone,
+    ZONE_META[zone]?.deals && typeof ZONE_META[zone].deals === "object"
+      ? ZONE_META[zone].deals
+      : {},
+  ])
+);
 /* Branch overrides are fetched lazily when a branch is selected. The four
    base branches have no override file; every other branch does. */
 const STORE_PRICE_CACHE = new Map();
@@ -559,6 +567,59 @@ function storePriceEntry(store) {
   if (!store || BASE_STORE_IDS.has(store.storeId)) return null;
   const entry = STORE_PRICE_CACHE.get(store.storeId);
   return entry?.status === "ready" ? entry : null;
+}
+
+function normalizeDeal(raw) {
+  if (!Array.isArray(raw) || raw.length < 3) return null;
+  const [threshold, priceCents, clubFlag, limit, description] = raw;
+  if (!Number.isInteger(threshold) || threshold < 1) return null;
+  if (!Number.isFinite(priceCents) || priceCents <= 0) return null;
+  if (threshold === 1 && !clubFlag) return null;
+  return {
+    threshold,
+    price: priceCents / 100,
+    club: Boolean(clubFlag),
+    limit: Number.isFinite(Number(limit)) ? Number(limit) : 0,
+    description: typeof description === "string" ? description : "",
+  };
+}
+
+function dealFromMap(deals, productId, store) {
+  if (!deals || typeof deals !== "object") return null;
+  const direct = normalizeDeal(deals[productId]);
+  if (direct) return direct;
+  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
+  return skuId ? normalizeDeal(deals[skuId]) : null;
+}
+
+/* Club and multi-buy terms come from the branch's own product pull. A missing
+   entry means that branch did not list a deal, not that the island deal applies. */
+function storeDealFor(productId, store) {
+  if (!store) return null;
+  if (BASE_STORE_IDS.has(store.storeId)) {
+    return dealFromMap(ZONE_DEALS[store.zone], productId, store);
+  }
+  const entry = storePriceEntry(store);
+  return entry ? dealFromMap(entry.deals, productId, store) : null;
+}
+
+function dealLabel(deal) {
+  if (!deal) return "";
+  const price = money.format(deal.price);
+  if (deal.threshold > 1) {
+    return `${deal.club ? "Club member" : "Multi-buy"} ${deal.threshold} for ${price}`;
+  }
+  return `Club member ${price}`;
+}
+
+function dealDetail(deal) {
+  if (!deal) return "";
+  const parts = [dealLabel(deal)];
+  if (deal.threshold > 1) parts.push(`${money.format(deal.price / deal.threshold)} each`);
+  if (deal.club) parts.push("with club card");
+  if (deal.description) parts.push(deal.description);
+  if (deal.limit && !/limit/i.test(deal.description)) parts.push(`limit ${deal.limit}`);
+  return parts.join(" · ");
 }
 
 function storePricesReady(store) {
@@ -1028,6 +1089,7 @@ function renderProducts() {
     .map((product) => {
       const best = bestOffer(product.id);
       const bestKind = best ? priceKind(product.id, best.store.id) : null;
+      const bestDeal = best ? storeDealFor(product.id, best.store) : null;
       const unavailableStores = stores.filter((store) => knownUnavailable(product.id, store.id));
       const prices = stores.map((store) => priceFor(product.id, store.id)).filter((price) => price != null);
       const range = prices.length > 1 ? ` · ${money.format(Math.min(...prices))}–${money.format(Math.max(...prices))}` : "";
@@ -1042,6 +1104,7 @@ function renderProducts() {
                 ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${pricesLoading ? "loading prices…" : stores.length ? "not stocked" : "no stores selected"}</small>`}
               </span>
               <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : pricesLoading ? "Loading branch prices…" : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
+              ${bestDeal ? `<span class="product__deal" title="${escapeHtml(dealDetail(bestDeal))}">${escapeHtml(dealLabel(bestDeal))}</span>` : ""}
               ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(storeLabel(store))).join(" & ")}</span>` : ""}
             </span>
           </button>
@@ -1388,7 +1451,12 @@ async function ensureStorePrices(storeId) {
   if (!store || BASE_STORE_IDS.has(store.storeId) || STORE_PRICE_CACHE.has(store.storeId)) {
     return;
   }
-  STORE_PRICE_CACHE.set(store.storeId, { status: "loading", prices: {}, checkedAt: "" });
+  STORE_PRICE_CACHE.set(store.storeId, {
+    status: "loading",
+    prices: {},
+    deals: {},
+    checkedAt: "",
+  });
   try {
     const res = await fetch(`data/store-prices/${encodeURIComponent(store.storeId)}.json`, {
       cache: "no-cache",
@@ -1398,10 +1466,16 @@ async function ensureStorePrices(storeId) {
     STORE_PRICE_CACHE.set(store.storeId, {
       status: "ready",
       prices: data && typeof data.prices === "object" ? data.prices : {},
+      deals: data && typeof data.deals === "object" ? data.deals : {},
       checkedAt: typeof data?.checkedAt === "string" ? data.checkedAt : "",
     });
   } catch (error) {
-    STORE_PRICE_CACHE.set(store.storeId, { status: "error", prices: {}, checkedAt: "" });
+    STORE_PRICE_CACHE.set(store.storeId, {
+      status: "error",
+      prices: {},
+      deals: {},
+      checkedAt: "",
+    });
     console.warn(`Branch prices unavailable for ${storeLabel(store)}`, error);
   }
   if (state.stores.includes(storeId)) renderAll();
@@ -1672,6 +1746,7 @@ function openProduct(productId) {
   const product = PRODUCT_MAP.get(productId);
   if (!product) return;
   const offers = offersFor(productId);
+  const hasDeals = offers.some((offer) => storeDealFor(productId, offer.store));
   const months = historyMonths();
   const recorded = recordedPricesFor(productId);
   const unavailable = selectedStores().filter((store) => knownUnavailable(productId, store.id));
@@ -1690,7 +1765,7 @@ function openProduct(productId) {
           product.source === "grocer"
             ? `<p class="dialog__source">Real product data from <a href="https://grocer.nz" target="_blank" rel="noopener">Grocer's catalogue</a>${product.stores ? ` · stocked at ${product.stores} stores` : ""}</p>`
             : product.source === "catalogue"
-              ? `<p class="dialog__source">Shelf prices from each banner's North or South Island price list, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "listed by both chains" : "listed by one chain"} · stock checked per branch</p>`
+              ? `<p class="dialog__source">Shelf prices from each branch's own price list where it differs from the island base, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "listed by both chains" : "listed by one chain"} · stock checked per branch</p>`
               : product.estimated
                 ? `<p class="dialog__source">Real product data from <a href="https://world.openfoodfacts.org/product/${product.code}" target="_blank" rel="noopener">Open Food Facts</a></p>`
                 : ""
@@ -1707,7 +1782,7 @@ function openProduct(productId) {
       anyEstimate
         ? `          <p class="dialog__estimate">${
             hasImport
-              ? `PAK'nSAVE and New World prices here are shelf prices from each banner's island price list, imported on ${importDateLabel()}. Stock coverage is each branch's own product range. Anything else is an estimate from demo pricing.`
+              ? `PAK'nSAVE and New World prices here are shelf prices from each branch's price list where available, imported on ${importDateLabel()}. Stock coverage is each branch's own product range. Anything else is an estimate from demo pricing.`
               : product.estimated
                 ? "Product details are real, but prices and history are estimates from demo pricing."
                 : "Prices you haven't checked in store are estimates from demo pricing."
@@ -1725,6 +1800,7 @@ function openProduct(productId) {
                 .map((offer, index) => {
                   const kind = priceKind(productId, offer.store.id);
                   const real = priceState(productId, offer.store.id);
+                  const deal = storeDealFor(productId, offer.store);
                   const note =
                     kind === "checked"
                       ? `checked ${shortDate(checkedPrice(productId, offer.store.id).at)}`
@@ -1734,7 +1810,7 @@ function openProduct(productId) {
                   return `
                 <tr class="${index === 0 ? "is-best" : ""}">
                   <th scope="row">${escapeHtml(offer.store.name)}<span>${escapeHtml(offer.store.branch)}</span></th>
-                  <td>${money.format(offer.price)}${note ? `<small class="dialog__checked">${note}</small>` : ""}</td>
+                  <td>${money.format(offer.price)}${note ? `<small class="dialog__checked">${note}</small>` : ""}${deal ? `<small class="dialog__deal">${escapeHtml(dealDetail(deal))}</small>` : ""}</td>
                   <td>${index === 0 ? "Cheapest" : `+${money.format(offer.price - offers[0].price)}`}</td>
                 </tr>`;
                 })
@@ -1742,6 +1818,12 @@ function openProduct(productId) {
             </tbody>
           </table>`
         : `<p class="dialog__empty">${unavailable.length ? `Not stocked at ${unavailable.map((store) => escapeHtml(storeLabel(store))).join(" or ")}.` : "Select at least one store in the sidebar to price this product."}</p>`
+    }
+
+    ${
+      hasDeals
+        ? `<p class="dialog__deal-note">Club prices need a club card; multi-buys apply at the stated quantity. Basket totals use the single-item shelf price.</p>`
+        : ""
     }
 
     ${

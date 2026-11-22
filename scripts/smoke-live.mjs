@@ -318,6 +318,39 @@ async function main() {
       `selected stores missing after search: ${selectedStores}`
     );
 
+    step("checking multi-buy and club-card shelf tags");
+    const multiCard = await searchProduct(page, {
+      name: "Eta Uppercuts Sweet Chilli Relish Potato Chips",
+      sku: "5092030-EA-000",
+    });
+    assert(
+      multiCard.includes("Multi-buy"),
+      `PAK'nSAVE multi-buy badge missing: ${multiCard}`
+    );
+    await page.locator('#product-grid [data-product="5092030-EA-000"]').click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const multiDialog = normalize(await page.locator("#product-dialog").innerText());
+    assert(
+      multiDialog.includes("Multi-buy 3 for") && multiDialog.includes("each"),
+      `multi-buy terms missing from the price dialog: ${multiDialog}`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+
+    await searchProduct(page, {
+      name: "Cadbury Dairy Milk Caramello Chocolate Block",
+      sku: "5249645-EA-000",
+    });
+    await page.locator('#product-grid [data-product="5249645-EA-000"]').click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const clubDialog = normalize(await page.locator("#product-dialog").innerText());
+    assert(
+      clubDialog.includes("Club member") && clubDialog.includes("with club card"),
+      `club-card price missing from the price dialog: ${clubDialog}`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+
     step(`PAK'nSAVE-only product: ${PAK_ONLY.name}`);
     let card = await searchProduct(page, PAK_ONLY);
     assert(card.includes("Not at New World"), `PAK'nSAVE-only card missing stock note: ${card}`);

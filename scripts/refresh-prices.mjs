@@ -6,7 +6,7 @@
  * Foodstuffs puller (which discovers a fresh guest token and store UUID),
  * refreshes the full branch directory, rebuilds data/catalogue.js, updates
  * the curated demo-staple imports, and then pulls every other branch's sparse
- * price overrides.
+ * price, multi-buy, and club-card overrides.
  *
  * Usage:
  *   node scripts/refresh-prices.mjs

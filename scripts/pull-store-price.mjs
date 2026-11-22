@@ -4,8 +4,8 @@
  *
  * Driven by scripts/pull-all-store-prices.mjs. This deliberately does not keep
  * a full raw catalogue on disk: on a 200-store run the raw JSON would be
- * several gigabytes. It keeps the price overrides and metadata for products
- * that are not already in the four-store catalogue union.
+ * several gigabytes. It keeps the price overrides, the multi-buy and club-card
+ * terms, and metadata for products that are not already in the base union.
  *
  *   STORE_ID=... BRAND=pns ZONE=pns-ni \
  *     BASE_MAP_FILE=/tmp/base-prices.json BASE_IDS_FILE=/tmp/base-ids.json \
@@ -14,6 +14,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { dealForProduct } from "./deal-utils.mjs";
 
 const BRANDS = {
   pns: {
@@ -266,6 +267,7 @@ if (failures.length) {
 
 const checkedAt = new Date().toISOString();
 const prices = {};
+const deals = {};
 const newProducts = [];
 let same = 0;
 let changed = 0;
@@ -285,6 +287,9 @@ for (const [id, product] of seen) {
   } else {
     same += 1;
   }
+
+  const deal = dealForProduct(product, cents);
+  if (deal) deals[id] = deal;
 
   if (!baseIds.has(id)) {
     const tree = canonicalTree(product);
@@ -318,6 +323,7 @@ fs.writeFileSync(
     checkedAt,
     productCount: seen.size,
     prices,
+    deals,
   })
 );
 fs.writeFileSync(
@@ -328,5 +334,5 @@ fs.writeFileSync(
 console.log(
   `[pull-store-price] ${brand.name} ${storeId}: ${seen.size} products, ` +
     `${missingBase} outside base, ${changed} changed, ${same} same, ` +
-    `${Object.keys(prices).length} overrides`
+    `${Object.keys(prices).length} overrides, ${Object.keys(deals).length} deals`
 );
