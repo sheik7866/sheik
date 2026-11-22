@@ -176,7 +176,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "search-2026-11-23",
+        () => window.TROLLEYBIRD_BUILD === "typo-search-2026-11-23",
         null,
         { timeout: 5000 }
       );
@@ -441,6 +441,19 @@ async function main() {
       (await page.locator("[data-mode]").count()) === 0,
       "catalogue mode toggle should be removed"
     );
+
+    step("checking did-you-mean search");
+    await page.fill("#search", "milkk");
+    await page.waitForSelector("#search-suggestion:not([hidden])", { timeout: 10000 });
+    const suggestion = normalize(await page.locator("#search-suggestion").innerText());
+    assert(suggestion.includes("milk"), `did-you-mean should suggest milk: ${suggestion}`);
+    assert(
+      (await page.locator("#product-grid li.product").count()) > 0,
+      "typo-tolerant search should show the suggested products"
+    );
+    await page.locator("#search-suggestion-button").click();
+    await page.waitForSelector('#product-grid [data-product="milk-2l"]', { timeout: 10000 });
+    await page.fill("#search", "");
 
     step(`catalogue product shows its real barcode: ${CATALOGUE_GTIN.name}`);
     await searchProduct(page, { name: CATALOGUE_GTIN.search, sku: CATALOGUE_GTIN.sku });

@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "search-2026-11-23";
+window.TROLLEYBIRD_BUILD = "typo-search-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -387,6 +387,9 @@ const el = {
   grocerResults: document.getElementById("grocer-results"),
   offLookup: document.getElementById("off-lookup"),
   offLookupText: document.getElementById("off-lookup-text"),
+  searchSuggestion: document.getElementById("search-suggestion"),
+  searchSuggestionLead: document.getElementById("search-suggestion-lead"),
+  searchSuggestionButton: document.getElementById("search-suggestion-button"),
   offLookupButton: document.getElementById("off-lookup-button"),
   productGrid: document.getElementById("product-grid"),
   emptyProducts: document.getElementById("empty-products"),
@@ -1202,6 +1205,105 @@ function productSearchFields(product) {
   return fields;
 }
 
+let SEARCH_VOCABULARY = null;
+const SEARCH_SUGGESTION_STOP_WORDS = new Set([
+  "and",
+  "the",
+  "with",
+  "for",
+  "from",
+  "each",
+  "pack",
+  "packs",
+  "style",
+  "flavour",
+  "flavor",
+  "original",
+]);
+
+function addSearchWord(counts, word, weight) {
+  if (word.length < 3 || /^\d/.test(word) || SEARCH_SUGGESTION_STOP_WORDS.has(word)) return;
+  counts.set(word, (counts.get(word) || 0) + weight);
+}
+
+/* Built only when a search needs a correction, so ordinary searches do not
+   pay the vocabulary cost. Name words weigh more than brand or aisle words. */
+function searchVocabulary() {
+  if (SEARCH_VOCABULARY) return SEARCH_VOCABULARY;
+  const counts = new Map();
+  for (const product of PRODUCTS) {
+    const fields = productSearchFields(product);
+    for (const word of fields.nameWords) addSearchWord(counts, word, 3);
+    for (const word of fields.brandWords) addSearchWord(counts, word, 1);
+    for (const word of fields.categoryWords) addSearchWord(counts, word, 1);
+    for (const word of fields.subcategoryWords) addSearchWord(counts, word, 1);
+  }
+  SEARCH_VOCABULARY = counts;
+  return counts;
+}
+
+/* One edit for ordinary words; two for longer words, where a single missed
+   letter is less likely to collide with another real word. */
+function editDistance(a, b) {
+  const rows = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i += 1) rows[i][0] = i;
+  for (let j = 0; j <= b.length; j += 1) rows[0][j] = j;
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      rows[i][j] = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1, rows[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        rows[i][j] = Math.min(rows[i][j], rows[i - 2][j - 2] + 1);
+      }
+    }
+  }
+  return rows[a.length][b.length];
+}
+
+function bestSpelling(term, vocabulary) {
+  const maxDistance = term.length === 4 || term.length >= 7 ? 2 : 1;
+  const preferFrequency = term.length <= 4;
+  let best = null;
+  for (const [word, count] of vocabulary) {
+    if (Math.abs(word.length - term.length) > maxDistance) continue;
+    const distance = editDistance(term, word);
+    if (distance < 1 || distance > maxDistance) continue;
+    if (
+      !best ||
+      (preferFrequency
+        ? count > best.count || (count === best.count && distance < best.distance)
+        : distance < best.distance ||
+          (distance === best.distance && count > best.count) ||
+          (distance === best.distance && count === best.count && word.length < best.word.length))
+    ) {
+      best = { word, distance, count };
+    }
+  }
+  return best;
+}
+
+function suggestSearchQuery(query) {
+  if (query.barcode || !query.terms.length) return "";
+  const vocabulary = searchVocabulary();
+  const terms = [];
+  let changed = false;
+  for (const term of query.terms) {
+    if (
+      term.length < 3 ||
+      /^\d/.test(term) ||
+      SEARCH_SUGGESTION_STOP_WORDS.has(term) ||
+      vocabulary.has(term)
+    ) {
+      terms.push(term);
+      continue;
+    }
+    const best = bestSpelling(term, vocabulary);
+    terms.push(best ? best.word : term);
+    if (best) changed = true;
+  }
+  return changed ? terms.join(" ") : "";
+}
+
 function parseProductSearch(value) {
   const raw = String(value || "").trim();
   const normalized = normalizeSearchValue(raw);
@@ -1281,8 +1383,7 @@ function productSearchScore(product, query) {
   return score;
 }
 
-function visibleProducts() {
-  const query = parseProductSearch(el.search.value || "");
+function findMatchingProducts(query) {
   const matches = [];
   for (const product of PRODUCTS) {
     if (state.category !== "All" && product.category !== state.category) continue;
@@ -1299,6 +1400,21 @@ function visibleProducts() {
     );
   }
   return matches.map((match) => match.product);
+}
+
+function visibleProducts() {
+  const query = parseProductSearch(el.search.value || "");
+  const products = findMatchingProducts(query);
+  let correction = null;
+  if (query.active && !query.barcode && !products.length) {
+    const suggestion = suggestSearchQuery(query);
+    if (suggestion) {
+      const correctedProducts = findMatchingProducts(parseProductSearch(suggestion));
+      correction = { suggestion, applied: correctedProducts.length > 0 };
+      if (correctedProducts.length) return { products: correctedProducts, correction };
+    }
+  }
+  return { products, correction };
 }
 
 function listTotals() {
@@ -1497,7 +1613,9 @@ function renderCategories() {
 }
 
 function renderProducts() {
-  const allProducts = visibleProducts();
+  const searchResult = visibleProducts();
+  const allProducts = searchResult.products;
+  const correction = searchResult.correction;
   const products = allProducts.slice(0, visibleLimit);
   const stores = selectedStores();
   const pricesLoading = stores.some((store) => !storePricesReady(store));
@@ -1531,9 +1649,25 @@ function renderProducts() {
     .join("");
 
   const searchTerm = (el.search.value || "").trim();
-  const queryLabel = searchTerm
-    ? ` for “${searchTerm.length > 40 ? `${searchTerm.slice(0, 40)}…` : searchTerm}”`
+  const resultTerm = correction?.applied ? correction.suggestion : searchTerm;
+  const queryLabel = resultTerm
+    ? ` for “${resultTerm.length > 40 ? `${resultTerm.slice(0, 40)}…` : resultTerm}”`
     : "";
+  if (el.searchSuggestion) {
+    el.searchSuggestion.hidden = !correction;
+    if (correction) {
+      const label =
+        correction.suggestion.length > 40
+          ? `${correction.suggestion.slice(0, 40)}…`
+          : correction.suggestion;
+      el.searchSuggestionLead.textContent = correction.applied
+        ? `No exact matches for “${searchTerm.length > 32 ? `${searchTerm.slice(0, 32)}…` : searchTerm}”. Did you mean`
+        : "Did you mean";
+      el.searchSuggestionButton.textContent = `“${label}”`;
+      el.searchSuggestionButton.dataset.query = correction.suggestion;
+      el.searchSuggestionButton.setAttribute("aria-label", `Search for ${correction.suggestion}`);
+    }
+  }
   const grocerActive = grocerStatus !== "idle";
   el.emptyProducts.hidden = allProducts.length > 0 || grocerActive;
   if (!el.emptyProducts.hidden) {
@@ -2522,6 +2656,17 @@ el.search.addEventListener("input", () => {
   visibleLimit = PAGE_SIZE;
   renderProducts();
   scheduleGrocerSearch();
+});
+
+el.searchSuggestionButton.addEventListener("click", () => {
+  const suggestion = el.searchSuggestionButton.dataset.query;
+  if (!suggestion) return;
+  el.search.value = suggestion;
+  visibleLimit = PAGE_SIZE;
+  renderProducts();
+  scheduleGrocerSearch();
+  el.search.focus();
+  el.search.setSelectionRange(suggestion.length, suggestion.length);
 });
 
 el.grocerResults.addEventListener("click", (event) => {

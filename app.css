@@ -685,6 +685,22 @@
   color: var(--ink-mute);
 }
 
+.search-suggestion {
+  margin: -0.25rem 0 0.8rem;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--ink-mute);
+}
+
+.search-suggestion[hidden] {
+  display: none;
+}
+
+.search-suggestion .link-btn {
+  font-size: 0.76rem;
+  color: var(--leaf-deep);
+}
+
 .product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
