@@ -4,8 +4,9 @@
  * Called by .github/workflows/pages.yml at midnight Pacific/Auckland. It pulls
  * one representative branch per banner per island with the existing
  * Foodstuffs puller (which discovers a fresh guest token and store UUID),
- * refreshes the full branch directory, rebuilds data/catalogue.js, and updates
- * the curated demo-staple imports from the North Island pulls.
+ * refreshes the full branch directory, rebuilds data/catalogue.js, updates
+ * the curated demo-staple imports, and then pulls every other branch's sparse
+ * price overrides.
  *
  * Usage:
  *   node scripts/refresh-prices.mjs
@@ -182,6 +183,16 @@ function main() {
   for (const store of STORES) {
     if (store.importFile) updateImport(store, checkedAt);
   }
+
+  // Prices vary by branch often enough that four island lists are not enough;
+  // this is the long part of the nightly run. A dated directory keeps a rerun
+  // from reusing yesterday's completed branch files.
+  const storePullDir = `/tmp/store-price-pull-${TODAY}`;
+  run("scripts/pull-all-store-prices.mjs", {
+    CONCURRENCY: process.env.CONCURRENCY || "4",
+    OUT_DIR: storePullDir,
+  });
+  run("scripts/build-store-price-data.mjs", { SOURCE_DIR: storePullDir });
 
   console.log(`\n[refresh] prices checked for ${TODAY} (Pacific/Auckland)`);
 }

@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "prices:refresh": "node scripts/refresh-prices.mjs",
+    "prices:pull:all": "node scripts/pull-all-store-prices.mjs",
+    "prices:build:stores": "node scripts/build-store-price-data.mjs",
     "stores:pull": "node scripts/pull-stores.mjs",
     "coverage:pull": "node scripts/pull-coverage.mjs",
     "gtins:pull": "node scripts/pull-gtins.mjs",

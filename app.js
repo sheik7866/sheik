@@ -4,11 +4,12 @@
    ========================================================= */
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
-   (scripts/pull-stores.mjs). Both banners use one North Island and one South
-   Island price list, so each branch is priced from its island's list; stock
-   coverage is that branch's own product range (scripts/pull-coverage.mjs). The
-   two branches the demo has always priced keep their old ids so saved lists
-   and the dated staple imports keep working. */
+   (scripts/pull-stores.mjs). Branches fall back to their banner's North or
+   South Island base list and use a small branch-specific override file where
+   their prices differ (scripts/pull-all-store-prices.mjs). Stock coverage is
+   that branch's own product range (scripts/pull-coverage.mjs). The two branches
+   the demo has always priced keep their old ids so saved lists and the dated
+   staple imports keep working. */
 const ANCHOR_BRANCHES = {
   "b2e98a14-c8ca-401e-99ed-edf74570c6f6": "paknsave",
   "871ff39f-99b5-4030-b035-b2dab7225082": "newworld",
@@ -161,6 +162,14 @@ for (const imp of BASE_IMPORTS) {
 const ZONE_KEYS = ["pns-ni", "nw-ni", "pns-si", "nw-si"];
 const ZONE_META =
   CATALOGUE?.zones && typeof CATALOGUE.zones === "object" ? CATALOGUE.zones : {};
+const BASE_STORE_IDS = new Set(
+  Object.values(ZONE_META)
+    .map((zone) => zone.storeId)
+    .filter(Boolean)
+);
+/* Branch overrides are fetched lazily when a branch is selected. The four
+   base branches have no override file; every other branch does. */
+const STORE_PRICE_CACHE = new Map();
 const ZONE_PRICES = Object.fromEntries(ZONE_KEYS.map((zone) => [zone, {}]));
 for (const row of CATALOGUE_ROWS) {
   ZONE_KEYS.forEach((zone, index) => {
@@ -535,7 +544,7 @@ function importFor(storeId) {
   return IMPORTS.find((imp) => imp.storeId === storeId) || null;
 }
 
-/* A branch is priced from its banner's island price list. Demo staples are
+/* A branch is priced from its banner's island base list. Demo staples are
    keyed by their own id, so resolve the real pack they match at that chain. */
 function zonePriceFor(productId, store) {
   if (!store?.zone) return null;
@@ -546,14 +555,45 @@ function zonePriceFor(productId, store) {
   return skuId && prices[skuId] ? prices[skuId] : null;
 }
 
+function storePriceEntry(store) {
+  if (!store || BASE_STORE_IDS.has(store.storeId)) return null;
+  const entry = STORE_PRICE_CACHE.get(store.storeId);
+  return entry?.status === "ready" ? entry : null;
+}
+
+function storePricesReady(store) {
+  if (!store) return false;
+  if (BASE_STORE_IDS.has(store.storeId)) return true;
+  const entry = STORE_PRICE_CACHE.get(store.storeId);
+  return entry?.status === "ready" || entry?.status === "error";
+}
+
+/* A real branch price wins over the island base price. Only prices that differ
+   are stored, so a missing override means the base list is correct. */
+function storePriceOverrideFor(productId, store) {
+  const entry = storePriceEntry(store);
+  if (!entry) return null;
+  const prices = entry.prices || {};
+  if (prices[productId]) {
+    return { price: prices[productId] / 100, at: entry.checkedAt || "" };
+  }
+  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
+  if (skuId && prices[skuId]) {
+    return { price: prices[skuId] / 100, at: entry.checkedAt || "" };
+  }
+  return null;
+}
+
 function importedPrice(productId, storeId) {
   const store = STORE_MAP.get(storeId);
-  if (!store) return null;
+  if (!store || !storePricesReady(store)) return null;
   const imp = importFor(storeId);
   const row = imp?.items?.[productId];
   if (row && Number.isFinite(row.price) && row.price > 0) {
     return { price: row.price, at: imp.fetchedAt };
   }
+  const override = storePriceOverrideFor(productId, store);
+  if (override) return override;
   const price = zonePriceFor(productId, store);
   if (price) {
     return {
@@ -588,7 +628,11 @@ function importDateLabel(imp = IMPORTS[0]) {
 
 function priceCheckLabel() {
   const iso =
-    [...IMPORTS.map((imp) => imp.checkedAt), CATALOGUE?.checkedAt]
+    [
+      ...IMPORTS.map((imp) => imp.checkedAt),
+      CATALOGUE?.checkedAt,
+      ...[...STORE_PRICE_CACHE.values()].map((entry) => entry.checkedAt),
+    ]
       .filter(Boolean)
       .sort()
       .at(-1) || "";
@@ -617,6 +661,7 @@ function knownUnavailable(productId, storeId) {
   const product = PRODUCT_MAP.get(productId);
   const store = STORE_MAP.get(storeId);
   if (!product || !store) return false;
+  if (!storePricesReady(store)) return false;
   // A price you recorded in this store is evidence it had the product, even
   // if the range pull missed it.
   if (checkedPrice(productId, storeId)) return false;
@@ -641,7 +686,7 @@ function priceFor(productId, storeId) {
   if (real) return real.price;
   const p = PRODUCT_MAP.get(productId);
   const s = STORE_MAP.get(storeId);
-  if (!p || !s || knownUnavailable(productId, storeId)) return null;
+  if (!p || !s || !storePricesReady(s) || knownUnavailable(productId, storeId)) return null;
   const jitter = noise(hash(productId + storeId), -0.06, 0.06);
   return roundPrice(p.base * s.factor * (1 + jitter));
 }
@@ -925,17 +970,27 @@ function renderStores() {
   const selected = state.stores.map((id) => STORE_MAP.get(id)).filter(Boolean);
   el.storeList.innerHTML = selected.length
     ? selected
-        .map(
-          (store) => `
-          <li class="store-selected">
+        .map((store) => {
+          const priceStatus = BASE_STORE_IDS.has(store.storeId)
+            ? "ready"
+            : STORE_PRICE_CACHE.get(store.storeId)?.status || "loading";
+          const priceNote =
+            priceStatus === "loading"
+              ? `<small class="store-selected__prices">Loading branch prices…</small>`
+              : priceStatus === "error"
+                ? `<small class="store-selected__prices is-error">Island price list — branch prices unavailable</small>`
+                : "";
+          return `
+          <li class="store-selected" data-price-status="${priceStatus}">
             <span class="store-chip__dot" style="--dot:${store.tint}"></span>
             <span class="store-chip__body">
               <b>${escapeHtml(store.name)}</b>
               <small>${escapeHtml(store.branch)} · ${escapeHtml(storeRegionLabel(store))} · ${escapeHtml(storeLineLabel(store))}</small>
+              ${priceNote}
             </span>
             <button class="store-selected__remove" type="button" data-remove-store="${store.id}" aria-label="Remove ${escapeHtml(store.name)} ${escapeHtml(store.branch)}" title="Remove">×</button>
-          </li>`
-        )
+          </li>`;
+        })
         .join("")
     : `<li class="store-empty">No stores selected. Search for a branch above to start.</li>`;
 
@@ -967,6 +1022,7 @@ function renderProducts() {
   const allProducts = visibleProducts();
   const products = allProducts.slice(0, visibleLimit);
   const stores = selectedStores();
+  const pricesLoading = stores.some((store) => !storePricesReady(store));
 
   el.productGrid.innerHTML = products
     .map((product) => {
@@ -983,9 +1039,9 @@ function renderProducts() {
               <span class="product__name">${escapeHtml(product.name)}</span>
               <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
               <span class="product__best">
-                ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${stores.length ? "not stocked" : "no stores selected"}</small>`}
+                ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${pricesLoading ? "loading prices…" : stores.length ? "not stocked" : "no stores selected"}</small>`}
               </span>
-              <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
+              <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : pricesLoading ? "Loading branch prices…" : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
               ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(storeLabel(store))).join(" & ")}</span>` : ""}
             </span>
           </button>
@@ -1320,11 +1376,36 @@ function renderAll() {
   renderProducts();
   renderList();
   renderTotals();
+  renderImportBanner();
   el.proToggle.checked = state.pro;
   document.body.classList.toggle("is-pro", state.pro);
 }
 
 /* ---------- Actions ---------- */
+
+async function ensureStorePrices(storeId) {
+  const store = STORE_MAP.get(storeId);
+  if (!store || BASE_STORE_IDS.has(store.storeId) || STORE_PRICE_CACHE.has(store.storeId)) {
+    return;
+  }
+  STORE_PRICE_CACHE.set(store.storeId, { status: "loading", prices: {}, checkedAt: "" });
+  try {
+    const res = await fetch(`data/store-prices/${encodeURIComponent(store.storeId)}.json`, {
+      cache: "no-cache",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    STORE_PRICE_CACHE.set(store.storeId, {
+      status: "ready",
+      prices: data && typeof data.prices === "object" ? data.prices : {},
+      checkedAt: typeof data?.checkedAt === "string" ? data.checkedAt : "",
+    });
+  } catch (error) {
+    STORE_PRICE_CACHE.set(store.storeId, { status: "error", prices: {}, checkedAt: "" });
+    console.warn(`Branch prices unavailable for ${storeLabel(store)}`, error);
+  }
+  if (state.stores.includes(storeId)) renderAll();
+}
 
 function addStore(storeId) {
   const store = STORE_MAP.get(storeId);
@@ -1340,6 +1421,7 @@ function addStore(storeId) {
   state.stores = [...state.stores, storeId];
   saveState();
   renderAll();
+  void ensureStorePrices(storeId);
   toast(`${store.name} · ${store.branch} added.`);
 }
 
@@ -2487,8 +2569,8 @@ function renderImportBanner() {
   const branches = Object.keys(COVERAGE_BRANCHES).length;
   const coverageAt = COVERAGE?.fetchedAt ? shortDate(COVERAGE.fetchedAt) : "";
   el.importBanner.textContent =
-    `Every PAK'nSAVE and New World branch is priced from its banner's North or South Island ` +
-    `shelf-price list. Stock coverage is that branch's own product range, not a shared island list` +
+    `Every PAK'nSAVE and New World branch uses its own branch price list where prices differ ` +
+    `from the four island base lists. Stock coverage is that branch's own product range, not a shared island list` +
     `${branches ? ` (${branches.toLocaleString("en-NZ")} branches checked ${coverageAt})` : ""}. ` +
     `Last successful price check: ${checkedAt || "not recorded"}. ` +
     `Import dated ${importDateLabel()}. Everything else is an estimate unless you record it.`;
@@ -2498,6 +2580,7 @@ function renderImportBanner() {
 renderImportBanner();
 renderCoverageLine();
 renderAll();
+for (const storeId of state.stores) void ensureStorePrices(storeId);
 
 /* ---------- Small utilities ---------- */
 

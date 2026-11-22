@@ -389,6 +389,18 @@
   overflow-wrap: anywhere;
 }
 
+.store-selected__prices {
+  display: block;
+  margin-top: 0.14rem;
+  font-size: 0.6rem;
+  line-height: 1.35;
+  color: var(--ink-mute);
+}
+
+.store-selected__prices.is-error {
+  color: var(--tomato);
+}
+
 .store-selected__remove {
   flex: none;
   width: 1.55rem;

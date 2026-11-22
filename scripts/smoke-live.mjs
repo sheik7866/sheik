@@ -126,10 +126,15 @@ async function addStore(page, { query, brand, branch }, expectedCount) {
   await page.waitForFunction(
     ({ branch, count }) => {
       const rows = [...document.querySelectorAll("#store-list .store-selected")];
-      return rows.length === count && rows.some((row) => row.textContent.includes(branch));
+      return (
+        rows.length === count &&
+        rows.some(
+          (row) => row.textContent.includes(branch) && row.dataset.priceStatus === "ready"
+        )
+      );
     },
     { branch, count: expectedCount },
-    { timeout: 5000 }
+    { timeout: 10000 }
   );
   await page.fill("#store-search", "");
 }
