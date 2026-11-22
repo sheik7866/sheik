@@ -3,6 +3,10 @@
    Client-side only: demo catalogue, real branch list, localStorage.
    ========================================================= */
 
+/* The live smoke test waits for this marker so a just-deployed page cannot
+   pass (or fail) against a cached copy of the previous app bundle. */
+window.TROLLEYBIRD_BUILD = "basket-pricing-2026-11-22";
+
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
    South Island base list and use a small branch-specific override file where

@@ -75,6 +75,22 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function waitForCurrentBuild(page) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      await page.waitForFunction(
+        () => window.TROLLEYBIRD_BUILD === "basket-pricing-2026-11-22",
+        null,
+        { timeout: 5000 }
+      );
+      return;
+    } catch {
+      await page.reload({ waitUntil: "domcontentloaded" });
+    }
+  }
+  throw new Error("the deployed app is still serving the previous build");
+}
+
 async function cardText(page, sku) {
   return normalize(
     await page.locator(`#product-grid li.product:has([data-product="${sku}"])`).innerText()
@@ -166,6 +182,8 @@ async function main() {
   try {
     step(`opening ${TARGET}`);
     await page.goto(TARGET, { waitUntil: "domcontentloaded", timeout: 30000 });
+    step("waiting for the deployed basket-pricing build");
+    await waitForCurrentBuild(page);
     await page.waitForFunction(
       () => Array.isArray(window.GROCER_CATALOGUE?.items) && window.GROCER_CATALOGUE.items.length > 0,
       { timeout: 20000 }
