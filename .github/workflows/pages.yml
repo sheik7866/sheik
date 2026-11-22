@@ -4,9 +4,12 @@ on:
   push:
     branches: [main]
   schedule:
-    # Midnight in Auckland, including daylight-saving changes.
-    - cron: "0 0 * * *"
-      timezone: "Pacific/Auckland"
+    # Auckland is UTC+13 in summer and UTC+12 in winter. Both triggers fire;
+    # the gate job keeps the one that lands at 00:00–04:00 in Auckland and has
+    # not already refreshed today's prices, so one of them is local midnight
+    # and the second is a retry if the first run was delayed or dropped.
+    - cron: "0 11 * * *"
+    - cron: "0 12 * * *"
   workflow_dispatch:
 
 permissions:
@@ -16,19 +19,64 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # A deploy must not cancel the longer nightly price refresh.
+  cancel-in-progress: false
 
 jobs:
-  build:
+  gate:
     runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for an Auckland midnight refresh
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour=$(TZ=Pacific/Auckland date +%-H)
+          today=$(TZ=Pacific/Auckland date +%F)
+          fetched=$(jq -r '.fetchedAt // ""' data/store-prices/index.json)
+          if [ "$hour" -le 4 ] && [ "$fetched" != "$today" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Refreshing: Auckland hour $hour, prices dated $fetched."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: Auckland hour $hour, prices dated $fetched."
+          fi
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Refresh store prices
+      - name: Refresh every store's prices
         if: github.ref == 'refs/heads/main' && github.event_name != 'push'
         run: npm run prices:refresh
+        env:
+          CONCURRENCY: 6
+      - name: Verify every store was refreshed
+        if: github.ref == 'refs/heads/main' && github.event_name != 'push'
+        run: |
+          today=$(TZ=Pacific/Auckland date +%F)
+          fetched=$(jq -r '.fetchedAt // ""' data/store-prices/index.json)
+          branches=$(jq '.stores | length' data/store-prices/index.json)
+          if [ "$fetched" != "$today" ]; then
+            echo "::error::Store prices are dated $fetched, expected $today."
+            exit 1
+          fi
+          if [ "$branches" -lt 200 ]; then
+            echo "::error::Only $branches branches were refreshed."
+            exit 1
+          fi
+          echo "Refreshed $branches branches for $today."
       - name: Refresh branch stock coverage
         if: github.ref == 'refs/heads/main' && github.event_name != 'push'
         run: |
@@ -47,7 +95,7 @@ jobs:
             echo "Prices unchanged."
             exit 0
           fi
-          git commit -m "Refresh store prices for $(TZ=Pacific/Auckland date +%F)"
+          git commit -m "Refresh all store prices for $(TZ=Pacific/Auckland date +%F)"
           git push origin HEAD:main
       - name: Configure Pages
         uses: actions/configure-pages@v5
