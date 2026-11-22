@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "assorted-group-limits-2026-11-22";
+window.TROLLEYBIRD_BUILD = "ui-refresh-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -1344,7 +1344,7 @@ function renderProducts() {
           <button class="product__open" type="button" data-product="${product.id}" aria-label="View prices for ${escapeHtml(product.name)}">
             ${product.image ? `<img class="product__thumb" src="${escapeHtml(product.image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="56" height="56" />` : ""}
             <span class="product__body">
-              <span class="product__name">${escapeHtml(product.name)}</span>
+              <span class="product__name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
               <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
               <span class="product__best">
                 ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${pricesLoading ? "loading prices…" : stores.length ? "not stocked" : "no stores selected"}</small>`}
@@ -1394,7 +1394,7 @@ function renderList() {
       return `
         <li class="list-item" data-row="${row.id}">
           <span class="list-item__body">
-            <b>${escapeHtml(product.name)}</b>
+            <b title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</b>
             <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.shelfPrice)} at ${escapeHtml(storeLabel(best.store))}` : ""}</small>
             ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied · save ${money.format(best.savings)}</small>` : ""}
           </span>
@@ -1768,7 +1768,7 @@ async function shareReceiptSummary() {
 
 function renderAll() {
   renderStores();
-  el.search.placeholder = `Search ${PRODUCTS.length.toLocaleString("en-NZ")} products or type a barcode…`;
+  el.search.placeholder = `Search ${PRODUCTS.length.toLocaleString("en-NZ")} products…`;
   renderCategories();
   renderProducts();
   renderList();

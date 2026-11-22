@@ -84,7 +84,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "assorted-group-limits-2026-11-22",
+        () => window.TROLLEYBIRD_BUILD === "ui-refresh-2026-11-23",
         null,
         { timeout: 5000 }
       );

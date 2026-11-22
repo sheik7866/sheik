@@ -51,26 +51,25 @@
       <div>
         <p class="eyebrow"><span class="eyebrow__dot"></span>Working demo</p>
         <h1>Compare your shop.</h1>
-        <p>
-          Search your local PAK'nSAVE and New World branches, then search for a product
-          or type a barcode. Trolleybird prices the item across your stores, keeps a
-          shopping list and adds up which shop is cheapest for the whole basket.
+        <p class="app-intro__lede">
+          Pick your PAK'nSAVE and New World branches, build a shopping list, and see
+          which store is cheapest for the whole basket.
         </p>
-                  <p class="app-intro__note">
-          Scanned barcodes match products by their real GTIN, with a fallback to Open Food
-          Facts. Searches also query Grocer's public product catalogue, so names, brands,
-          sizes and store coverage are real.
-          Grocer doesn't publish prices, so prices are estimates — except the PAK'nSAVE
-          and New World shelf prices checked every night. Every branch of both chains
-          uses its own price list where it differs from the banner's North or South
-          Island base list, and stockedness comes from that branch's own product range;
-          the branch search shows how many catalogue lines each one carries. Multi-buy
-          and club-member shelf tags are shown where the branch lists them, and basket
-          totals pool assorted multi-buy groups across products plus club prices when
-          the club-card switch is on. Browse the full catalogue pulled
-          from those two chains, merged with the demo staples.
-          Nothing here is live supermarket pricing.
-        </p>
+        <details class="app-intro__about">
+          <summary>About the demo data</summary>
+          <p>
+            Scanned barcodes match products by their real GTIN, with a fallback to Open
+            Food Facts. Searches also query Grocer's public product catalogue, so names,
+            brands, sizes and store coverage are real. Grocer doesn't publish prices, so
+            prices are estimates — except the PAK'nSAVE and New World shelf prices
+            checked every night. Every branch uses its own price list where it differs
+            from the banner's island base list, and stockedness comes from that branch's
+            own product range. Multi-buy and club-member shelf tags are shown where the
+            branch lists them, and basket totals pool assorted multi-buy groups across
+            products plus club prices when the club-card switch is on. Nothing here is
+            live supermarket pricing.
+          </p>
+        </details>
       </div>
     </div>
 
@@ -86,7 +85,7 @@
             <circle cx="11" cy="11" r="6" />
             <path d="m16 16 4 4" />
           </svg>
-          <input id="store-search" type="search" placeholder="Search branch, suburb or region…" autocomplete="off" aria-label="Search PAK'nSAVE and New World branches" aria-controls="store-results" />
+          <input id="store-search" type="search" placeholder="Find a branch…" autocomplete="off" aria-label="Search PAK'nSAVE and New World branches" aria-controls="store-results" />
         </div>
         <ul class="store-results" id="store-results" aria-live="polite" hidden></ul>
         <ul class="store-list" id="store-list"></ul>
@@ -101,7 +100,7 @@
               <circle cx="11" cy="11" r="6" />
               <path d="m16 16 4 4" />
             </svg>
-            <input id="search" type="search" placeholder="Search a product or type a barcode…" autocomplete="off" aria-label="Search products or enter a barcode" />
+            <input id="search" type="search" placeholder="Search products or a barcode…" autocomplete="off" aria-label="Search products or enter a barcode" />
             <button class="search__scan" type="button" id="scan-button" aria-haspopup="dialog">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
