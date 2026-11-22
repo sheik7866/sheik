@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "ui-refresh-2026-11-23";
+window.TROLLEYBIRD_BUILD = "search-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -287,6 +287,7 @@ for (const product of DEMO_PRODUCTS) {
   if (codes && codes.size === 1) product.code = [...codes][0];
 }
 const CATEGORIES = ["All", ...new Set(PRODUCTS.map((p) => p.category))];
+const STAPLE_IDS = new Set(DEMO_PRODUCTS.map((product) => product.id));
 const PAGE_SIZE = 60;
 let visibleLimit = PAGE_SIZE;
 
@@ -1149,23 +1150,155 @@ function bestBasketOffer(productId, qty) {
   return offers.length ? offers[0] : null;
 }
 
+const PRODUCT_SEARCH_FIELDS = new WeakMap();
+
+function normalizeSearchValue(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, " ")
+    .replace(/\.(?!\d)/g, " ")
+    .replace(/(^|\s)\./g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function productSearchFields(product) {
+  let fields = PRODUCT_SEARCH_FIELDS.get(product);
+  if (fields) return fields;
+
+  const name = normalizeSearchValue(product.name);
+  const brand = normalizeSearchValue(product.brand);
+  const category = normalizeSearchValue(product.category);
+  const subcategory = normalizeSearchValue(product.subcategory);
+  const rawSize = String(product.size || "").trim();
+  const size = normalizeSearchValue(rawSize);
+  const spacedSize = normalizeSearchValue(
+    rawSize.replace(/^(\d+(?:\.\d+)?)([a-zA-Z]+)$/, "$1 $2")
+  );
+  const meta = normalizeSearchValue([category, subcategory, size, spacedSize].filter(Boolean).join(" "));
+  const staple = STAPLE_IDS.has(product.id);
+  // Curated staples carry their type in their id (milk-2l, cheese-1kg) but do
+  // not always have a subcategory, so use those words as search keywords.
+  const keywords = staple ? normalizeSearchValue(product.id.replace(/-/g, " ")) : "";
+  const code = normalizeGtin(product.code);
+  const words = (value) => value.split(" ").filter(Boolean);
+
+  fields = {
+    name,
+    brand,
+    meta,
+    code,
+    staple,
+    nameWords: words(name),
+    brandWords: words(brand),
+    categoryWords: words(category),
+    subcategoryWords: words(subcategory),
+    keywordWords: words(keywords),
+    metaWords: words(meta),
+  };
+  PRODUCT_SEARCH_FIELDS.set(product, fields);
+  return fields;
+}
+
+function parseProductSearch(value) {
+  const raw = String(value || "").trim();
+  const normalized = normalizeSearchValue(raw);
+  const digits = raw.replace(/\D/g, "");
+  const barcode =
+    raw && /^[\d\s-]+$/.test(raw) && digits.length >= 8 ? normalizeGtin(digits) : "";
+  return {
+    raw,
+    active: Boolean(raw),
+    normalized,
+    terms: normalized ? normalized.split(" ") : [],
+    barcode,
+  };
+}
+
+function wordMatchesTerm(word, term) {
+  return word === term || word.startsWith(term) || (term.length >= 4 && word.includes(term));
+}
+
+function searchTermScore(words, term, exact, prefix, inside) {
+  if (words.includes(term)) return exact;
+  if (words.some((word) => word.startsWith(term))) return prefix;
+  if (term.length >= 4 && words.some((word) => word.includes(term))) return inside;
+  return 0;
+}
+
+function hasSearchPhrase(haystack, phrase) {
+  return Boolean(phrase) && ` ${haystack} `.includes(` ${phrase} `);
+}
+
+function productMatchesSearch(fields, query) {
+  if (query.barcode) return fields.code.includes(query.barcode);
+  if (!query.terms.length) return false;
+  return query.terms.every(
+    (term) =>
+      fields.nameWords.some((word) => wordMatchesTerm(word, term)) ||
+      fields.brandWords.some((word) => wordMatchesTerm(word, term)) ||
+      fields.keywordWords.some((word) => wordMatchesTerm(word, term)) ||
+      fields.categoryWords.includes(term) ||
+      fields.metaWords.some((word) => wordMatchesTerm(word, term)) ||
+      (fields.code && fields.code.includes(term))
+  );
+}
+
+/* Returns -1 when a product does not match, otherwise a relevance score. */
+function productSearchScore(product, query) {
+  const fields = productSearchFields(product);
+  if (!query.active) return 0;
+  if (query.barcode) {
+    if (fields.code === query.barcode) return 1000;
+    if (fields.code.startsWith(query.barcode)) return 500;
+    if (fields.code.includes(query.barcode)) return 250;
+    return -1;
+  }
+  if (!query.terms.length || !productMatchesSearch(fields, query)) return -1;
+
+  let score = fields.staple ? 500 : 0;
+  if (fields.name === query.normalized) score += 700;
+  else if (fields.name.startsWith(`${query.normalized} `)) score += 300;
+  else if (hasSearchPhrase(fields.name, query.normalized)) score += 120;
+  if (fields.brand === query.normalized) score += 200;
+  else if (fields.brand.startsWith(`${query.normalized} `)) score += 80;
+
+  let nameHits = 0;
+  for (const term of query.terms) {
+    const nameScore = searchTermScore(fields.nameWords, term, 80, 45, 15);
+    if (nameScore) nameHits += 1;
+    score += nameScore;
+    score += searchTermScore(fields.brandWords, term, 22, 12, 5);
+    score += searchTermScore(fields.keywordWords, term, 600, 200, 50);
+    score += searchTermScore(fields.metaWords, term, 8, 5, 2);
+    if (fields.categoryWords.includes(term)) score += 150;
+    if (fields.subcategoryWords.includes(term)) score += 400;
+  }
+  if (nameHits === query.terms.length) score += 100;
+  if (fields.code && fields.code.includes(query.normalized.replace(/\s+/g, ""))) score += 80;
+  return score;
+}
+
 function visibleProducts() {
-  const query = (el.search.value || "").trim().toLowerCase();
-  return PRODUCTS.filter((p) => {
-    if (state.category !== "All" && p.category !== state.category) return false;
-    if (!query) return true;
-    const queryDigits = query.replace(/\D/g, "");
-    const barcodeQuery = queryDigits.length === query.length ? normalizeGtin(queryDigits) : "";
-    return (
-      (barcodeQuery && normalizeGtin(p.code) === barcodeQuery) ||
-      p.name.toLowerCase().includes(query) ||
-      (p.brand || "").toLowerCase().includes(query) ||
-      p.category.toLowerCase().includes(query) ||
-      (p.subcategory || "").toLowerCase().includes(query) ||
-      p.size.toLowerCase().includes(query) ||
-      (p.code || "").includes(query)
+  const query = parseProductSearch(el.search.value || "");
+  const matches = [];
+  for (const product of PRODUCTS) {
+    if (state.category !== "All" && product.category !== state.category) continue;
+    if (!query.active) {
+      matches.push({ product, score: 0 });
+      continue;
+    }
+    const score = productSearchScore(product, query);
+    if (score >= 0) matches.push({ product, score });
+  }
+  if (query.active) {
+    matches.sort(
+      (a, b) => b.score - a.score || a.product.name.localeCompare(b.product.name, "en-NZ")
     );
-  });
+  }
+  return matches.map((match) => match.product);
 }
 
 function listTotals() {
@@ -1397,10 +1530,19 @@ function renderProducts() {
     })
     .join("");
 
+  const searchTerm = (el.search.value || "").trim();
+  const queryLabel = searchTerm
+    ? ` for “${searchTerm.length > 40 ? `${searchTerm.slice(0, 40)}…` : searchTerm}”`
+    : "";
   const grocerActive = grocerStatus !== "idle";
   el.emptyProducts.hidden = allProducts.length > 0 || grocerActive;
+  if (!el.emptyProducts.hidden) {
+    el.emptyProducts.textContent = searchTerm
+      ? `No products match “${searchTerm.length > 60 ? `${searchTerm.slice(0, 60)}…` : searchTerm}”. Try fewer or different words, or a barcode.`
+      : "Nothing matches that search. Try “milk”, “cheese”, “coffee”, or a barcode from the demo catalogue.";
+  }
   el.resultsLine.textContent = allProducts.length
-    ? `${allProducts.length.toLocaleString("en-NZ")} product${allProducts.length === 1 ? "" : "s"}${state.category !== "All" ? ` in ${state.category}` : ""} · showing ${products.length.toLocaleString("en-NZ")}${stores.length ? ` · priced at ${stores.length} store${stores.length === 1 ? "" : "s"}` : ""}`
+    ? `${allProducts.length.toLocaleString("en-NZ")} product${allProducts.length === 1 ? "" : "s"}${queryLabel}${state.category !== "All" ? ` in ${state.category}` : ""} · showing ${products.length.toLocaleString("en-NZ")}${stores.length ? ` · priced at ${stores.length} store${stores.length === 1 ? "" : "s"}` : ""}`
     : grocerStatus === "ready" && grocerHits.size
       ? `${grocerHits.size} live match${grocerHits.size === 1 ? "" : "es"} from Grocer's catalogue`
       : grocerStatus === "loading"
