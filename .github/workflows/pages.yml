@@ -4,10 +4,10 @@ on:
   push:
     branches: [main]
   schedule:
-    # Auckland is UTC+13 in summer and UTC+12 in winter. Three off-peak
-    # triggers cover both offsets; the gate job keeps the first one that lands
-    # at 00:00–04:00 in Auckland and has not already refreshed today's prices,
-    # so later triggers retry a delayed or dropped run without repeating work.
+    # Auckland is UTC+13 in summer and UTC+12 in winter. Three triggers cover
+    # both offsets. Every scheduled run refreshes when today's prices are still
+    # missing, so a run GitHub delivers late still recovers; once today's prices
+    # exist, later triggers skip the work instead of repeating it.
     - cron: "7 11 * * *"
     - cron: "7 12 * * *"
     - cron: "7 13 * * *"
@@ -42,7 +42,10 @@ jobs:
           run=true
           refresh=false
           if [ "$event" = "schedule" ]; then
-            if [ "$hour" -le 4 ] && [ "$fetched" != "$today" ]; then
+            # GitHub can deliver a scheduled run hours after its cron time.
+            # Refresh whenever today's prices are missing, not only during the
+            # early-morning window; the fetched date keeps retries idempotent.
+            if [ "$fetched" != "$today" ]; then
               refresh=true
             else
               run=false

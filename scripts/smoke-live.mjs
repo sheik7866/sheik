@@ -176,7 +176,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "splash-2026-11-23",
+        () => window.TROLLEYBIRD_BUILD === "audit-2026-11-23",
         null,
         { timeout: 5000 }
       );
@@ -287,6 +287,8 @@ async function main() {
       () => Array.isArray(window.GROCER_CATALOGUE?.items) && window.GROCER_CATALOGUE.items.length > 0,
       { timeout: 20000 }
     );
+    step("waiting for lazy branch coverage data");
+    await page.waitForFunction(() => Boolean(window.GROCER_COVERAGE), { timeout: 20000 });
     await page.waitForFunction(
       () => document.querySelectorAll("#product-grid li.product").length >= 50,
       { timeout: 10000 }
@@ -391,6 +393,9 @@ async function main() {
     });
     await page.locator(`#product-grid [data-product="${DEMO_STAPLE.id}"]`).click();
     await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    step("waiting for lazy barcode data");
+    await page.waitForFunction(() => Boolean(window.GROCER_GTINS), { timeout: 20000 });
+    await page.waitForSelector("#product-dialog .barcode-card", { timeout: 5000 });
     const stapleBarcodes = await page.locator("#product-dialog .barcode-card").count();
     assert(
       stapleBarcodes === 1,
@@ -508,6 +513,31 @@ async function main() {
       selectedStores.includes("Mt Albert") && selectedStores.includes("Point Chevalier"),
       `selected stores missing after search: ${selectedStores}`
     );
+
+    step("checking unit prices and cheapest-first sorting");
+    await page.selectOption("#product-sort", "unit");
+    await page.waitForFunction(
+      () => Boolean(document.querySelector("#product-grid .product__unit")),
+      null,
+      { timeout: 10000 }
+    );
+    const firstUnit = normalize(await page.locator("#product-grid .product__unit").first().innerText());
+    assert(firstUnit.includes("/"), `unit-price sorting should show a per-unit price: ${firstUnit}`);
+    await page.selectOption("#product-sort", "price");
+    const sortedPrices = await page.locator("#product-grid .product__best b").evaluateAll((nodes) =>
+      nodes
+        .slice(0, 12)
+        .map((node) => {
+          const match = node.textContent.match(/\$([\d.]+)/);
+          return match ? Number(match[1]) : null;
+        })
+        .filter((price) => price != null)
+    );
+    assert(
+      sortedPrices.length > 1 && sortedPrices.every((price, index) => index === 0 || price >= sortedPrices[index - 1]),
+      `price sorting is not cheapest-first: ${sortedPrices.join(", ")}`
+    );
+    await page.selectOption("#product-sort", "relevance");
 
     step("checking every branch price has the same Auckland import date");
     await page.fill("#search", "Anchor Blue Milk");

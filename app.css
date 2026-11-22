@@ -702,6 +702,43 @@
   margin-bottom: 0.6rem;
 }
 
+.catalog__filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.catalog__filters .chips {
+  flex: 1;
+  min-width: 0;
+}
+
+.sort-control {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sort-control__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-mute);
+}
+
+.sort-control select {
+  min-height: 36px;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .search {
   position: relative;
   display: flex;
@@ -962,9 +999,17 @@
 .product__stock {
   display: block;
   margin-top: 0.1rem;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--tomato);
+}
+
+.product__unit {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--ink-mute);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .product__add {
@@ -1220,16 +1265,31 @@ button.grocer-item__price:disabled {
 /* Shopping list */
 
 .link-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   border: 0;
   background: none;
   padding: 0;
   font-family: var(--font-body);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--ink-mute);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+#clear-list {
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  margin: -0.55rem -0.35rem;
+}
+
+.panel__head h2:focus {
+  outline: 2px solid var(--leaf);
+  outline-offset: 3px;
 }
 
 .link-btn:hover {
@@ -2763,6 +2823,11 @@ button.grocer-item__price:disabled {
   left: 50%;
   bottom: 1.35rem;
   z-index: 80;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.7rem;
   padding: 0.7rem 1.1rem;
   border-radius: 999px;
   background: var(--ink);
@@ -2781,6 +2846,24 @@ button.grocer-item__price:disabled {
 .toast.is-on {
   opacity: 1;
   transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.toast__action {
+  min-height: 32px;
+  padding: 0.15rem 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--lime);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.toast__action[hidden] {
+  display: none;
 }
 
 .list,
@@ -3038,5 +3121,131 @@ button.grocer-item__price:disabled {
   .store-chip,
   .toast {
     transition: none;
+  }
+}
+
+/* ---------- Readability and touch refinements ---------- */
+
+.product__meta,
+.product__unit,
+.product__range,
+.product__best small,
+.store-result__body small,
+.store-chip__body small,
+.list-item__body small,
+.store-selected__prices,
+.grocer-item__body small {
+  font-size: 0.75rem;
+}
+
+.product__deal,
+.product__est,
+.dialog__checked,
+.dialog__deal,
+.dialog__unit,
+.dialog__note,
+.receipt-line__amount.is-missing,
+.receipt-line__imported,
+.receipt-note,
+.receipt-store__branch,
+.receipt-paper__meta,
+.store-result__action,
+.store-results__note,
+.import-banner,
+.coverage-line,
+.demo-note,
+.grocer-live__count,
+.grocer-live__note,
+.barcode-card__hint,
+.barcode-card__status {
+  font-size: 0.72rem;
+}
+
+.dialog__unit {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--ink-mute);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.dialog__eyebrow,
+.receipt-dialog__eyebrow,
+.receipt-item-count,
+.receipt-line__name small,
+.dialog__source,
+.dialog__demo,
+.dialog__history-head span,
+.barcode-card__title,
+.barcode-card__copy,
+.dialog__prices thead th,
+.dialog__prices tbody th span,
+.check-price__field,
+.check-price__hint,
+.history-labels,
+.history-labels span {
+  font-size: 0.75rem;
+}
+
+.barcode-card__copy {
+  min-height: 32px;
+}
+
+.dialog__close {
+  width: 44px;
+  height: 44px;
+}
+
+.panel__head h2,
+.totals h3,
+.totals h3 span,
+.counter {
+  font-size: 0.75rem;
+}
+
+.sort-control select:focus-visible {
+  outline: 2px solid var(--leaf);
+  outline-offset: 2px;
+}
+
+.app-tab.is-active:focus-visible {
+  outline-color: var(--lime);
+}
+
+@media (max-width: 760px) {
+  .app-tab {
+    min-height: 44px;
+  }
+
+  .chip {
+    min-height: 36px;
+  }
+
+  .search__scan {
+    min-height: 36px;
+  }
+
+  .product__add {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 520px) {
+  .catalog__filters {
+    flex-wrap: wrap;
+  }
+
+  .catalog__filters .chips {
+    width: 100%;
+    flex-basis: 100%;
+  }
+
+  .sort-control {
+    margin-left: auto;
+    min-height: 44px;
+  }
+
+  .sort-control select {
+    min-height: 40px;
   }
 }

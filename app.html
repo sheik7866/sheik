@@ -15,8 +15,6 @@
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
-  <script src="data/coverage.js" defer></script>
-  <script src="data/gtins.js" defer></script>
   <script src="data/stores.js" defer></script>
 </head>
 <body class="app-body">
@@ -134,7 +132,18 @@
               <span>Scan</span>
             </button>
           </div>
-          <div class="chips" id="categories" role="group" aria-label="Filter by category"></div>
+          <div class="catalog__filters">
+            <div class="chips" id="categories" role="group" aria-label="Filter by category"></div>
+            <label class="sort-control" for="product-sort">
+              <span class="sort-control__label">Sort</span>
+              <select id="product-sort" aria-label="Sort products" aria-describedby="sort-hint">
+                <option value="relevance">Relevance</option>
+                <option value="price">Price: low to high</option>
+                <option value="unit">Unit price: low to high</option>
+              </select>
+            </label>
+          </div>
+          <p class="sr-only" id="sort-hint">Unit prices are per 100g, 100ml or each where available.</p>
         </div>
 
         <p class="results-line" id="results-line" aria-live="polite"></p>
@@ -172,8 +181,8 @@
 
       <aside class="panel panel--list" id="panel-list" data-tab-panel="list" aria-labelledby="list-heading">
         <div class="panel__head">
-          <h2 id="list-heading">Shopping list</h2>
-          <button class="link-btn" type="button" id="clear-list">Clear</button>
+          <h2 id="list-heading" tabindex="-1">Shopping list</h2>
+          <button class="link-btn" type="button" id="clear-list" aria-label="Clear shopping list">Clear</button>
         </div>
 
         <label class="switch club-toggle" for="club-toggle" title="Apply club-card prices to basket totals">
@@ -300,7 +309,10 @@
     </div>
   </dialog>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="toast" id="toast">
+    <span id="toast-message" role="status" aria-live="polite"></span>
+    <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
+  </div>
 
   <script src="app.js" defer></script>
   <script src="scanner.js" defer></script>
