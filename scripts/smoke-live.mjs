@@ -433,6 +433,42 @@ async function main() {
       `selected stores missing after search: ${selectedStores}`
     );
 
+    step("checking every branch price has the same Auckland import date");
+    await page.fill("#search", "Anchor Blue Milk");
+    await page.waitForSelector('#product-grid [data-product="milk-2l"]', { timeout: 20000 });
+    await page.locator('#product-grid [data-product="milk-2l"]').click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const storePriceRows = page.locator("#product-dialog table tbody tr");
+    const storePriceRowCount = await storePriceRows.count();
+    assert(
+      storePriceRowCount >= 2,
+      `expected at least two branch price rows, saw ${storePriceRowCount}`
+    );
+    const expectedImportDate = await page.evaluate(() => {
+      const fetchedAt = window.GROCER_CATALOGUE?.fetchedAt;
+      if (!fetchedAt) throw new Error("the catalogue has no fetchedAt date");
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(fetchedAt)
+        ? new Date(`${fetchedAt}T00:00:00Z`)
+        : new Date(fetchedAt);
+      return new Intl.DateTimeFormat("en-NZ", {
+        day: "numeric",
+        month: "short",
+        timeZone: "Pacific/Auckland",
+      }).format(date);
+    });
+    const storePriceNotes = await storePriceRows.evaluateAll((rows) =>
+      rows.map((row) => row.innerText.replace(/\s+/g, " ").trim())
+    );
+    for (const note of storePriceNotes) {
+      assert(
+        note.includes(`imported ${expectedImportDate}`),
+        `branch price is not dated ${expectedImportDate} in Auckland: ${note}`
+      );
+    }
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+    await page.fill("#search", "");
+
     step("choosing current deals from the live catalogue");
     const deals = await currentDeals(page);
     assert(deals.multi.length > 0, "no current PAK'nSAVE multi-buy deal found in the catalogue");
