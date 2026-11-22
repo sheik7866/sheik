@@ -88,10 +88,23 @@ jobs:
         run: npm run smoke:live
         env:
           SMOKE_URL: ${{ needs.deploy.outputs.page_url }}
+      - name: Publish smoke failure details
+        if: failure()
+        run: |
+          if [ -f smoke-failure.txt ]; then
+            {
+              echo "### Smoke failure"
+              echo '```'
+              cat smoke-failure.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload failure screenshot
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure
-          path: smoke-failure.png
+          path: |
+            smoke-failure.png
+            smoke-failure.txt
           if-no-files-found: ignore

@@ -20,6 +20,7 @@
 */
 
 import { chromium } from "playwright";
+import fs from "node:fs";
 
 const DEFAULT_TARGET = "https://sheik7866.github.io/sheik/app.html";
 
@@ -68,7 +69,11 @@ const CATALOGUE_GTIN = {
 };
 const REAL_GTIN = "9300617075462";
 
-const step = (message) => console.log(`[smoke] ${message}`);
+let smokeStage = "starting";
+const step = (message) => {
+  smokeStage = message;
+  console.log(`[smoke] ${message}`);
+};
 const normalize = (value) => value.replace(/\s+/g, " ").trim();
 
 function assert(condition, message) {
@@ -529,6 +534,10 @@ async function main() {
     step("all availability, barcode, deal, picture and price-check checks passed");
     console.log(`[smoke] PASS ${TARGET}`);
   } catch (error) {
+    fs.writeFileSync(
+      "smoke-failure.txt",
+      `Stage: ${smokeStage}\nURL: ${page.url()}\n\n${error?.stack || error}\n`
+    );
     await page.screenshot({ path: "smoke-failure.png", fullPage: false }).catch(() => {});
     throw error;
   } finally {
