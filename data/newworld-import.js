@@ -10,7 +10,7 @@ window.GROCER_NEWWORLD_IMPORT = {
   store: "New World",
   branch: "Point Chevalier",
   fetchedAt: "2026-11-22",
-  checkedAt: "2026-11-21T19:23:53.506Z",
+  checkedAt: "2026-11-22T07:35:42.891Z",
   source: "https://www.newworld.co.nz/shop/category/",
   items: {
     "milk-2l": {
