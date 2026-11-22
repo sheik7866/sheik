@@ -444,25 +444,33 @@ async function main() {
       storePriceRowCount >= 2,
       `expected at least two branch price rows, saw ${storePriceRowCount}`
     );
-    const expectedImportDate = await page.evaluate(() => {
+    const expectedImportDates = await page.evaluate(() => {
       const fetchedAt = window.GROCER_CATALOGUE?.fetchedAt;
       if (!fetchedAt) throw new Error("the catalogue has no fetchedAt date");
       const date = /^\d{4}-\d{2}-\d{2}$/.test(fetchedAt)
         ? new Date(`${fetchedAt}T00:00:00Z`)
         : new Date(fetchedAt);
-      return new Intl.DateTimeFormat("en-NZ", {
-        day: "numeric",
-        month: "short",
-        timeZone: "Pacific/Auckland",
-      }).format(date);
+      const format = (withYear) =>
+        new Intl.DateTimeFormat("en-NZ", {
+          day: "numeric",
+          month: "short",
+          ...(withYear ? { year: "numeric" } : {}),
+          timeZone: "Pacific/Auckland",
+        }).format(date);
+      return { short: format(false), long: format(true) };
     });
+    const importBannerDateText = normalize(await page.locator("#import-banner").innerText());
+    assert(
+      importBannerDateText.includes(`Import dated ${expectedImportDates.long}`),
+      `import banner is not dated ${expectedImportDates.long} in Auckland: ${importBannerDateText}`
+    );
     const storePriceNotes = await storePriceRows.evaluateAll((rows) =>
       rows.map((row) => row.innerText.replace(/\s+/g, " ").trim())
     );
     for (const note of storePriceNotes) {
       assert(
-        note.includes(`imported ${expectedImportDate}`),
-        `branch price is not dated ${expectedImportDate} in Auckland: ${note}`
+        note.includes(`imported ${expectedImportDates.short}`),
+        `branch price is not dated ${expectedImportDates.short} in Auckland: ${note}`
       );
     }
     await page.keyboard.press("Escape");
@@ -614,6 +622,22 @@ async function main() {
     assert(
       dealReceipt.includes(`deals save ${clubSaving}`),
       `receipt is missing deal savings: ${dealReceipt}`
+    );
+    const expectedReceiptDate = await page.evaluate(() =>
+      new Intl.DateTimeFormat("en-NZ", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Pacific/Auckland",
+      }).format(new Date())
+    );
+    assert(
+      dealReceipt.includes(`${expectedReceiptDate} · Interactive demo`),
+      `receipt is not dated ${expectedReceiptDate} in Auckland: ${dealReceipt}`
+    );
+    assert(
+      dealReceipt.includes(`Imported shelf prices dated ${expectedImportDates.long}`),
+      `receipt import date is not ${expectedImportDates.long} in Auckland: ${dealReceipt}`
     );
     await page.click("[data-close-receipt]");
     await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);

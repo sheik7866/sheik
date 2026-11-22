@@ -1531,7 +1531,12 @@ function receiptGroups() {
 }
 
 function receiptDate() {
-  return new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" }).format(new Date());
+  return new Intl.DateTimeFormat("en-NZ", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Pacific/Auckland",
+  }).format(new Date());
 }
 
 function receiptSummaryText(groups) {
