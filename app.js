@@ -1,6 +1,6 @@
 /* =========================================================
    Trolleybird — interactive demo
-   Client-side only: demo catalogue, demo stores, localStorage.
+   Client-side only: demo catalogue, real branch list, localStorage.
    ========================================================= */
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
@@ -42,20 +42,7 @@ if (!BRANCH_STORES.length) {
   );
 }
 
-/* Demo-only chains: no public price feed, so these stay clearly-labelled
-   estimates. */
-const OTHER_STORES = [
-  { id: "woolworths", chain: "other", name: "Woolworths", branch: "Grey Lynn", factor: 1.0, tint: "#2f8f4e" },
-  { id: "freshchoice", chain: "other", name: "FreshChoice", branch: "Parnell", factor: 1.04, tint: "#1d7a45" },
-  { id: "supervalue", chain: "other", name: "SuperValue", branch: "Kingsland", factor: 1.01, tint: "#e05a2b" },
-  { id: "warehouse", chain: "other", name: "The Warehouse", branch: "St Lukes", factor: 0.95, tint: "#1f5fbf" },
-  { id: "farro", chain: "other", name: "Farro Fresh", branch: "Grey Lynn", factor: 1.25, tint: "#7a5a34" },
-  { id: "bininn", chain: "other", name: "Bin Inn", branch: "Karangahape Rd", factor: 1.1, tint: "#9b7a2f" },
-  { id: "moorewilson", chain: "other", name: "Moore Wilson's", branch: "City", factor: 1.18, tint: "#4c5b6b" },
-  { id: "huckleberry", chain: "other", name: "Huckleberry", branch: "Wairau Valley", factor: 1.3, tint: "#4f7d4f" },
-];
-
-const STORES = [...BRANCH_STORES, ...OTHER_STORES];
+const STORES = BRANCH_STORES;
 
 function product(id, name, size, category, base) {
   return { id, name, size, category, base };
@@ -365,6 +352,8 @@ const el = {
   storeCounter: document.getElementById("store-counter"),
   storeHint: document.getElementById("store-hint"),
   storeFoot: document.getElementById("store-foot"),
+  storeSearch: document.getElementById("store-search"),
+  storeResults: document.getElementById("store-results"),
   search: document.getElementById("search"),
   categories: document.getElementById("categories"),
   resultsLine: document.getElementById("results-line"),
@@ -405,8 +394,7 @@ const el = {
 };
 
 const defaults = {
-  stores: ["paknsave", "woolworths", "newworld"],
-  branches: { pns: "paknsave", nw: "newworld" },
+  stores: [],
   pro: false,
   list: [],
   live: [],
@@ -427,8 +415,7 @@ function shortDate(iso) {
 function loadState() {
   const fresh = () => ({
     ...defaults,
-    stores: [...defaults.stores],
-    branches: { ...defaults.branches },
+    stores: [],
     list: [],
     live: [],
     prices: {},
@@ -484,24 +471,11 @@ function loadState() {
     }
 
     const savedStores = Array.isArray(parsed.stores)
-      ? parsed.stores.filter((id) => STORE_MAP.has(id))
-      : [...defaults.stores];
-    const branches = { ...defaults.branches };
-    if (parsed.branches && typeof parsed.branches === "object") {
-      for (const chain of ["pns", "nw"]) {
-        const store = STORE_MAP.get(parsed.branches[chain]);
-        if (store && store.chain === chain) branches[chain] = store.id;
-      }
-    }
-    // A selected branch is also the branch the picker should remember.
-    for (const id of savedStores) {
-      const store = STORE_MAP.get(id);
-      if (store && (store.chain === "pns" || store.chain === "nw")) branches[store.chain] = store.id;
-    }
+      ? [...new Set(parsed.stores.filter((id) => STORE_MAP.has(id)))]
+      : [];
 
     return {
       stores: savedStores,
-      branches,
       pro: Boolean(parsed.pro),
       prices,
       list: Array.isArray(parsed.list)
@@ -642,7 +616,7 @@ function priceIsChecked(productId, storeId) {
 function knownUnavailable(productId, storeId) {
   const product = PRODUCT_MAP.get(productId);
   const store = STORE_MAP.get(storeId);
-  if (!product || !store || store.chain === "other") return false;
+  if (!product || !store) return false;
   // A price you recorded in this store is evidence it had the product, even
   // if the range pull missed it.
   if (checkedPrice(productId, storeId)) return false;
@@ -862,75 +836,120 @@ function listTotals() {
 
 /* ---------- Rendering ---------- */
 
-function selectedBranch(chain) {
-  const chosen = STORE_MAP.get(state.branches?.[chain]);
-  if (chosen && chosen.chain === chain) return chosen;
-  return BRANCH_STORES.find((store) => store.chain === chain) || null;
+function storeRegionLabel(store) {
+  return store.region === "SI" ? "South Island" : "North Island";
+}
+
+function storeLabel(store) {
+  return store ? `${store.name} · ${store.branch}` : "";
+}
+
+function storeLineLabel(store) {
+  const lines = stockedLineCount(store);
+  return lines == null ? "lines not checked" : `${lines.toLocaleString("en-NZ")} lines`;
+}
+
+function normalizeStoreSearch(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function storeSearchMatches(query) {
+  const terms = normalizeStoreSearch(query).split(/\s+/).filter(Boolean);
+  const first = terms[0] || "";
+  return BRANCH_STORES.filter((store) => {
+    const aliases = store.chain === "pns" ? "paknsave pak n save pns" : "new world newworld nw";
+    const haystack = normalizeStoreSearch(
+      `${store.name} ${store.branch} ${store.address} ${storeRegionLabel(store)} ${aliases}`
+    );
+    return terms.every((term) => haystack.includes(term));
+  }).sort((a, b) => {
+    const aBranch = normalizeStoreSearch(a.branch);
+    const bBranch = normalizeStoreSearch(b.branch);
+    const aStart = aBranch.startsWith(first) ? 0 : 1;
+    const bStart = bBranch.startsWith(first) ? 0 : 1;
+    return (
+      aStart - bStart ||
+      aBranch.localeCompare(bBranch, "en-NZ") ||
+      a.name.localeCompare(b.name, "en-NZ")
+    );
+  });
+}
+
+function renderStoreResults() {
+  const query = (el.storeSearch.value || "").trim();
+  if (!query) {
+    el.storeResults.hidden = true;
+    el.storeResults.innerHTML = "";
+    return;
+  }
+
+  el.storeResults.hidden = false;
+  if (query.length < 2) {
+    el.storeResults.innerHTML = `<li class="store-results__note">Type at least two characters.</li>`;
+    return;
+  }
+
+  const matches = storeSearchMatches(query);
+  if (!matches.length) {
+    el.storeResults.innerHTML = `<li class="store-results__note">No branches match “${escapeHtml(query)}”. Try a suburb or region.</li>`;
+    return;
+  }
+
+  const shown = matches.slice(0, 12);
+  el.storeResults.innerHTML =
+    shown
+      .map((store) => {
+        const on = state.stores.includes(store.id);
+        return `
+          <li>
+            <button class="store-result${on ? " is-added" : ""}" type="button" data-add-store="${store.id}"${on ? " disabled" : ""}>
+              <span class="store-chip__dot" style="--dot:${store.tint}"></span>
+              <span class="store-result__body">
+                <b>${escapeHtml(store.name)} · ${escapeHtml(store.branch)}</b>
+                <small>${escapeHtml(storeRegionLabel(store))} · ${escapeHtml(storeLineLabel(store))}</small>
+              </span>
+              <span class="store-result__action">${on ? "Added" : "Add"}</span>
+            </button>
+          </li>`;
+      })
+      .join("") +
+    (matches.length > shown.length
+      ? `<li class="store-results__note">Showing ${shown.length} of ${matches.length.toLocaleString("en-NZ")} matches — keep typing to narrow it.</li>`
+      : "");
 }
 
 function renderStores() {
-  const branchRows = ["pns", "nw"]
-    .map((chain) => {
-      const stores = BRANCH_STORES.filter((store) => store.chain === chain);
-      const chosen = selectedBranch(chain);
-      if (!chosen) return "";
-      const on = state.stores.includes(chosen.id);
-      const options = stores
-        .map((store) => {
-          const lines = stockedLineCount(store);
-          const label = `${store.branch} · ${
-            lines == null ? "lines not checked" : `${lines.toLocaleString("en-NZ")} lines`
-          }`;
-          return `<option value="${store.id}"${store.id === chosen.id ? " selected" : ""}>${escapeHtml(label)}</option>`;
-        })
-        .join("");
-      return `
-          <li class="store-pick">
-            <button class="store-chip${on ? " is-on" : ""}" type="button" data-store="${chosen.id}" aria-pressed="${on}">
-              <span class="store-chip__dot" style="--dot:${chosen.tint}"></span>
-              <span class="store-chip__body">
-                <b>${escapeHtml(chosen.name)}</b>
-                <small>${escapeHtml(chosen.branch)} · ${chosen.region === "SI" ? "South Island" : "North Island"}</small>
-              </span>
-              <span class="store-chip__check" aria-hidden="true">✓</span>
-            </button>
-            <label class="store-branch">
-              <span class="sr-only">Choose a ${escapeHtml(chosen.name)} branch</span>
-              <select data-branch="${chain}" aria-label="${escapeHtml(chosen.name)} branch">${options}</select>
-            </label>
-          </li>`;
-    })
-    .join("");
+  const selected = state.stores.map((id) => STORE_MAP.get(id)).filter(Boolean);
+  el.storeList.innerHTML = selected.length
+    ? selected
+        .map(
+          (store) => `
+          <li class="store-selected">
+            <span class="store-chip__dot" style="--dot:${store.tint}"></span>
+            <span class="store-chip__body">
+              <b>${escapeHtml(store.name)}</b>
+              <small>${escapeHtml(store.branch)} · ${escapeHtml(storeRegionLabel(store))} · ${escapeHtml(storeLineLabel(store))}</small>
+            </span>
+            <button class="store-selected__remove" type="button" data-remove-store="${store.id}" aria-label="Remove ${escapeHtml(store.name)} ${escapeHtml(store.branch)}" title="Remove">×</button>
+          </li>`
+        )
+        .join("")
+    : `<li class="store-empty">No stores selected. Search for a branch above to start.</li>`;
 
-  const otherRows = STORES.filter((store) => store.chain === "other")
-    .map((store) => {
-      const on = state.stores.includes(store.id);
-      return `
-          <li>
-            <button class="store-chip${on ? " is-on" : ""}" type="button" data-store="${store.id}" aria-pressed="${on}">
-              <span class="store-chip__dot" style="--dot:${store.tint}"></span>
-              <span class="store-chip__body">
-                <b>${escapeHtml(store.name)}</b>
-                <small>${escapeHtml(store.branch)}</small>
-              </span>
-              <span class="store-chip__check" aria-hidden="true">✓</span>
-            </button>
-          </li>`;
-    })
-    .join("");
-
-  el.storeList.innerHTML = branchRows + otherRows;
-
-  el.storeCounter.textContent = `${state.stores.length} / ${state.pro ? "∞" : MAX_FREE_STORES}`;
-  el.storeHint.textContent = state.stores.length
-    ? state.stores.length === 1
-      ? "Add another store to see a comparison."
-      : "Tap a store to include it, or pick another branch."
-    : "Pick at least one store to compare.";
+  el.storeCounter.textContent = `${selected.length} / ${storeCap()}`;
+  el.storeHint.textContent = selected.length
+    ? selected.length === 1
+      ? "Add another branch to compare, including another PAK'nSAVE or New World."
+      : "Search to add another branch, or remove one below."
+    : "Search for a PAK'nSAVE or New World branch to start.";
   el.storeFoot.textContent = state.pro
-    ? "Pro demo: every store unlocked."
-    : `Free demo covers ${MAX_FREE_STORES} stores. Turn on Pro for the rest.`;
+    ? `Pro demo: up to ${MAX_PRO_STORES} stores.`
+    : `Free demo covers ${MAX_FREE_STORES} stores. Turn on Pro for ${MAX_PRO_STORES}.`;
   el.storeFoot.classList.toggle("is-pro", state.pro);
+  renderStoreResults();
 }
 
 function renderCategories() {
@@ -964,10 +983,10 @@ function renderProducts() {
               <span class="product__name">${escapeHtml(product.name)}</span>
               <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
               <span class="product__best">
-                ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(best.store.name)}</small>` : `<b>—</b><small>${stores.length ? "not stocked" : "no stores selected"}</small>`}
+                ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${stores.length ? "not stocked" : "no stores selected"}</small>`}
               </span>
               <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
-              ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(store.name)).join(" & ")}</span>` : ""}
+              ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(storeLabel(store))).join(" & ")}</span>` : ""}
             </span>
           </button>
           <button class="product__add" type="button" data-add="${product.id}">Add to list</button>
@@ -1011,7 +1030,7 @@ function renderList() {
         <li class="list-item" data-row="${row.id}">
           <span class="list-item__body">
             <b>${escapeHtml(product.name)}</b>
-            <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.price)} at ${escapeHtml(best.store.name)}` : ""}</small>
+            <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.price)} at ${escapeHtml(storeLabel(best.store))}` : ""}</small>
           </span>
           <span class="qty">
             <button type="button" data-step="-1" data-id="${row.id}" aria-label="Decrease quantity of ${escapeHtml(product.name)}">−</button>
@@ -1040,9 +1059,9 @@ function renderTotals() {
   const summary = !totals.hasAvailable
     ? "No selected store has a price for every item on this list."
     : availableRows.length === 1
-      ? `Only ${escapeHtml(totals.cheapest.store.name)} has a price for every item on this list.`
+      ? `Only ${escapeHtml(storeLabel(totals.cheapest.store))} has a price for every item on this list.`
       : totals.savings > 0.004
-        ? `Save ${money.format(totals.savings)} shopping at ${escapeHtml(totals.cheapest.store.name)}.`
+        ? `Save ${money.format(totals.savings)} shopping at ${escapeHtml(storeLabel(totals.cheapest.store))}.`
         : "Prices are level across your stores for this basket.";
   el.totals.innerHTML = `
     <h3>Basket total <span>${itemCount} item${itemCount === 1 ? "" : "s"}</span></h3>
@@ -1051,7 +1070,7 @@ function renderTotals() {
         .map(
           (row) => `
         <li class="total-row${row.available && row === totals.cheapest && availableRows.length > 1 ? " is-best" : ""}${row.available ? "" : " is-unavailable"}">
-          <span>${escapeHtml(row.store.name)}${row.available && row === totals.cheapest && availableRows.length > 1 ? ' <em>cheapest</em>' : ""}${row.available ? "" : ` <em class="total-row__missing">${row.missing} not stocked</em>`}</span>
+          <span>${escapeHtml(storeLabel(row.store))}${row.available && row === totals.cheapest && availableRows.length > 1 ? ' <em>cheapest</em>' : ""}${row.available ? "" : ` <em class="total-row__missing">${row.missing} not stocked</em>`}</span>
           <b>${row.available ? money.format(row.total) : "—"}</b>
         </li>`
         )
@@ -1124,7 +1143,7 @@ function receiptSummaryText(groups) {
     lines.push("");
   }
   if (best && dearest && best !== dearest && dearest.total - best.total > 0.004) {
-    lines.push(`Save ${money.format(dearest.total - best.total)} shopping at ${best.store.name}.`);
+    lines.push(`Save ${money.format(dearest.total - best.total)} shopping at ${storeLabel(best.store)}.`);
     lines.push("");
   }
   lines.push("Demo prices from the Trolleybird interactive demo — not live supermarket data.");
@@ -1193,7 +1212,7 @@ function renderReceipt() {
 
       ${
         savings > 0.004 && best && dearest
-          ? `<p class="receipt-save">Cheapest basket: ${escapeHtml(best.store.name)} at ${money.format(best.total)} — ${money.format(savings)} less than ${escapeHtml(dearest.store.name)}.</p>`
+          ? `<p class="receipt-save">Cheapest basket: ${escapeHtml(storeLabel(best.store))} at ${money.format(best.total)} — ${money.format(savings)} less than ${escapeHtml(storeLabel(dearest.store))}.</p>`
           : ""
       }
 
@@ -1307,39 +1326,30 @@ function renderAll() {
 
 /* ---------- Actions ---------- */
 
-function toggleStore(storeId) {
-  if (!STORE_MAP.has(storeId)) return;
-  const selected = state.stores.includes(storeId);
-  if (!selected && state.stores.length >= storeCap()) {
-    toast(state.pro ? "That's every store in the demo." : "Free demo is limited to 6 stores — turn on Pro.");
+function addStore(storeId) {
+  const store = STORE_MAP.get(storeId);
+  if (!store || state.stores.includes(storeId)) return;
+  if (state.stores.length >= storeCap()) {
+    toast(
+      state.pro
+        ? `Pro demo is limited to ${MAX_PRO_STORES} stores.`
+        : `Free demo is limited to ${MAX_FREE_STORES} stores — turn on Pro.`
+    );
     return;
   }
-  state.stores = selected ? state.stores.filter((id) => id !== storeId) : [...state.stores, storeId];
-  const store = STORE_MAP.get(storeId);
-  if (store && (store.chain === "pns" || store.chain === "nw")) state.branches[store.chain] = storeId;
+  state.stores = [...state.stores, storeId];
   saveState();
   renderAll();
+  toast(`${store.name} · ${store.branch} added.`);
 }
 
-/* Switching branch keeps the chain selected; choosing a branch while the
-   chain is off turns it on. */
-function chooseBranch(chain, storeId) {
+function removeStore(storeId) {
   const store = STORE_MAP.get(storeId);
-  if (!store || store.chain !== chain) return;
-  const previousId = state.branches[chain];
-  if (previousId === storeId) return;
-  const wasSelected = state.stores.includes(previousId);
-  if (!wasSelected && state.stores.length >= storeCap()) {
-    toast(state.pro ? "That's every store in the demo." : "Free demo is limited to 6 stores — turn on Pro.");
-    renderStores();
-    return;
-  }
-  state.branches[chain] = storeId;
-  state.stores = wasSelected
-    ? state.stores.map((id) => (id === previousId ? storeId : id))
-    : [...state.stores, storeId];
+  if (!store || !state.stores.includes(storeId)) return;
+  state.stores = state.stores.filter((id) => id !== storeId);
   saveState();
   renderAll();
+  toast(`${store.name} · ${store.branch} removed.`);
 }
 
 function addToList(productId) {
@@ -1454,13 +1464,14 @@ function recordPrice(productId, storeId, rawPrice, date) {
     return;
   }
   const at = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayIso();
+  const store = STORE_MAP.get(storeId);
   state.prices[`${productId}|${storeId}`] = { price, at };
   saveState();
   renderProducts();
   renderList();
   renderTotals();
   openProduct(productId);
-  toast(`${money.format(price)} at ${STORE_MAP.get(storeId).name} — now used in your totals.`);
+  toast(`${money.format(price)} at ${store.name} · ${store.branch} — now used in your totals.`);
 }
 
 function removeRecordedPrice(productId, storeId) {
@@ -1572,7 +1583,7 @@ function saveBulkPrices() {
   renderList();
   renderTotals();
   closeBulkPrices();
-  toast(`${entries.length} price${entries.length === 1 ? "" : "s"} saved for ${store.name}.`);
+  toast(`${entries.length} price${entries.length === 1 ? "" : "s"} saved for ${store.name} · ${store.branch}.`);
 }
 
 function openProduct(productId) {
@@ -1648,12 +1659,12 @@ function openProduct(productId) {
                 .join("")}
             </tbody>
           </table>`
-        : `<p class="dialog__empty">${unavailable.length ? `Not stocked at ${unavailable.map((store) => escapeHtml(store.name)).join(" or ")}.` : "Select at least one store in the sidebar to price this product."}</p>`
+        : `<p class="dialog__empty">${unavailable.length ? `Not stocked at ${unavailable.map((store) => escapeHtml(storeLabel(store))).join(" or ")}.` : "Select at least one store in the sidebar to price this product."}</p>`
     }
 
     ${
       unavailable.length && offers.length
-        ? `<p class="dialog__stock">Not stocked at ${unavailable.map((store) => escapeHtml(store.name)).join(" or ")} — no price to compare there.</p>`
+        ? `<p class="dialog__stock">Not stocked at ${unavailable.map((store) => escapeHtml(storeLabel(store))).join(" or ")} — no price to compare there.</p>`
         : ""
     }
 
@@ -1666,7 +1677,7 @@ function openProduct(productId) {
                 <label class="check-price__field">
                   <span>Store</span>
                   <select name="store">
-                    ${offers.map((offer) => `<option value="${offer.store.id}">${escapeHtml(offer.store.name)}</option>`).join("")}
+                    ${offers.map((offer) => `<option value="${offer.store.id}">${escapeHtml(storeLabel(offer.store))}</option>`).join("")}
                   </select>
                 </label>
                 <label class="check-price__field">
@@ -1684,7 +1695,7 @@ function openProduct(productId) {
                   ? `<ul class="check-price__list">${recorded
                       .map(
                         (row) =>
-                          `<li><span>${escapeHtml(row.store.name)} · ${money.format(row.price)} <small>checked ${shortDate(row.at)}</small></span><button type="button" data-remove-price="${row.store.id}" aria-label="Remove recorded price for ${escapeHtml(row.store.name)}">×</button></li>`
+                          `<li><span>${escapeHtml(storeLabel(row.store))} · ${money.format(row.price)} <small>checked ${shortDate(row.at)}</small></span><button type="button" data-remove-price="${row.store.id}" aria-label="Remove recorded price for ${escapeHtml(storeLabel(row.store))}">×</button></li>`
                       )
                       .join("")}</ul>`
                   : `<p class="check-price__hint">Add the price on the shelf tag and it replaces the estimate in every total and receipt.</p>`
@@ -1703,7 +1714,7 @@ function openProduct(productId) {
         offers.length
           ? `${sparkline(historyFor(productId, offers[0].store.id, months))}
              <div class="history-labels">${historyLabels(months).map((m) => `<span>${m}</span>`).join("")}</div>
-             <p class="dialog__note">Showing ${escapeHtml(offers[0].store.name)}. Prices elsewhere move differently — that's the point.</p>`
+             <p class="dialog__note">Showing ${escapeHtml(storeLabel(offers[0].store))}. Prices elsewhere move differently — that's the point.</p>`
           : `<p class="dialog__empty">${unavailable.length ? "No price history at your selected stores." : "Pick a store to see its price history."}</p>`
       }
     </section>
@@ -1730,14 +1741,24 @@ function closeDialog() {
 
 /* ---------- Events ---------- */
 
-el.storeList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-store]");
-  if (button) toggleStore(button.dataset.store);
+el.storeSearch.addEventListener("input", renderStoreResults);
+
+el.storeSearch.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  const first = el.storeResults.querySelector("[data-add-store]:not([disabled])");
+  if (!first) return;
+  event.preventDefault();
+  addStore(first.dataset.addStore);
 });
 
-el.storeList.addEventListener("change", (event) => {
-  const select = event.target.closest("[data-branch]");
-  if (select) chooseBranch(select.dataset.branch, select.value);
+el.storeResults.addEventListener("click", (event) => {
+  const add = event.target.closest("[data-add-store]");
+  if (add) addStore(add.dataset.addStore);
+});
+
+el.storeList.addEventListener("click", (event) => {
+  const remove = event.target.closest("[data-remove-store]");
+  if (remove) removeStore(remove.dataset.removeStore);
 });
 
 el.categories.addEventListener("click", (event) => {
@@ -1909,7 +1930,8 @@ el.reset.addEventListener("click", () => {
   } catch {
     /* ignore */
   }
-  state = { ...defaults, stores: [...defaults.stores], list: [], live: [...state.live], prices: {} };
+  state = { ...defaults, stores: [], list: [], live: [...state.live], prices: {} };
+  el.storeSearch.value = "";
   el.search.value = "";
   resetGrocerPanel();
   saveState();
@@ -2397,7 +2419,7 @@ function renderGrocerResults() {
         ? `${money.format(checked.price)} <em class="is-real">checked</em>`
         : `${money.format(row.base)} <em>est.</em>`;
       const priceTitle = checked
-        ? `${money.format(checked.price)} recorded at ${checked.store.name} on ${shortDate(checked.at)} — record another shelf price`
+        ? `${money.format(checked.price)} recorded at ${storeLabel(checked.store)} on ${shortDate(checked.at)} — record another shelf price`
         : "Record the shelf price you saw";
       const entry = open
         ? `<li class="grocer-entry">
@@ -2405,7 +2427,7 @@ function renderGrocerResults() {
               <label class="grocer-entry__store">
                 <span class="sr-only">Store for ${escapeHtml(row.name)}</span>
                 <select name="store">
-                  ${stores.map((store) => `<option value="${store.id}"${checked && checked.store.id === store.id ? " selected" : ""}>${escapeHtml(store.name)}</option>`).join("")}
+                  ${stores.map((store) => `<option value="${store.id}"${checked && checked.store.id === store.id ? " selected" : ""}>${escapeHtml(storeLabel(store))}</option>`).join("")}
                 </select>
               </label>
               <label class="grocer-entry__amount">

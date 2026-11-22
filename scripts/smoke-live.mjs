@@ -114,6 +114,26 @@ async function addToList(page, sku, expectedCount) {
   );
 }
 
+async function addStore(page, { query, brand, branch }, expectedCount) {
+  await page.fill("#store-search", query);
+  const result = page
+    .locator("#store-results [data-add-store]")
+    .filter({ hasText: brand })
+    .filter({ hasText: branch })
+    .first();
+  await result.waitFor({ state: "visible", timeout: 5000 });
+  await result.click();
+  await page.waitForFunction(
+    ({ branch, count }) => {
+      const rows = [...document.querySelectorAll("#store-list .store-selected")];
+      return rows.length === count && rows.some((row) => row.textContent.includes(branch));
+    },
+    { branch, count: expectedCount },
+    { timeout: 5000 }
+  );
+  await page.fill("#store-search", "");
+}
+
 async function main() {
   const browser = await chromium.launch();
   const context = await browser.newContext({
@@ -122,7 +142,7 @@ async function main() {
     locale: "en-NZ",
   });
 
-  // Always start from the demo defaults rather than a previous browser state.
+  // Always start from a clean demo state rather than a previous browser state.
   await context.addInitScript(() => {
     try {
       window.localStorage.clear();
@@ -261,10 +281,42 @@ async function main() {
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
 
+    step("adding branches through the store search");
+    await page.fill("#store-search", "paknsave");
+    await page.waitForSelector("#store-results [data-add-store]");
+    const pnsMatches = await page.locator("#store-results [data-add-store]").count();
+    assert(pnsMatches >= 2, `store search should offer multiple PAK'nSAVE branches, saw ${pnsMatches}`);
+    await page.fill("#store-search", "");
+
+    await addStore(page, { query: "Mt Albert", brand: "Pak'nSave", branch: "Mt Albert" }, 1);
+    await addStore(page, { query: "Albany", brand: "Pak'nSave", branch: "Albany" }, 2);
+    await addStore(page, { query: "Point Chevalier", brand: "New World", branch: "Point Chevalier" }, 3);
+    assert(
+      normalize(await page.locator("#store-counter").innerText()) === "3 / 6",
+      "store counter should show 3 / 6 after adding a second PAK'nSAVE branch"
+    );
+
+    const albanyRow = page.locator("#store-list .store-selected").filter({ hasText: "Albany" }).first();
+    await albanyRow.locator("[data-remove-store]").click();
+    await page.waitForFunction(
+      () => document.querySelectorAll("#store-list .store-selected").length === 2,
+      null,
+      { timeout: 5000 }
+    );
+    assert(
+      normalize(await page.locator("#store-counter").innerText()) === "2 / 6",
+      "store counter should return to 2 / 6 after removing Albany"
+    );
+    const selectedStores = normalize(await page.locator("#store-list").innerText());
+    assert(
+      selectedStores.includes("Mt Albert") && selectedStores.includes("Point Chevalier"),
+      `selected stores missing after search: ${selectedStores}`
+    );
+
     step(`PAK'nSAVE-only product: ${PAK_ONLY.name}`);
     let card = await searchProduct(page, PAK_ONLY);
     assert(card.includes("Not at New World"), `PAK'nSAVE-only card missing stock note: ${card}`);
-    assert(card.includes("2 stores"), `PAK'nSAVE-only card should price 2 stores: ${card}`);
+    assert(card.includes("1 store"), `PAK'nSAVE-only card should price 1 store: ${card}`);
 
     await page.locator(`#product-grid [data-product="${PAK_ONLY.sku}"]`).click();
     await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
@@ -274,7 +326,7 @@ async function main() {
       `PAK'nSAVE-only dialog missing stock note: ${pakDialog}`
     );
     const priceRows = await page.locator("#product-dialog table tbody tr").count();
-    assert(priceRows === 2, `PAK'nSAVE-only dialog should show 2 store rows, saw ${priceRows}`);
+    assert(priceRows === 1, `PAK'nSAVE-only dialog should show 1 store row, saw ${priceRows}`);
     const catalogueBarcodes = await page.locator("#product-dialog .barcode-card").count();
     assert(
       catalogueBarcodes === 0,
@@ -308,11 +360,15 @@ async function main() {
       { timeout: 5000 }
     );
     const totals = normalize(await page.locator("#totals").innerText());
-    assert(/Pak'nSave\s+1 not stocked/.test(totals), `PAK'nSAVE total not marked missing: ${totals}`);
-    assert(/New World\s+1 not stocked/.test(totals), `New World total not marked missing: ${totals}`);
+    assert(totals.includes("Pak'nSave · Mt Albert"), `PAK'nSAVE branch missing from totals: ${totals}`);
+    assert(totals.includes("New World · Point Chevalier"), `New World branch missing from totals: ${totals}`);
     assert(
-      totals.includes("Only Woolworths has a price for every item on this list."),
-      `complete basket not identified: ${totals}`
+      (totals.match(/1 not stocked/g) || []).length === 2,
+      `both stores should show one missing line: ${totals}`
+    );
+    assert(
+      totals.includes("No selected store has a price for every item on this list."),
+      `incomplete basket not identified: ${totals}`
     );
     const dashes = (totals.match(/—/g) || []).length;
     assert(dashes === 2, `incomplete stores should show no total, saw ${dashes} dashes: ${totals}`);
@@ -328,8 +384,8 @@ async function main() {
     assert(notStocked === 2, `receipt should mark 2 missing lines, saw ${notStocked}`);
     assert(missingItems === 2, `receipt should show missing-item footers, saw ${missingItems}`);
     assert(
-      (receipt.match(/Basket total/g) || []).length === 1,
-      `receipt should total only the complete basket: ${receipt}`
+      (receipt.match(/Basket total/g) || []).length === 0,
+      `receipt should have no complete basket total: ${receipt}`
     );
     assert(/imp\./i.test(receipt), `receipt should label imported prices: ${receipt}`);
 

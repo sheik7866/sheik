@@ -52,9 +52,9 @@
         <p class="eyebrow"><span class="eyebrow__dot"></span>Working demo</p>
         <h1>Compare your shop.</h1>
         <p>
-          Pick your supermarkets, then search for a product or type a barcode. Trolleybird
-          prices the item across your stores, keeps a shopping list and adds up which
-          shop is cheapest for the whole basket.
+          Search your local PAK'nSAVE and New World branches, then search for a product
+          or type a barcode. Trolleybird prices the item across your stores, keeps a
+          shopping list and adds up which shop is cheapest for the whole basket.
         </p>
                   <p class="app-intro__note">
           Scanned barcodes match products by their real GTIN, with a fallback to Open Food
@@ -63,7 +63,7 @@
           Grocer doesn't publish prices, so prices are estimates — except the PAK'nSAVE
           and New World shelf prices checked every night. Every branch of both chains
           is priced from its banner's North or South Island price list, and stockedness
-          comes from that branch's own product range; the branch picker shows how many
+          comes from that branch's own product range; the branch search shows how many
           catalogue lines each one carries. Browse the full catalogue pulled
           from those two chains, merged with the demo staples.
           Nothing here is live supermarket pricing.
@@ -77,7 +77,15 @@
           <h2 id="stores-heading">Your stores</h2>
           <span class="counter" id="store-counter">0 / 6</span>
         </div>
-        <p class="panel__hint" id="store-hint">Pick a store and branch to compare.</p>
+        <p class="panel__hint" id="store-hint">Search for a PAK'nSAVE or New World branch to start.</p>
+        <div class="search store-search">
+          <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="6" />
+            <path d="m16 16 4 4" />
+          </svg>
+          <input id="store-search" type="search" placeholder="Search branch, suburb or region…" autocomplete="off" aria-label="Search PAK'nSAVE and New World branches" aria-controls="store-results" />
+        </div>
+        <ul class="store-results" id="store-results" aria-live="polite" hidden></ul>
         <ul class="store-list" id="store-list"></ul>
         <p class="panel__foot" id="store-foot"></p>
       </section>

@@ -274,25 +274,148 @@
   background: var(--lime-soft);
 }
 
-/* Foodstuffs chains: the chip toggles the chain, the select picks a branch. */
-.store-pick {
-  display: grid;
-  gap: 0.22rem;
+/* Branch search */
+
+.store-search {
+  margin-bottom: 0.55rem;
 }
 
-.store-branch select {
+.store-search input {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+  font-size: 0.8rem;
+}
+
+.store-results {
+  display: grid;
+  gap: 0.28rem;
+  max-height: 210px;
+  margin: 0 0 0.55rem;
+  padding: 0 0.1rem 0 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.store-results[hidden] {
+  display: none;
+}
+
+.store-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
-  padding: 0.34rem 0.45rem;
+  padding: 0.42rem 0.5rem;
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fbfdf9;
   color: var(--ink);
   font: inherit;
-  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.store-branch select:hover {
+.store-result:hover:not(:disabled) {
   border-color: rgba(21, 121, 75, 0.45);
+}
+
+.store-result:disabled {
+  border-color: rgba(21, 121, 75, 0.28);
+  background: var(--lime-soft);
+  cursor: default;
+}
+
+.store-result__body {
+  min-width: 0;
+}
+
+.store-result__body b {
+  display: block;
+  overflow: hidden;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-result__body small {
+  display: block;
+  font-size: 0.64rem;
+  color: var(--ink-mute);
+  line-height: 1.35;
+}
+
+.store-result__action {
+  flex: none;
+  margin-left: auto;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--leaf-deep);
+}
+
+.store-result.is-added .store-result__action {
+  color: var(--ink-mute);
+}
+
+.store-results__note {
+  padding: 0.45rem 0.5rem;
+  font-size: 0.66rem;
+  line-height: 1.45;
+  color: var(--ink-mute);
+}
+
+/* Selected branches */
+
+.store-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 11px;
+  background: var(--lime-soft);
+}
+
+.store-selected .store-chip__body {
+  min-width: 0;
+}
+
+.store-selected .store-chip__body b,
+.store-selected .store-chip__body small {
+  overflow-wrap: anywhere;
+}
+
+.store-selected__remove {
+  flex: none;
+  width: 1.55rem;
+  height: 1.55rem;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-mute);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.store-selected__remove:hover {
+  background: rgba(217, 82, 44, 0.12);
+  color: var(--tomato);
+}
+
+.store-empty {
+  padding: 0.65rem 0.55rem;
+  border: 1px dashed var(--line);
+  border-radius: 11px;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--ink-mute);
 }
 
 .store-chip__dot {
@@ -2212,7 +2335,7 @@ button.grocer-item__price:disabled {
   }
 
   .store-list {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     max-height: none;
     overflow: visible;
   }
