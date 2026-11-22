@@ -28,24 +28,39 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.check.outputs.run }}
+      refresh: ${{ steps.check.outputs.refresh }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check for an Auckland midnight refresh
+      - name: Check whether to refresh and deploy
         id: check
         run: |
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          hour=$(TZ=Pacific/Auckland date +%-H)
-          today=$(TZ=Pacific/Auckland date +%F)
           fetched=$(jq -r '.fetchedAt // ""' data/store-prices/index.json)
-          if [ "$hour" -le 4 ] && [ "$fetched" != "$today" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "Refreshing: Auckland hour $hour, prices dated $fetched."
+          today=$(TZ=Pacific/Auckland date +%F)
+          hour=$(TZ=Pacific/Auckland date +%-H)
+          event="${{ github.event_name }}"
+          attempt="${{ github.run_attempt }}"
+          run=true
+          refresh=false
+          if [ "$event" = "schedule" ]; then
+            if [ "$hour" -le 4 ] && [ "$fetched" != "$today" ]; then
+              refresh=true
+            else
+              run=false
+            fi
+          elif [ "$event" = "workflow_dispatch" ] || [ "$attempt" -gt 1 ] || [ "$fetched" != "$today" ]; then
+            # A manual run, a re-run of any push, or a push while today's
+            # prices are missing must pull every store, not just redeploy.
+            refresh=true
+          fi
+          {
+            echo "run=$run"
+            echo "refresh=$refresh"
+          } >> "$GITHUB_OUTPUT"
+          echo "Event $event, attempt $attempt, Auckland hour $hour, prices dated $fetched."
+          if [ "$refresh" = "true" ]; then
+            echo "Refreshing all stores for $today."
           else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping: Auckland hour $hour, prices dated $fetched."
+            echo "Prices are current; no refresh needed."
           fi
 
   build:
@@ -59,12 +74,12 @@ jobs:
         with:
           node-version: 22
       - name: Refresh every store's prices
-        if: github.ref == 'refs/heads/main' && github.event_name != 'push'
+        if: github.ref == 'refs/heads/main' && needs.gate.outputs.refresh == 'true'
         run: npm run prices:refresh
         env:
           CONCURRENCY: 6
       - name: Verify every store was refreshed
-        if: github.ref == 'refs/heads/main' && github.event_name != 'push'
+        if: github.ref == 'refs/heads/main' && needs.gate.outputs.refresh == 'true'
         run: |
           today=$(TZ=Pacific/Auckland date +%F)
           fetched=$(jq -r '.fetchedAt // ""' data/store-prices/index.json)
@@ -79,7 +94,7 @@ jobs:
           fi
           echo "Refreshed $branches branches for $today."
       - name: Refresh branch stock coverage
-        if: github.ref == 'refs/heads/main' && github.event_name != 'push'
+        if: github.ref == 'refs/heads/main' && needs.gate.outputs.refresh == 'true'
         run: |
           if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "$(TZ=Pacific/Auckland date +%u)" != "7" ]; then
             echo "Branch stock coverage refreshes on Sundays."
@@ -87,7 +102,7 @@ jobs:
           fi
           npm run coverage:pull
       - name: Commit refreshed prices
-        if: github.ref == 'refs/heads/main' && github.event_name != 'push'
+        if: github.ref == 'refs/heads/main' && needs.gate.outputs.refresh == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
