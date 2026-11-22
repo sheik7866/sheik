@@ -409,7 +409,6 @@ const el = {
   coverageLine: document.getElementById("coverage-line"),
   proToggle: document.getElementById("pro-toggle"),
   clubToggle: document.getElementById("club-toggle"),
-  reset: document.getElementById("reset-demo"),
   dialog: document.getElementById("product-dialog"),
   dialogContent: document.getElementById("dialog-content"),
   toast: document.getElementById("toast"),
@@ -2447,21 +2446,6 @@ el.clubToggle.addEventListener("change", () => {
       ? "Club-card prices applied to basket totals."
       : "Club-card prices removed from basket totals."
   );
-});
-
-el.reset.addEventListener("click", () => {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* ignore */
-  }
-  state = { ...defaults, stores: [], list: [], live: [...state.live], prices: {} };
-  el.storeSearch.value = "";
-  el.search.value = "";
-  resetGrocerPanel();
-  saveState();
-  renderAll();
-  toast("Demo reset.");
 });
 
 /* ---------- Camera scanning ---------- */
