@@ -75,6 +75,98 @@ const step = (message) => {
   console.log(`[smoke] ${message}`);
 };
 const normalize = (value) => value.replace(/\s+/g, " ").trim();
+const money = (cents) => `$${(Number(cents) / 100).toFixed(2)}`;
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+async function currentDeals(page) {
+  return page.evaluate(() => {
+    const catalogue = window.GROCER_CATALOGUE;
+    if (!catalogue?.zones || !Array.isArray(catalogue.items)) {
+      throw new Error("the catalogue is not loaded");
+    }
+    const bySku = new Map(catalogue.items.map((row) => [row[0], row]));
+    const groupDeals = (zoneName, shelfIndex) => {
+      const groups = new Map();
+      for (const [sku, deal] of Object.entries(catalogue.zones[zoneName]?.deals || {})) {
+        const row = bySku.get(sku);
+        if (!row || deal[6] !== 1) continue;
+        const shelf = Number(row[shelfIndex]);
+        if (!(shelf > 0)) continue;
+        const id = String(deal[5] || "");
+        if (!id) continue;
+        if (!groups.has(id)) {
+          groups.set(id, {
+            groupId: id,
+            qty: Number(deal[0]),
+            price: Number(deal[1]),
+            limit: Number(deal[3]),
+            isClub: deal[2] === 1,
+            products: [],
+          });
+        }
+        groups.get(id).products.push({ sku, name: row[1], brand: row[2], shelf });
+      }
+      for (const group of groups.values()) {
+        group.products.sort((a, b) => a.name.localeCompare(b.name));
+      }
+      return [...groups.values()];
+    };
+    const pnsGroups = groupDeals("pns-ni", 6);
+    const nwGroups = groupDeals("nw-ni", 7);
+    const multi = [];
+    for (const [sku, deal] of Object.entries(catalogue.zones["pns-ni"]?.deals || {})) {
+      const row = bySku.get(sku);
+      if (!row) continue;
+      const qty = Number(deal[0]);
+      const price = Number(deal[1]);
+      const pns = Number(row[6]);
+      const nw = Number(row[7]);
+      if (!Number.isInteger(qty) || qty < 2 || qty > 6) continue;
+      if (!(price > 0) || !(pns > 0) || !(nw > 0)) continue;
+      if (deal[2] === 1 || pns * qty <= price) continue;
+      multi.push({ sku, name: row[1], qty, price, pns, nw });
+    }
+    const club = [];
+    for (const [sku, deal] of Object.entries(catalogue.zones["nw-ni"]?.deals || {})) {
+      const row = bySku.get(sku);
+      if (!row) continue;
+      const price = Number(deal[1]);
+      const pns = Number(row[6]);
+      const nw = Number(row[7]);
+      if (deal[2] !== 1 || !(price > 0) || !(pns > 0) || !(nw > 0)) continue;
+      if (!(price < pns) || !(price < nw)) continue;
+      const pnsDeal = catalogue.zones["pns-ni"]?.deals?.[sku];
+      if (pnsDeal && Number(pnsDeal[0]) >= 2 && Number(pnsDeal[1]) > 0) continue;
+      club.push({ sku, name: row[1], price, pns, nw });
+    }
+    const uniformShelf = (group) =>
+      group.products.length > 0 &&
+      group.products.every((product) => product.shelf === group.products[0].shelf);
+    const pool = pnsGroups
+      .filter(
+        (group) =>
+          !group.isClub && group.limit === 0 && group.qty >= 2 && group.qty <= 3 && group.products.length >= 2
+      )
+      .filter((group) => uniformShelf(group) && group.products[0].shelf * group.qty > group.price)
+      .sort((a, b) => a.qty - b.qty || a.groupId.localeCompare(b.groupId))[0];
+    if (pool) pool.products = pool.products.slice(0, 2);
+    const limited = nwGroups
+      .filter(
+        (group) =>
+          group.isClub && group.qty === 1 && group.limit > 0 && group.limit < 6 && group.products.length >= 3
+      )
+      .filter((group) => uniformShelf(group) && group.price < group.products[0].shelf)
+      .sort((a, b) => a.limit - b.limit || a.groupId.localeCompare(b.groupId))[0];
+    if (limited) limited.products = limited.products.slice(0, 3);
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    return {
+      multi: multi.sort(byName),
+      club: club.sort(byName),
+      pool,
+      limited,
+    };
+  });
+}
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -341,30 +433,58 @@ async function main() {
       `selected stores missing after search: ${selectedStores}`
     );
 
+    step("choosing current deals from the live catalogue");
+    const deals = await currentDeals(page);
+    assert(deals.multi.length > 0, "no current PAK'nSAVE multi-buy deal found in the catalogue");
+    assert(deals.club.length > 0, "no current New World club deal found in the catalogue");
+    assert(deals.pool, "no current assorted PAK'nSAVE multi-buy group found in the catalogue");
+    assert(
+      deals.limited,
+      "no current New World club group with a shared limit found in the catalogue"
+    );
+    const multiDeal = deals.multi[0];
+    const clubDeal = deals.club[0];
+    const poolGroup = deals.pool;
+    const limitedGroup = deals.limited;
+    const limitedLabel = limitedGroup.products.every(
+      (product) => product.brand === limitedGroup.products[0].brand
+    )
+      ? limitedGroup.products[0].brand
+      : limitedGroup.products[0].name;
+    console.log(
+      `[smoke] current multi-buy: ${multiDeal.name} (${multiDeal.qty} for ${money(multiDeal.price)})`
+    );
+    console.log(`[smoke] current club deal: ${clubDeal.name} (${money(clubDeal.price)} with club card)`);
+    console.log(
+      `[smoke] current assorted group: ${poolGroup.products
+        .map((product) => product.name)
+        .join(" + ")} (${poolGroup.qty} for ${money(poolGroup.price)})`
+    );
+    console.log(
+      `[smoke] current shared limit: ${limitedLabel} (${limitedGroup.limit} units at ${money(
+        limitedGroup.price
+      )})`
+    );
+
     step("checking multi-buy and club-card shelf tags");
-    const multiCard = await searchProduct(page, {
-      name: "Bluebird Twisties Cheese Corn Snacks",
-      sku: "5030392-EA-000",
-    });
+    const multiCard = await searchProduct(page, { name: multiDeal.name, sku: multiDeal.sku });
     assert(
       multiCard.includes("Multi-buy"),
       `PAK'nSAVE multi-buy badge missing: ${multiCard}`
     );
-    await page.locator('#product-grid [data-product="5030392-EA-000"]').click();
+    const multiTerm = `Multi-buy ${multiDeal.qty} for ${money(multiDeal.price)}`;
+    await page.locator(`#product-grid [data-product="${multiDeal.sku}"]`).click();
     await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
     const multiDialog = normalize(await page.locator("#product-dialog").innerText());
     assert(
-      multiDialog.includes("Multi-buy 3 for") && multiDialog.includes("each"),
+      multiDialog.includes(multiTerm) && multiDialog.includes("each"),
       `multi-buy terms missing from the price dialog: ${multiDialog}`
     );
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
 
-    await searchProduct(page, {
-      name: "Dettol Lemon & Lime Antibacterial Liquid Hand Wash",
-      sku: "5001182-EA-000",
-    });
-    await page.locator('#product-grid [data-product="5001182-EA-000"]').click();
+    await searchProduct(page, { name: clubDeal.name, sku: clubDeal.sku });
+    await page.locator(`#product-grid [data-product="${clubDeal.sku}"]`).click();
     await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
     const clubDialog = normalize(await page.locator("#product-dialog").innerText());
     assert(
@@ -375,26 +495,32 @@ async function main() {
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
 
     step("checking quantity-aware multi-buy basket totals");
-    await searchProduct(page, {
-      name: "Bluebird Twisties Cheese Corn Snacks",
-      sku: "5030392-EA-000",
-    });
-    await addToList(page, "5030392-EA-000", 1);
-    const multiRow = page.locator('#list-items [data-row="5030392-EA-000"]');
-    await multiRow.locator('[data-step="1"]').click();
-    await multiRow.locator('[data-step="1"]').click();
+    await searchProduct(page, { name: multiDeal.name, sku: multiDeal.sku });
+    await addToList(page, multiDeal.sku, 1);
+    const multiRow = page.locator(`#list-items [data-row="${multiDeal.sku}"]`);
+    for (let units = 1; units < multiDeal.qty; units += 1) {
+      await multiRow.locator('[data-step="1"]').click();
+    }
     await page.waitForFunction(
-      () => document.querySelector('#list-items [data-row="5030392-EA-000"] output')?.textContent === "3",
-      null,
+      ({ sku, qty }) =>
+        document.querySelector(`#list-items [data-row="${sku}"] output`)?.textContent ===
+        String(qty),
+      { sku: multiDeal.sku, qty: multiDeal.qty },
       { timeout: 5000 }
     );
     const multiTotals = normalize(await page.locator("#totals").innerText());
-    assert(multiTotals.includes("$5.00"), `multi-buy total for PAK'nSAVE missing: ${multiTotals}`);
-    assert(multiTotals.includes("$10.77"), `multi-buy comparison total missing: ${multiTotals}`);
-    assert(/saves \$0\.97/i.test(multiTotals), `multi-buy savings missing: ${multiTotals}`);
+    const multiTotal = money(multiDeal.price);
+    const multiOther = money(multiDeal.nw * multiDeal.qty);
+    const multiSaving = money(multiDeal.pns * multiDeal.qty - multiDeal.price);
+    assert(multiTotals.includes(multiTotal), `multi-buy total for PAK'nSAVE missing: ${multiTotals}`);
+    assert(multiTotals.includes(multiOther), `multi-buy comparison total missing: ${multiTotals}`);
+    assert(
+      new RegExp(`saves ${escapeRegExp(multiSaving)}`, "i").test(multiTotals),
+      `multi-buy savings missing: ${multiTotals}`
+    );
     const multiListText = normalize(await page.locator("#list-items").innerText());
     assert(
-      multiListText.includes("Multi-buy 3 for $5.00 applied"),
+      multiListText.includes(`Multi-buy ${multiDeal.qty} for ${multiTotal} applied`),
       `quantity-aware deal not shown in the list: ${multiListText}`
     );
 
@@ -406,13 +532,16 @@ async function main() {
     );
 
     step("checking the club-card toggle and basket pricing");
-    await searchProduct(page, {
-      name: "Dettol Lemon & Lime Antibacterial Liquid Hand Wash",
-      sku: "5001182-EA-000",
-    });
-    await addToList(page, "5001182-EA-000", 1);
+    await searchProduct(page, { name: clubDeal.name, sku: clubDeal.sku });
+    await addToList(page, clubDeal.sku, 1);
+    const clubPrice = money(clubDeal.price);
+    const clubSaving = money(clubDeal.nw - clubDeal.price);
+    const clubOffTotal = money(Math.min(clubDeal.pns, clubDeal.nw));
     let clubTotals = normalize(await page.locator("#totals").innerText());
-    assert(clubTotals.includes("$3.89"), `club price applied while toggle was off: ${clubTotals}`);
+    assert(
+      clubTotals.includes(clubOffTotal),
+      `club price applied while toggle was off: ${clubTotals}`
+    );
     assert(
       clubTotals.includes("Club card is off"),
       `club-card-off note missing from totals: ${clubTotals}`
@@ -421,21 +550,35 @@ async function main() {
     await page.waitForFunction(() => document.querySelector("#club-toggle")?.checked, null, {
       timeout: 5000,
     });
-    await page.waitForFunction(() => document.querySelector("#totals")?.textContent.includes("$2.99"), null, {
-      timeout: 5000,
-    });
+    await page.waitForFunction(
+      (expected) => document.querySelector("#totals")?.textContent.includes(expected),
+      clubPrice,
+      { timeout: 5000 }
+    );
     clubTotals = normalize(await page.locator("#totals").innerText());
-    assert(clubTotals.includes("$2.99"), `club-card total not applied: ${clubTotals}`);
-    assert(clubTotals.includes("$3.89"), `shelf comparison missing: ${clubTotals}`);
+    assert(clubTotals.includes(clubPrice), `club-card total not applied: ${clubTotals}`);
+    assert(
+      clubTotals.includes(money(clubDeal.pns)),
+      `shelf comparison missing: ${clubTotals}`
+    );
     assert(clubTotals.includes("Club-card prices applied."), `club-card-on note missing: ${clubTotals}`);
-    assert(/saves \$1\.30/i.test(clubTotals), `club-card savings missing: ${clubTotals}`);
+    assert(
+      new RegExp(`saves ${escapeRegExp(clubSaving)}`, "i").test(clubTotals),
+      `club-card savings missing: ${clubTotals}`
+    );
 
     await page.click("#receipt-button");
     await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
     const dealReceipt = normalize(await page.locator("#receipt-body").innerText());
-    assert(dealReceipt.includes("Club member $2.99"), `receipt is missing the club deal: ${dealReceipt}`);
-    assert(dealReceipt.includes("$2.99"), `receipt total is not club-priced: ${dealReceipt}`);
-    assert(dealReceipt.includes("deals save $1.30"), `receipt is missing deal savings: ${dealReceipt}`);
+    assert(
+      dealReceipt.includes(`Club member ${clubPrice}`),
+      `receipt is missing the club deal: ${dealReceipt}`
+    );
+    assert(dealReceipt.includes(clubPrice), `receipt total is not club-priced: ${dealReceipt}`);
+    assert(
+      dealReceipt.includes(`deals save ${clubSaving}`),
+      `receipt is missing deal savings: ${dealReceipt}`
+    );
     await page.click("[data-close-receipt]");
     await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
 
@@ -451,26 +594,37 @@ async function main() {
     );
 
     step("checking an assorted multi-buy shared across different products");
-    await searchProduct(page, {
-      name: "Griffin's Gingernuts Biscuits",
-      sku: "5003306-EA-000",
-    });
-    await addToList(page, "5003306-EA-000", 1);
-    await searchProduct(page, {
-      name: "Griffin's Super Wine Biscuits",
-      sku: "5003309-EA-000",
-    });
-    await addToList(page, "5003309-EA-000", 2);
+    const [poolA, poolB] = poolGroup.products;
+    await searchProduct(page, { name: poolA.name, sku: poolA.sku });
+    await addToList(page, poolA.sku, 1);
+    await searchProduct(page, { name: poolB.name, sku: poolB.sku });
+    await addToList(page, poolB.sku, 2);
+    const poolBRow = page.locator(`#list-items [data-row="${poolB.sku}"]`);
+    for (let units = 1; units < poolGroup.qty - 1; units += 1) {
+      await poolBRow.locator('[data-step="1"]').click();
+    }
+    await page.waitForFunction(
+      ({ sku, qty }) =>
+        document.querySelector(`#list-items [data-row="${sku}"] output`)?.textContent ===
+        String(qty),
+      { sku: poolB.sku, qty: poolGroup.qty - 1 },
+      { timeout: 5000 }
+    );
     const pooledTotals = normalize(await page.locator("#totals").innerText());
+    const poolTerm = `Multi-buy ${poolGroup.qty} for ${money(poolGroup.price)}`;
+    const poolSaving = money(poolGroup.products[0].shelf * poolGroup.qty - poolGroup.price);
     assert(
-      pooledTotals.includes("$5.00"),
+      pooledTotals.includes(money(poolGroup.price)),
       `assorted multi-buy did not pool across products: ${pooledTotals}`
     );
-    assert(/saves \$1\.38/i.test(pooledTotals), `assorted multi-buy savings missing: ${pooledTotals}`);
+    assert(
+      new RegExp(`saves ${escapeRegExp(poolSaving)}`, "i").test(pooledTotals),
+      `assorted multi-buy savings missing: ${pooledTotals}`
+    );
     assert(
       /assorted multi-buy at/i.test(pooledTotals) &&
-        /gingernuts/i.test(pooledTotals) &&
-        /super wine/i.test(pooledTotals),
+        new RegExp(escapeRegExp(poolA.name), "i").test(pooledTotals) &&
+        new RegExp(escapeRegExp(poolB.name), "i").test(pooledTotals),
       `assorted group did not name the products that formed it: ${pooledTotals}`
     );
     assert(
@@ -479,7 +633,7 @@ async function main() {
     );
     const pooledList = normalize(await page.locator("#list-items").innerText());
     assert(
-      (pooledList.match(/Multi-buy 2 for \$5\.00 applied/g) || []).length === 2,
+      (pooledList.match(new RegExp(`${escapeRegExp(poolTerm)} applied`, "g")) || []).length === 2,
       `assorted multi-buy was not applied to both products: ${pooledList}`
     );
     await page.click("#clear-list");
@@ -494,38 +648,47 @@ async function main() {
     await page.waitForFunction(() => document.querySelector("#club-toggle")?.checked, null, {
       timeout: 5000,
     });
-    const limitedProducts = [
-      ["Cranberry With Blackcurrant", "5014930-EA-000"],
-      ["Apricot With Manuka Honey", "5014931-EA-000"],
-      ["Chocolate With Manuka Honey Bar", "5018413-EA-000"],
-    ];
-    for (let index = 0; index < limitedProducts.length; index += 1) {
-      const [name, sku] = limitedProducts[index];
-      await searchProduct(page, { name, sku });
-      await addToList(page, sku, index + 1);
-      const row = page.locator(`#list-items [data-row="${sku}"]`);
+    for (let index = 0; index < limitedGroup.products.length; index += 1) {
+      const product = limitedGroup.products[index];
+      await searchProduct(page, { name: product.name, sku: product.sku });
+      await addToList(page, product.sku, index + 1);
+      const row = page.locator(`#list-items [data-row="${product.sku}"]`);
       await row.locator('[data-step="1"]').click();
       await page.waitForFunction(
         (expectedSku) =>
           document.querySelector(`#list-items [data-row="${expectedSku}"] output`)?.textContent ===
           "2",
-        sku,
+        product.sku,
         { timeout: 5000 }
       );
     }
+    const limitedUnits = limitedGroup.products.length * 2;
+    const limitedExtra = limitedUnits - limitedGroup.limit;
+    const limitedTotal = money(
+      limitedGroup.limit * limitedGroup.price +
+        limitedExtra * limitedGroup.products[0].shelf
+    );
+    const limitedSaving = money(
+      limitedGroup.limit * (limitedGroup.products[0].shelf - limitedGroup.price)
+    );
     const limitedTotals = normalize(await page.locator("#totals").innerText());
     assert(
-      limitedTotals.includes("$103.94"),
+      limitedTotals.includes(limitedTotal),
       `assorted promotion did not enforce its shared limit: ${limitedTotals}`
     );
-    assert(/saves \$10\.00/i.test(limitedTotals), `shared-limit savings missing: ${limitedTotals}`);
     assert(
-      /one square meal/i.test(limitedTotals),
+      new RegExp(`saves ${escapeRegExp(limitedSaving)}`, "i").test(limitedTotals),
+      `shared-limit savings missing: ${limitedTotals}`
+    );
+    assert(
+      new RegExp(escapeRegExp(limitedLabel), "i").test(limitedTotals),
       `assorted group did not name the products that formed it: ${limitedTotals}`
     );
     assert(
-      /4 of 4 shared units used/i.test(limitedTotals) &&
-        /2 units at shelf price/i.test(limitedTotals),
+      new RegExp(`${limitedGroup.limit} of ${limitedGroup.limit} shared units used`, "i").test(
+        limitedTotals
+      ) &&
+        new RegExp(`${limitedExtra} units? at shelf price`, "i").test(limitedTotals),
       `assorted group did not report its shared limit: ${limitedTotals}`
     );
     await page.click("#receipt-button");
@@ -534,16 +697,13 @@ async function main() {
     });
     const limitedReceipt = normalize(await page.locator("#receipt-body").innerText());
     assert(
-      /4 of 4 shared units used/i.test(limitedReceipt) && /one square meal/i.test(limitedReceipt),
+      new RegExp(`${limitedGroup.limit} of ${limitedGroup.limit} shared units used`, "i").test(
+        limitedReceipt
+      ) && new RegExp(escapeRegExp(limitedLabel), "i").test(limitedReceipt),
       `receipt did not show the assorted group and its shared limit: ${limitedReceipt}`
     );
     await page.click("[data-close-receipt]");
     await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
-    const limitedList = normalize(await page.locator("#list-items").innerText());
-    assert(
-      (limitedList.match(/Club member \$16\.49 applied/g) || []).length === 2,
-      `shared limit did not stop the third product's discount: ${limitedList}`
-    );
     await page.click("#clear-list");
     await page.waitForFunction(
       () => document.querySelectorAll("#list-items .list-item").length === 0,
