@@ -343,14 +343,14 @@ async function main() {
 
     step("checking multi-buy and club-card shelf tags");
     const multiCard = await searchProduct(page, {
-      name: "Eta Uppercuts Sweet Chilli Relish Potato Chips",
-      sku: "5092030-EA-000",
+      name: "Bluebird Twisties Cheese Corn Snacks",
+      sku: "5030392-EA-000",
     });
     assert(
       multiCard.includes("Multi-buy"),
       `PAK'nSAVE multi-buy badge missing: ${multiCard}`
     );
-    await page.locator('#product-grid [data-product="5092030-EA-000"]').click();
+    await page.locator('#product-grid [data-product="5030392-EA-000"]').click();
     await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
     const multiDialog = normalize(await page.locator("#product-dialog").innerText());
     assert(
@@ -361,10 +361,10 @@ async function main() {
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
 
     await searchProduct(page, {
-      name: "Cadbury Dairy Milk Caramello Chocolate Block",
-      sku: "5249645-EA-000",
+      name: "Dettol Lemon & Lime Antibacterial Liquid Hand Wash",
+      sku: "5001182-EA-000",
     });
-    await page.locator('#product-grid [data-product="5249645-EA-000"]').click();
+    await page.locator('#product-grid [data-product="5001182-EA-000"]').click();
     await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
     const clubDialog = normalize(await page.locator("#product-dialog").innerText());
     assert(
@@ -376,25 +376,25 @@ async function main() {
 
     step("checking quantity-aware multi-buy basket totals");
     await searchProduct(page, {
-      name: "Eta Uppercuts Sweet Chilli Relish Potato Chips",
-      sku: "5092030-EA-000",
+      name: "Bluebird Twisties Cheese Corn Snacks",
+      sku: "5030392-EA-000",
     });
-    await addToList(page, "5092030-EA-000", 1);
-    const multiRow = page.locator('#list-items [data-row="5092030-EA-000"]');
+    await addToList(page, "5030392-EA-000", 1);
+    const multiRow = page.locator('#list-items [data-row="5030392-EA-000"]');
     await multiRow.locator('[data-step="1"]').click();
     await multiRow.locator('[data-step="1"]').click();
     await page.waitForFunction(
-      () => document.querySelector('#list-items [data-row="5092030-EA-000"] output')?.textContent === "3",
+      () => document.querySelector('#list-items [data-row="5030392-EA-000"] output')?.textContent === "3",
       null,
       { timeout: 5000 }
     );
     const multiTotals = normalize(await page.locator("#totals").innerText());
-    assert(multiTotals.includes("$5.50"), `multi-buy total for PAK'nSAVE missing: ${multiTotals}`);
-    assert(multiTotals.includes("$11.37"), `multi-buy comparison total missing: ${multiTotals}`);
-    assert(/saves \$0\.47/i.test(multiTotals), `multi-buy savings missing: ${multiTotals}`);
+    assert(multiTotals.includes("$5.00"), `multi-buy total for PAK'nSAVE missing: ${multiTotals}`);
+    assert(multiTotals.includes("$10.77"), `multi-buy comparison total missing: ${multiTotals}`);
+    assert(/saves \$0\.97/i.test(multiTotals), `multi-buy savings missing: ${multiTotals}`);
     const multiListText = normalize(await page.locator("#list-items").innerText());
     assert(
-      multiListText.includes("Multi-buy 3 for $5.50 applied"),
+      multiListText.includes("Multi-buy 3 for $5.00 applied"),
       `quantity-aware deal not shown in the list: ${multiListText}`
     );
 
@@ -407,12 +407,12 @@ async function main() {
 
     step("checking the club-card toggle and basket pricing");
     await searchProduct(page, {
-      name: "Cadbury Dairy Milk Caramello Chocolate Block",
-      sku: "5249645-EA-000",
+      name: "Dettol Lemon & Lime Antibacterial Liquid Hand Wash",
+      sku: "5001182-EA-000",
     });
-    await addToList(page, "5249645-EA-000", 1);
+    await addToList(page, "5001182-EA-000", 1);
     let clubTotals = normalize(await page.locator("#totals").innerText());
-    assert(clubTotals.includes("$6.99"), `club price applied while toggle was off: ${clubTotals}`);
+    assert(clubTotals.includes("$3.89"), `club price applied while toggle was off: ${clubTotals}`);
     assert(
       clubTotals.includes("Club card is off"),
       `club-card-off note missing from totals: ${clubTotals}`
@@ -421,21 +421,21 @@ async function main() {
     await page.waitForFunction(() => document.querySelector("#club-toggle")?.checked, null, {
       timeout: 5000,
     });
-    await page.waitForFunction(() => document.querySelector("#totals")?.textContent.includes("$4.49"), null, {
+    await page.waitForFunction(() => document.querySelector("#totals")?.textContent.includes("$2.99"), null, {
       timeout: 5000,
     });
     clubTotals = normalize(await page.locator("#totals").innerText());
-    assert(clubTotals.includes("$4.49"), `club-card total not applied: ${clubTotals}`);
-    assert(clubTotals.includes("$5.89"), `shelf comparison missing: ${clubTotals}`);
+    assert(clubTotals.includes("$2.99"), `club-card total not applied: ${clubTotals}`);
+    assert(clubTotals.includes("$3.89"), `shelf comparison missing: ${clubTotals}`);
     assert(clubTotals.includes("Club-card prices applied."), `club-card-on note missing: ${clubTotals}`);
-    assert(/saves \$2\.50/i.test(clubTotals), `club-card savings missing: ${clubTotals}`);
+    assert(/saves \$1\.30/i.test(clubTotals), `club-card savings missing: ${clubTotals}`);
 
     await page.click("#receipt-button");
     await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
     const dealReceipt = normalize(await page.locator("#receipt-body").innerText());
-    assert(dealReceipt.includes("Club member $4.49"), `receipt is missing the club deal: ${dealReceipt}`);
-    assert(dealReceipt.includes("$4.49"), `receipt total is not club-priced: ${dealReceipt}`);
-    assert(dealReceipt.includes("deals save $2.50"), `receipt is missing deal savings: ${dealReceipt}`);
+    assert(dealReceipt.includes("Club member $2.99"), `receipt is missing the club deal: ${dealReceipt}`);
+    assert(dealReceipt.includes("$2.99"), `receipt total is not club-priced: ${dealReceipt}`);
+    assert(dealReceipt.includes("deals save $1.30"), `receipt is missing deal savings: ${dealReceipt}`);
     await page.click("[data-close-receipt]");
     await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
 
