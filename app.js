@@ -409,6 +409,10 @@ const el = {
   coverageLine: document.getElementById("coverage-line"),
   proToggle: document.getElementById("pro-toggle"),
   clubToggle: document.getElementById("club-toggle"),
+  tabButtons: [...document.querySelectorAll("[data-tab]")],
+  tabPanels: [...document.querySelectorAll("[data-tab-panel]")],
+  tabStoreCount: document.getElementById("tab-store-count"),
+  tabListCount: document.getElementById("tab-list-count"),
   dialog: document.getElementById("product-dialog"),
   dialogContent: document.getElementById("dialog-content"),
   toast: document.getElementById("toast"),
@@ -1280,6 +1284,25 @@ function renderStoreResults() {
       : "");
 }
 
+function renderTabs() {
+  el.tabStoreCount.textContent = String(state.stores.length);
+  el.tabStoreCount.hidden = state.stores.length === 0;
+  el.tabListCount.textContent = String(state.list.length);
+  el.tabListCount.hidden = state.list.length === 0;
+}
+
+function setTab(tab) {
+  if (!["stores", "catalog", "list"].includes(tab)) return;
+  for (const button of el.tabButtons) {
+    const active = button.dataset.tab === tab;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
+  for (const panel of el.tabPanels) {
+    panel.classList.toggle("is-active", panel.dataset.tabPanel === tab);
+  }
+}
+
 function renderStores() {
   const selected = state.stores.map((id) => STORE_MAP.get(id)).filter(Boolean);
   el.storeList.innerHTML = selected.length
@@ -1319,6 +1342,7 @@ function renderStores() {
     : `Free demo covers ${MAX_FREE_STORES} stores. Turn on Pro for ${MAX_PRO_STORES}.`;
   el.storeFoot.classList.toggle("is-pro", state.pro);
   renderStoreResults();
+  renderTabs();
 }
 
 function renderCategories() {
@@ -1419,6 +1443,7 @@ function renderList() {
   el.clearList.hidden = state.list.length === 0;
   el.receiptButton.hidden = state.list.length === 0;
   el.bulkButton.hidden = state.list.length === 0;
+  renderTabs();
 }
 
 function renderTotals() {
@@ -2448,6 +2473,10 @@ el.clubToggle.addEventListener("change", () => {
   );
 });
 
+for (const tab of el.tabButtons) {
+  tab.addEventListener("click", () => setTab(tab.dataset.tab));
+}
+
 /* ---------- Camera scanning ---------- */
 
 function matchBarcode(raw) {
@@ -3007,6 +3036,7 @@ function renderImportBanner() {
 renderImportBanner();
 renderCoverageLine();
 renderAll();
+setTab(state.stores.length ? "catalog" : "stores");
 for (const storeId of state.stores) void ensureStorePrices(storeId);
 
 /* ---------- Small utilities ---------- */

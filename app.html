@@ -72,8 +72,20 @@
       </div>
     </div>
 
+    <nav class="app-tabs" aria-label="App sections">
+      <button class="app-tab" type="button" data-tab="stores" aria-controls="panel-stores" aria-pressed="false">
+        Stores <span class="app-tab__count" id="tab-store-count" hidden>0</span>
+      </button>
+      <button class="app-tab is-active" type="button" data-tab="catalog" aria-controls="panel-catalog" aria-pressed="true">
+        Shop
+      </button>
+      <button class="app-tab" type="button" data-tab="list" aria-controls="panel-list" aria-pressed="false">
+        List <span class="app-tab__count" id="tab-list-count" hidden>0</span>
+      </button>
+    </nav>
+
     <div class="app-layout">
-      <section class="panel panel--stores" aria-labelledby="stores-heading">
+      <section class="panel panel--stores" id="panel-stores" data-tab-panel="stores" aria-labelledby="stores-heading">
         <div class="panel__head">
           <h2 id="stores-heading">Your stores</h2>
           <span class="counter" id="store-counter">0 / 6</span>
@@ -91,7 +103,7 @@
         <p class="panel__foot" id="store-foot"></p>
       </section>
 
-      <section class="panel panel--catalog" aria-labelledby="catalog-heading">
+      <section class="panel panel--catalog" id="panel-catalog" data-tab-panel="catalog" aria-labelledby="catalog-heading">
         <div class="catalog__head">
           <h2 id="catalog-heading" class="sr-only">Products</h2>
           <div class="search">
@@ -140,7 +152,7 @@
         </p>
       </section>
 
-      <aside class="panel panel--list" aria-labelledby="list-heading">
+      <aside class="panel panel--list" id="panel-list" data-tab-panel="list" aria-labelledby="list-heading">
         <div class="panel__head">
           <h2 id="list-heading">Shopping list</h2>
           <button class="link-btn" type="button" id="clear-list">Clear</button>

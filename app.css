@@ -229,6 +229,14 @@
   align-items: start;
 }
 
+.app-tabs {
+  display: none;
+}
+
+.app-tab__count[hidden] {
+  display: none;
+}
+
 .panel {
   padding: 1.1rem;
   border: 1px solid var(--line);
@@ -2672,6 +2680,73 @@ button.grocer-item__price:disabled {
 @media (max-width: 760px) {
   .app-layout {
     grid-template-columns: 1fr;
+  }
+
+  .app-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.25rem;
+    margin-bottom: 0.85rem;
+    padding: 0.28rem;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--app-surface);
+    box-shadow: var(--app-shadow);
+  }
+
+  .app-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.65rem 0.45rem;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--ink-mute);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .app-tab.is-active {
+    background: var(--leaf-deep);
+    color: #fff;
+  }
+
+  .app-tab:focus-visible {
+    outline: 2px solid var(--leaf-bright);
+    outline-offset: 2px;
+  }
+
+  .app-tab__count {
+    min-width: 1.35em;
+    padding: 0.06rem 0.36rem;
+    border-radius: 999px;
+    background: var(--app-surface-2);
+    color: var(--ink-mute);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .app-tab.is-active .app-tab__count {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+  }
+
+  .app-layout > .panel {
+    display: none;
+  }
+
+  .app-layout > .panel.is-active {
+    display: block;
+  }
+
+  .app-layout > .panel--stores.is-active,
+  .app-layout > .panel--list.is-active {
+    display: flex;
   }
 
   .panel--stores,
