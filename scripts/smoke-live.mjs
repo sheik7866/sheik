@@ -319,6 +319,55 @@ async function main() {
       `price-coverage summary missing: ${coverageLine}`
     );
 
+    step("checking phone-width tabs");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(
+      () => getComputedStyle(document.querySelector(".app-tabs")).display !== "none"
+    );
+    const mobilePanels = async () => ({
+      stores: await page.locator("#panel-stores").isVisible(),
+      catalog: await page.locator("#panel-catalog").isVisible(),
+      list: await page.locator("#panel-list").isVisible(),
+    });
+    let visiblePanels = await mobilePanels();
+    assert(
+      visiblePanels.stores && !visiblePanels.catalog && !visiblePanels.list,
+      `phone tabs should open on Stores when no stores are selected: ${JSON.stringify(visiblePanels)}`
+    );
+    assert(
+      normalize(await page.locator(".app-tab.is-active").innerText()) === "Stores",
+      "phone tabs should mark Stores as active"
+    );
+    await page.locator('[data-tab="catalog"]').click();
+    visiblePanels = await mobilePanels();
+    assert(
+      !visiblePanels.stores && visiblePanels.catalog && !visiblePanels.list,
+      `phone Shop tab should show only the catalogue: ${JSON.stringify(visiblePanels)}`
+    );
+    await page.locator('[data-tab="list"]').click();
+    visiblePanels = await mobilePanels();
+    assert(
+      !visiblePanels.stores && !visiblePanels.catalog && visiblePanels.list,
+      `phone List tab should show only the shopping list: ${JSON.stringify(visiblePanels)}`
+    );
+    const mobileWidth = await page.evaluate(() => ({
+      viewport: window.innerWidth,
+      content: document.documentElement.scrollWidth,
+    }));
+    assert(
+      mobileWidth.content <= mobileWidth.viewport,
+      `phone layout overflows horizontally: ${mobileWidth.content}px of content in ${mobileWidth.viewport}px`
+    );
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.waitForFunction(
+      () => getComputedStyle(document.querySelector(".app-tabs")).display === "none"
+    );
+    visiblePanels = await mobilePanels();
+    assert(
+      visiblePanels.stores && visiblePanels.catalog && visiblePanels.list,
+      `desktop layout should show all three panels: ${JSON.stringify(visiblePanels)}`
+    );
+
     step("loading the demo's barcode decoder");
     await page.addScriptTag({ url: new URL("vendor/zxing.min.js", TARGET).href });
 
