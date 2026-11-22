@@ -1,6 +1,6 @@
 /* A small, dated New World price import.
    Shelf prices were read from New World's public online store pages for the
-   Point Chevalier store on 2026-11-22 (the demo's New World branch now matches
+   Point Chevalier store on 2026-11-23 (the demo's New World branch now matches
    this store). Club Deal prices are excluded: where a product had a member
    price, the regular shelf price is recorded instead so the comparison stays
    like-for-like.
@@ -9,8 +9,8 @@ window.GROCER_NEWWORLD_IMPORT = {
   storeId: "newworld",
   store: "New World",
   branch: "Point Chevalier",
-  fetchedAt: "2026-11-22",
-  checkedAt: "2026-11-22T07:35:42.891Z",
+  fetchedAt: "2026-11-23",
+  checkedAt: "2026-11-22T17:20:18.638Z",
   source: "https://www.newworld.co.nz/shop/category/",
   items: {
     "milk-2l": {
@@ -128,8 +128,8 @@ window.GROCER_NEWWORLD_IMPORT = {
     "chicken-1kg": {
       name: "Skinless Chicken Breast",
       size: "1kg",
-      price: 12.99,
-      unit: "$12.99/1kg",
+      price: 15.69,
+      unit: "$15.69/1kg",
       sku: "5105651_kgm_000nw",
     },
     "laundry-1kg": {
@@ -156,7 +156,7 @@ window.GROCER_NEWWORLD_IMPORT = {
     "avocado-each": {
       name: "Avocado",
       size: "each",
-      price: 1.99,
+      price: 2.29,
       unit: null,
       sku: "5028110_ea_000nw",
     },
@@ -170,8 +170,8 @@ window.GROCER_NEWWORLD_IMPORT = {
     "tomatoes-kg": {
       name: "Loose Red Tomatoes",
       size: "1kg",
-      price: 4.79,
-      unit: "$4.79/1kg",
+      price: 4.29,
+      unit: "$4.29/1kg",
       sku: "5040098_kgm_000nw",
     },
     "bacon-250": {
@@ -205,8 +205,8 @@ window.GROCER_NEWWORLD_IMPORT = {
     "toothpaste": {
       name: "Oral-B Pro Health Advanced Whitening Mint Toothpaste",
       size: "110g",
-      price: 5.39,
-      unit: "$4.90/100g",
+      price: 5.99,
+      unit: "$5.45/100g",
       sku: "5208179_ea_000nw",
     },
   },

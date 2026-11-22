@@ -1,6 +1,6 @@
 /* A small, dated PAK'nSAVE price import.
    Shelf prices were read from PAK'nSAVE's public online store pages for the
-   Mt Albert store on 2026-11-22, one category page at a time. Only products
+   Mt Albert store on 2026-11-23, one category page at a time. Only products
    that matched a demo staple like-for-like were kept, so 28 of 34 demo
    products have a real shelf price; everything else stays an estimate.
    These are one store's prices on one day: treat them as dated, not live. */
@@ -8,8 +8,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
   storeId: "paknsave",
   store: "PAK'nSAVE",
   branch: "Mt Albert",
-  fetchedAt: "2026-11-22",
-  checkedAt: "2026-11-22T07:35:42.891Z",
+  fetchedAt: "2026-11-23",
+  checkedAt: "2026-11-22T17:20:18.638Z",
   source: "https://www.paknsave.co.nz/shop/category/",
   items: {
     "milk-2l": {
@@ -36,8 +36,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
     "yoghurt-1kg": {
       name: "Fresh 'n Fruity Greek Natural Thick 'n Creamy Yoghurt",
       size: "1kg",
-      price: 5.89,
-      unit: "$0.59/100g",
+      price: 7.29,
+      unit: "$0.73/100g",
       sku: "5281810_ea_000pns",
     },
     "bread-toast": {
@@ -78,8 +78,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
     "weebix-750": {
       name: "Sanitarium Weet-Bix Breakfast Cereal",
       size: "750g",
-      price: 5.69,
-      unit: "$0.76/100g",
+      price: 6.59,
+      unit: "$0.88/100g",
       sku: "5002800_ea_000pns",
     },
     "peas-1kg": {
@@ -92,15 +92,15 @@ window.GROCER_PAKNSAVE_IMPORT = {
     "icecream-2l": {
       name: "Tip Top Creamy Vanilla Ice Cream",
       size: "2L",
-      price: 7.49,
-      unit: "$0.37/100ml",
+      price: 5.49,
+      unit: "$0.27/100ml",
       sku: "5027951_ea_000pns",
     },
     "chips-150": {
       name: "Bluebird Originals Ready Salted Potato Chips",
       size: "150g",
-      price: 1.99,
-      unit: "$1.33/100g",
+      price: 2.49,
+      unit: "$1.66/100g",
       sku: "5010717_ea_000pns",
     },
     "chocolate-180": {
@@ -113,8 +113,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
     "laundry-1kg": {
       name: "Surf Tropical Laundry Powder",
       size: "1kg",
-      price: 5.69,
-      unit: "$0.57/100g",
+      price: 3.99,
+      unit: "$0.40/100g",
       sku: "5210255_ea_000pns",
     },
     "dish-1l": {
@@ -176,8 +176,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
     "bacon-250": {
       name: "Grandpa's Meat & Bacon Co. Manuka Smoked Streaky Bacon",
       size: "250g",
-      price: 5.49,
-      unit: "$21.96/1kg",
+      price: 7.19,
+      unit: "$28.76/1kg",
       sku: "5033086_ea_000pns",
     },
     "tea-100": {
@@ -204,8 +204,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
     "toothpaste": {
       name: "Oral-B Pro Health Advanced Whitening Mint Toothpaste",
       size: "110g",
-      price: 3.39,
-      unit: "$3.08/100g",
+      price: 4.99,
+      unit: "$4.54/100g",
       sku: "5208179_ea_000pns",
     },
   },
