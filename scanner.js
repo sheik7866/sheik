@@ -1,5 +1,5 @@
 /* =========================================================
-   Grocer demo — camera barcode scanner
+   Trolleybird demo — camera barcode scanner
    Uses a locally vendored ZXing build (vendor/zxing.min.js).
    Frames are decoded in the page; nothing is uploaded.
    ========================================================= */

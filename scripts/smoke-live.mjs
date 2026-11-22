@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
-  Post-deploy smoke test for the Grocer demo.
+  Post-deploy smoke test for the Trolleybird demo.
 
   It replays the per-store availability check against the deployed site:
   a PAK'nSAVE-only product, a New World-only product and a mixed basket must

@@ -1,5 +1,5 @@
 {
-  "name": "grocer-demo",
+  "name": "trolleybird-demo",
   "private": true,
   "scripts": {
     "prices:refresh": "node scripts/refresh-prices.mjs",

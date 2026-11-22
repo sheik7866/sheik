@@ -1,5 +1,5 @@
 /* =========================================================
-   Grocer — interactive demo
+   Trolleybird — interactive demo
    Client-side only: demo catalogue, demo stores, localStorage.
    ========================================================= */
 
@@ -223,6 +223,13 @@ function branchStocks(productId, store) {
   const index = COVERAGE_INDEX.get(String(productId || "").toUpperCase());
   if (!bytes || index == null) return null;
   return (bytes[index >> 3] & (0x80 >> (index & 7))) !== 0;
+}
+
+/* Catalogue lines the branch's last range pull stocked, so the picker can show
+   how different nearby branches are. null when the branch was not pulled. */
+function stockedLineCount(store) {
+  const entry = store?.storeId ? COVERAGE_BRANCHES[store.storeId] : null;
+  return Number.isFinite(entry?.stocked) ? entry.stocked : null;
 }
 
 const STORE_PRODUCTS = CATALOGUE_ROWS.filter(([id]) => !CURATED_SKUS.has(id)).map(
@@ -869,10 +876,13 @@ function renderStores() {
       if (!chosen) return "";
       const on = state.stores.includes(chosen.id);
       const options = stores
-        .map(
-          (store) =>
-            `<option value="${store.id}"${store.id === chosen.id ? " selected" : ""}>${escapeHtml(store.branch)}</option>`
-        )
+        .map((store) => {
+          const lines = stockedLineCount(store);
+          const label = `${store.branch} · ${
+            lines == null ? "lines not checked" : `${lines.toLocaleString("en-NZ")} lines`
+          }`;
+          return `<option value="${store.id}"${store.id === chosen.id ? " selected" : ""}>${escapeHtml(label)}</option>`;
+        })
         .join("");
       return `
           <li class="store-pick">
@@ -1093,7 +1103,7 @@ function receiptSummaryText(groups) {
   const best = availableGroups[0] || null;
   const dearest = availableGroups[availableGroups.length - 1] || null;
   const lines = [
-    `Grocer demo basket — ${receiptDate()}`,
+    `Trolleybird demo basket — ${receiptDate()}`,
     `${itemCount} item${itemCount === 1 ? "" : "s"} · ${groups.length} store${groups.length === 1 ? "" : "s"} compared`,
     "",
   ];
@@ -1117,7 +1127,7 @@ function receiptSummaryText(groups) {
     lines.push(`Save ${money.format(dearest.total - best.total)} shopping at ${best.store.name}.`);
     lines.push("");
   }
-  lines.push("Demo prices from the Grocer interactive demo — not live supermarket data.");
+  lines.push("Demo prices from the Trolleybird interactive demo — not live supermarket data.");
   return lines.join("\n");
 }
 
@@ -1141,7 +1151,7 @@ function renderReceipt() {
   el.receiptBody.innerHTML = `
     <div class="receipt-paper">
       <div class="receipt-paper__top">
-        <p class="receipt-paper__brand">Grocer</p>
+        <p class="receipt-paper__brand">Trolleybird</p>
         <p class="receipt-paper__meta">${receiptDate()} · Interactive demo<br />Demo prices, not live supermarket data</p>
         <span class="receipt-item-count">${itemCount} item${itemCount === 1 ? "" : "s"} · ${groups.length} store${groups.length === 1 ? "" : "s"}</span>
       </div>
@@ -1189,10 +1199,10 @@ function renderReceipt() {
 
       <p class="receipt-note">${
         hasChecked
-          ? `✓ price recorded in store${hasImported ? `; imported shelf prices dated ${importDateLabel()}` : ""}. Other prices are estimates from the Grocer interactive demo.`
+          ? `✓ price recorded in store${hasImported ? `; imported shelf prices dated ${importDateLabel()}` : ""}. Other prices are estimates from the Trolleybird interactive demo.`
           : hasImported
-            ? `Imported shelf prices dated ${importDateLabel()}. Other prices are estimates from the Grocer interactive demo.`
-            : "Prices are illustrative demo data from the Grocer interactive demo."
+            ? `Imported shelf prices dated ${importDateLabel()}. Other prices are estimates from the Trolleybird interactive demo.`
+            : "Prices are illustrative demo data from the Trolleybird interactive demo."
       }</p>
     </div>`;
 
@@ -1272,7 +1282,7 @@ async function shareReceiptSummary() {
   const groups = receiptGroups();
   try {
     await navigator.share({
-      title: "Grocer demo basket",
+      title: "Trolleybird demo basket",
       text: receiptSummaryText(groups),
     });
     el.receiptStatus.textContent = "Summary shared.";
