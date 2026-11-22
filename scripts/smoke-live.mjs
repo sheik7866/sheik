@@ -84,7 +84,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "pooled-multibuy-2026-11-22",
+        () => window.TROLLEYBIRD_BUILD === "assorted-group-limits-2026-11-22",
         null,
         { timeout: 5000 }
       );
@@ -467,6 +467,16 @@ async function main() {
       `assorted multi-buy did not pool across products: ${pooledTotals}`
     );
     assert(/saves \$1\.38/i.test(pooledTotals), `assorted multi-buy savings missing: ${pooledTotals}`);
+    assert(
+      /assorted multi-buy at/i.test(pooledTotals) &&
+        /gingernuts/i.test(pooledTotals) &&
+        /super wine/i.test(pooledTotals),
+      `assorted group did not name the products that formed it: ${pooledTotals}`
+    );
+    assert(
+      /no shared limit/i.test(pooledTotals),
+      `assorted group did not report its shared limit: ${pooledTotals}`
+    );
     const pooledList = normalize(await page.locator("#list-items").innerText());
     assert(
       (pooledList.match(/Multi-buy 2 for \$5\.00 applied/g) || []).length === 2,
@@ -509,6 +519,26 @@ async function main() {
       `assorted promotion did not enforce its shared limit: ${limitedTotals}`
     );
     assert(/saves \$10\.00/i.test(limitedTotals), `shared-limit savings missing: ${limitedTotals}`);
+    assert(
+      /one square meal/i.test(limitedTotals),
+      `assorted group did not name the products that formed it: ${limitedTotals}`
+    );
+    assert(
+      /4 of 4 shared units used/i.test(limitedTotals) &&
+        /2 units at shelf price/i.test(limitedTotals),
+      `assorted group did not report its shared limit: ${limitedTotals}`
+    );
+    await page.click("#receipt-button");
+    await page.waitForFunction(() => document.querySelector("#receipt-dialog")?.open, null, {
+      timeout: 5000,
+    });
+    const limitedReceipt = normalize(await page.locator("#receipt-body").innerText());
+    assert(
+      /4 of 4 shared units used/i.test(limitedReceipt) && /one square meal/i.test(limitedReceipt),
+      `receipt did not show the assorted group and its shared limit: ${limitedReceipt}`
+    );
+    await page.click("[data-close-receipt]");
+    await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
     const limitedList = normalize(await page.locator("#list-items").innerText());
     assert(
       (limitedList.match(/Club member \$16\.49 applied/g) || []).length === 2,

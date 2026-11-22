@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "pooled-multibuy-2026-11-22";
+window.TROLLEYBIRD_BUILD = "assorted-group-limits-2026-11-22";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -772,6 +772,55 @@ function basketPricingAtStore(store) {
   return lines;
 }
 
+/* The assorted promotions that actually priced this basket, with the products
+   that shared each offer and the units counted against its limit. */
+function assortedGroups(lines) {
+  const groups = new Map();
+  for (const line of lines) {
+    if (line.missing || !line.grouped || !line.deal?.multiProducts) continue;
+    const key = dealGroupKey(line.deal);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, { key, deal: line.deal, lines: [] });
+    groups.get(key).lines.push(line);
+  }
+
+  return [...groups.values()]
+    .map((group) => {
+      const products = group.lines
+        .map((line) => ({
+          product: PRODUCT_MAP.get(line.productId),
+          qty: line.qty,
+          promoUnits: line.promoUnits || 0,
+        }))
+        .filter((entry) => entry.product);
+      const promoUnits = group.lines.reduce((sum, line) => sum + (line.promoUnits || 0), 0);
+      const basketUnits = group.lines.reduce((sum, line) => sum + line.qty, 0);
+      const savings = group.lines.reduce((sum, line) => sum + (line.savings || 0), 0);
+      return {
+        key: group.key,
+        deal: group.deal,
+        label: dealLabel(group.deal),
+        products,
+        promoUnits,
+        basketUnits,
+        limit: group.deal.limit,
+        savings: Math.round(savings * 100) / 100,
+      };
+    })
+    .filter((group) => group.products.length && group.promoUnits > 0);
+}
+
+/* How much of an assorted promotion's shared limit this basket used. The limit
+   counts promotional units across every product in the group, not each line. */
+function groupLimitText(group) {
+  if (!group.limit) return "No shared limit";
+  const used = Math.min(group.promoUnits, group.limit);
+  const parts = [`${used} of ${group.limit} shared unit${group.limit === 1 ? "" : "s"} used`];
+  const extra = group.basketUnits - used;
+  if (extra > 0) parts.push(`${extra} unit${extra === 1 ? "" : "s"} at shelf price`);
+  return parts.join(" · ");
+}
+
 function dealLabel(deal) {
   if (!deal) return "";
   const price = money.format(deal.price);
@@ -1119,6 +1168,7 @@ function listTotals() {
       missing,
       available: missing === 0,
       dealSavings: Math.round(dealSavings * 100) / 100,
+      groups: assortedGroups(lines),
       clubDealAvailable: lines.some((line) => line.clubDealAvailable),
       clubDealApplied: lines.some((line) => line.dealApplied && line.deal?.club),
     };
@@ -1380,6 +1430,25 @@ function renderTotals() {
         ? `Save ${money.format(totals.savings)} shopping at ${escapeHtml(storeLabel(totals.cheapest.store))}.`
         : "Prices are level across your stores for this basket.";
   const bestDealSaving = totals.cheapest?.dealSavings || 0;
+  const cheapestGroups = totals.cheapest?.groups || [];
+  const assortedMarkup = cheapestGroups.length
+    ? `
+    <div class="totals__groups">
+      <p class="totals__groups-head">Assorted multi-buy at ${escapeHtml(storeLabel(totals.cheapest.store))}</p>
+      <ul class="totals-groups">
+        ${cheapestGroups
+          .map(
+            (promo) => `
+        <li class="totals-group">
+          <p class="totals-group__deal"><b>${escapeHtml(promo.label)}</b> <em>saves ${money.format(promo.savings)}</em></p>
+          <p class="totals-group__products">${promo.products.map((entry) => `${escapeHtml(entry.product.name)} ×${entry.qty}`).join(", ")}</p>
+          <p class="totals-group__limit">${escapeHtml(groupLimitText(promo))}</p>
+        </li>`
+          )
+          .join("")}
+      </ul>
+    </div>`
+    : "";
   const cardNote =
     !state.clubCard && totals.rows.some((row) => row.clubDealAvailable)
       ? "Club card is off; club prices are not included."
@@ -1402,6 +1471,7 @@ function renderTotals() {
         .join("")}
     </ul>
     <p class="totals__save">${summary}${bestDealSaving > 0.004 ? ` Includes ${money.format(bestDealSaving)} of multi-buy/club savings.` : ""}</p>
+    ${assortedMarkup}
     ${cardNote ? `<p class="totals__card">${cardNote}</p>` : ""}`;
 }
 
@@ -1410,7 +1480,8 @@ function renderTotals() {
 function receiptGroups() {
   return selectedStores()
     .map((store) => {
-      const lines = basketPricingAtStore(store)
+      const priced = basketPricingAtStore(store);
+      const lines = priced
         .map((pricing) => {
           const product = PRODUCT_MAP.get(pricing.productId);
           if (!product) return null;
@@ -1439,6 +1510,7 @@ function receiptGroups() {
         lines,
         total: Math.round(total * 100) / 100,
         dealSavings: Math.round(dealSavings * 100) / 100,
+        groups: assortedGroups(priced),
         clubDealAvailable: lines.some((line) => line.clubDealAvailable),
         missing,
         available: missing === 0,
@@ -1473,6 +1545,12 @@ function receiptSummaryText(groups) {
       lines.push(
         `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? "not stocked" : `${money.format(line.line)}${line.dealApplied ? ` (${dealLabel(line.deal)})` : ""}${line.checked ? " ✓" : line.imported ? " (imported)" : ""}`}`
       );
+    });
+    group.groups.forEach((promo) => {
+      const products = promo.products
+        .map((entry) => `${entry.product.name} ×${entry.qty}`)
+        .join(", ");
+      lines.push(`  ${promo.label} (assorted): ${products} — ${groupLimitText(promo)}`);
     });
     if (group.available && group.dealSavings > 0.004) {
       lines.push(`  deals save ${money.format(group.dealSavings)} at this store`);
@@ -1556,6 +1634,25 @@ function renderReceipt() {
               )
               .join("")}
           </ul>
+          ${
+            group.groups.length
+              ? `<div class="receipt-groups">
+            <p class="receipt-groups__head">Assorted multi-buy</p>
+            <ul class="receipt-groups__list">
+              ${group.groups
+                .map(
+                  (promo) => `
+                <li class="receipt-group">
+                  <p class="receipt-group__deal">${escapeHtml(promo.label)} <em>saves ${money.format(promo.savings)}</em></p>
+                  <p class="receipt-group__products">${promo.products.map((entry) => `${escapeHtml(entry.product.name)} ×${entry.qty}`).join(", ")}</p>
+                  <p class="receipt-group__limit">${escapeHtml(groupLimitText(promo))}</p>
+                </li>`
+                )
+                .join("")}
+            </ul>
+          </div>`
+              : ""
+          }
           <div class="receipt-store__foot">
             <span>${group.available ? "Basket total" : "Missing items"}${group.available && group.dealSavings > 0.004 ? ` <em class="receipt-store__deal">deals save ${money.format(group.dealSavings)}</em>` : ""}</span>
             <b>${group.available ? money.format(group.total) : `${group.missing} not stocked`}</b>

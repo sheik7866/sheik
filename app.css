@@ -1184,6 +1184,59 @@ button.grocer-item__price:disabled {
   color: var(--ink-mute);
 }
 
+.totals__groups {
+  margin-top: 0.55rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.totals__groups-head {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.totals-groups {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.totals-group__deal {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.totals-group__deal em {
+  margin-left: 0.25rem;
+  font-style: normal;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--leaf-deep);
+  white-space: nowrap;
+}
+
+.totals-group__products {
+  margin-top: 0.1rem;
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.totals-group__limit {
+  margin-top: 0.1rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--ink-mute);
+}
+
 .totals__empty {
   min-height: 0;
   font-size: 0.75rem;
@@ -1770,6 +1823,57 @@ button.grocer-item__price:disabled {
   font-weight: 600;
   color: var(--leaf-deep);
   white-space: nowrap;
+}
+
+.receipt-groups {
+  margin-top: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+.receipt-groups__head {
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.receipt-groups__list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.receipt-group__deal {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.receipt-group__deal em {
+  margin-left: 0.25rem;
+  font-style: normal;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--leaf-deep);
+  white-space: nowrap;
+}
+
+.receipt-group__products {
+  margin-top: 0.1rem;
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.receipt-group__limit {
+  margin-top: 0.1rem;
+  font-size: 0.6rem;
+  color: var(--ink-mute);
 }
 
 .receipt-save {
