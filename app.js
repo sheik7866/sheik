@@ -293,6 +293,7 @@ let visibleLimit = PAGE_SIZE;
 const MAX_FREE_STORES = 6;
 const MAX_PRO_STORES = 30;
 const STORAGE_KEY = "grocer-demo-v1";
+const TAB_IDS = ["stores", "catalog", "list"];
 
 /* Real product identity comes from Open Food Facts (open database, no key).
    It has no prices, so anything found there is priced with a clearly-labelled
@@ -426,6 +427,7 @@ const defaults = {
   live: [],
   prices: {},
   category: "All",
+  tab: "",
 };
 
 function todayIso() {
@@ -519,6 +521,7 @@ function loadState() {
             .map((row) => ({ id: row.id, qty: Math.min(Math.round(row.qty), 99) }))
         : [],
       category: CATEGORIES.includes(savedCategory) ? savedCategory : "All",
+      tab: TAB_IDS.includes(parsed.tab) ? parsed.tab : "",
       live,
     };
   } catch {
@@ -1291,8 +1294,8 @@ function renderTabs() {
   el.tabListCount.hidden = state.list.length === 0;
 }
 
-function setTab(tab) {
-  if (!["stores", "catalog", "list"].includes(tab)) return;
+function setTab(tab, { persist = false } = {}) {
+  if (!TAB_IDS.includes(tab)) return;
   for (const button of el.tabButtons) {
     const active = button.dataset.tab === tab;
     button.classList.toggle("is-active", active);
@@ -1300,6 +1303,10 @@ function setTab(tab) {
   }
   for (const panel of el.tabPanels) {
     panel.classList.toggle("is-active", panel.dataset.tabPanel === tab);
+  }
+  if (persist) {
+    state.tab = tab;
+    saveState();
   }
 }
 
@@ -2474,7 +2481,7 @@ el.clubToggle.addEventListener("change", () => {
 });
 
 for (const tab of el.tabButtons) {
-  tab.addEventListener("click", () => setTab(tab.dataset.tab));
+  tab.addEventListener("click", () => setTab(tab.dataset.tab, { persist: true }));
 }
 
 /* ---------- Camera scanning ---------- */
@@ -3036,7 +3043,7 @@ function renderImportBanner() {
 renderImportBanner();
 renderCoverageLine();
 renderAll();
-setTab(state.stores.length ? "catalog" : "stores");
+setTab(state.tab || (state.stores.length ? "catalog" : "stores"));
 for (const storeId of state.stores) void ensureStorePrices(storeId);
 
 /* ---------- Small utilities ---------- */
