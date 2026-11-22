@@ -4,12 +4,13 @@ on:
   push:
     branches: [main]
   schedule:
-    # Auckland is UTC+13 in summer and UTC+12 in winter. Both triggers fire;
-    # the gate job keeps the one that lands at 00:00–04:00 in Auckland and has
-    # not already refreshed today's prices, so one of them is local midnight
-    # and the second is a retry if the first run was delayed or dropped.
-    - cron: "0 11 * * *"
-    - cron: "0 12 * * *"
+    # Auckland is UTC+13 in summer and UTC+12 in winter. Three off-peak
+    # triggers cover both offsets; the gate job keeps the first one that lands
+    # at 00:00–04:00 in Auckland and has not already refreshed today's prices,
+    # so later triggers retry a delayed or dropped run without repeating work.
+    - cron: "7 11 * * *"
+    - cron: "7 12 * * *"
+    - cron: "7 13 * * *"
   workflow_dispatch:
 
 permissions:
