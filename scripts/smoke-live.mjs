@@ -141,32 +141,6 @@ async function currentDeals(page) {
       if (pnsDeal && Number(pnsDeal[0]) >= 2 && Number(pnsDeal[1]) > 0) continue;
       club.push({ sku, name: row[1], price, pns, nw });
     }
-    const singleDeals = [];
-    for (const [sku, deal] of Object.entries(catalogue.zones["pns-ni"]?.deals || {})) {
-      const row = bySku.get(sku);
-      if (!row) continue;
-      const qty = Number(deal[0]);
-      const price = Number(deal[1]);
-      const limit = Number(deal[3]);
-      const shelf = Number(row[6]);
-      const nw = Number(row[7]);
-      if (qty !== 1 || deal[2] === 1 || !(limit >= 2 && limit <= 12)) continue;
-      if (!(price > 0) || !(shelf > 0) || !(price < shelf)) continue;
-      if (shelf - price < 50) continue;
-      // Keep Mt Albert the cheapest offer at every tested quantity so the card,
-      // list and basket all report this special rather than the other store.
-      const nwDeal = catalogue.zones["nw-ni"]?.deals?.[sku];
-      const nwEffective =
-        nwDeal && Number(nwDeal[0]) === 1 && Number(nwDeal[2]) !== 1 && Number(nwDeal[1]) > 0
-          ? Number(nwDeal[1])
-          : nw;
-      if (nwEffective > 0 && nwEffective <= shelf) continue;
-      singleDeals.push({ sku, name: row[1], price, shelf, limit, saving: shelf - price });
-    }
-    singleDeals.sort(
-      (a, b) => a.limit - b.limit || a.price - b.price || a.sku.localeCompare(b.sku)
-    );
-    const single = singleDeals[0] || null;
     // Price another selected store's line exactly as the app would at this
     // quantity with no club card: a single-item special is capped by its own
     // limit, and any extra units stay at shelf price.
@@ -185,6 +159,31 @@ async function currentDeals(page) {
       const candidate = groups * price + (qty - units) * shelf;
       return Math.min(candidate, shelf * qty);
     };
+    const singleDeals = [];
+    for (const [sku, deal] of Object.entries(catalogue.zones["pns-ni"]?.deals || {})) {
+      const row = bySku.get(sku);
+      if (!row) continue;
+      const qty = Number(deal[0]);
+      const price = Number(deal[1]);
+      const limit = Number(deal[3]);
+      const shelf = Number(row[6]);
+      if (qty !== 1 || deal[2] === 1 || deal[6] !== 1 || !(limit >= 2 && limit <= 12)) continue;
+      if (!(price > 0) || !(shelf > 0) || !(price < shelf)) continue;
+      if (shelf - price < 50) continue;
+      // Keep Mt Albert the cheapest store at one unit, at the limit and one
+      // unit past it, so the card, list, totals panel and receipt all feature
+      // this mix & match special rather than the other store.
+      const atLimit = price * limit;
+      const overLimit = atLimit + shelf;
+      if (!(lineTotal(sku, "nw-ni", 7, 1) > price)) continue;
+      if (!(lineTotal(sku, "nw-ni", 7, limit) > atLimit)) continue;
+      if (!(lineTotal(sku, "nw-ni", 7, limit + 1) > overLimit)) continue;
+      singleDeals.push({ sku, name: row[1], price, shelf, limit, saving: shelf - price });
+    }
+    singleDeals.sort(
+      (a, b) => a.limit - b.limit || a.price - b.price || a.sku.localeCompare(b.sku)
+    );
+    const single = singleDeals[0] || null;
     const nwSingles = [];
     for (const [sku, deal] of Object.entries(catalogue.zones["nw-si"]?.deals || {})) {
       const row = bySku.get(sku);
@@ -667,7 +666,7 @@ async function main() {
     );
     assert(
       deals.single,
-      "no current PAK'nSAVE single-item special with a limit found in the catalogue"
+      "no current PAK'nSAVE mix & match single-item special with a limit found in the catalogue"
     );
     assert(
       deals.nwSingle,
@@ -974,7 +973,7 @@ async function main() {
       timeout: 5000,
     });
 
-    step(`checking a limited PAK'nSAVE single-item special: ${singleDeal.name}`);
+    step(`checking a limited PAK'nSAVE mix & match single-item special: ${singleDeal.name}`);
     const specialPrice = money(singleDeal.price);
     const specialSaving = money(singleDeal.saving * singleDeal.limit);
     const specialCard = await searchProduct(page, { name: singleDeal.name, sku: singleDeal.sku });
@@ -1015,6 +1014,16 @@ async function main() {
     assert(
       mtAlbertText.includes(atLimitTotal),
       `single-item special was not applied to all ${singleDeal.limit} units: ${mtAlbertText}`
+    );
+    const specialTotals = normalize(await page.locator("#totals").innerText());
+    assert(
+      /mix & match special at/i.test(specialTotals) &&
+        new RegExp(escapeRegExp(singleDeal.name), "i").test(specialTotals),
+      `PAK'nSAVE single-item special was not grouped as a mix & match special: ${specialTotals}`
+    );
+    assert(
+      !/assorted multi-buy/i.test(specialTotals),
+      `PAK'nSAVE single-item special was presented as an assorted multi-buy: ${specialTotals}`
     );
     const specialList = normalize(
       await page.locator(`#list-items [data-row="${singleDeal.sku}"]`).innerText()
@@ -1057,6 +1066,11 @@ async function main() {
         new RegExp(`Special ${escapeRegExp(specialPrice)}`, "i").test(specialReceipt) &&
         new RegExp(`deals save ${escapeRegExp(specialSaving)}`, "i").test(specialReceipt),
       `receipt did not carry the single-item special and its limit: ${specialReceipt}`
+    );
+    assert(
+      /mix & match special/i.test(specialReceipt) &&
+        !/assorted multi-buy/i.test(specialReceipt),
+      `PAK'nSAVE receipt labelled the single-item special as an assorted multi-buy: ${specialReceipt}`
     );
     await page.click("[data-close-receipt]");
     await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
