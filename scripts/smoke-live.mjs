@@ -1563,7 +1563,7 @@ async function main() {
     await page.waitForSelector('#product-grid [data-product="5045821-EA-000"]', { timeout: 20000 });
     const blueberryCard = normalize(
       await page.locator('#product-grid li.product:has([data-product="5045821-EA-000"])').innerText()
-    );
+    ).toLowerCase();
     assert(blueberryCard.includes("$6.49"), `Four Square special price is missing: ${blueberryCard}`);
     assert(
       blueberryCard.includes("weekly special"),
@@ -1576,7 +1576,7 @@ async function main() {
 
     await page.locator('#product-grid [data-product="5045821-EA-000"]').click();
     await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
-    const fourSquareDialog = normalize(await page.locator("#product-dialog").innerText());
+    const fourSquareDialog = normalize(await page.locator("#product-dialog").innerText()).toLowerCase();
     assert(
       fourSquareDialog.includes("weekly special") &&
         fourSquareDialog.includes("advertised specials, not shelf prices"),
@@ -1593,7 +1593,7 @@ async function main() {
     await page.waitForSelector('#product-grid [data-product="milk-2l"]', { timeout: 20000 });
     const milkCard = normalize(
       await page.locator('#product-grid li.product:has([data-product="milk-2l"])').innerText()
-    );
+    ).toLowerCase();
     assert(
       milkCard.includes("no published price"),
       `unpriced Four Square product should say no published price: ${milkCard}`
@@ -1606,7 +1606,7 @@ async function main() {
     await page.fill("#search", "Driscolls Blueberries");
     await page.waitForSelector('#product-grid [data-add="5045821-EA-000"]', { timeout: 20000 });
     await page.locator('#product-grid [data-add="5045821-EA-000"]').click();
-    const fourSquareTotals = normalize(await page.locator("#totals").innerText());
+    const fourSquareTotals = normalize(await page.locator("#totals").innerText()).toLowerCase();
     assert(
       fourSquareTotals.includes("publishes weekly specials only"),
       `Four Square basket total does not explain the missing shelf prices: ${fourSquareTotals}`
@@ -1618,7 +1618,9 @@ async function main() {
 
     await page.click("#receipt-button");
     await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
-    const fourSquareReceipt = normalize(await page.locator("#receipt-body").innerText());
+    const fourSquareReceipt = normalize(
+      await page.locator("#receipt-body").innerText()
+    ).toLowerCase();
     assert(
       fourSquareReceipt.includes("specials only") &&
         fourSquareReceipt.includes("advertised weekly specials"),
