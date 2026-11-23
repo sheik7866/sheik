@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "cheapest-price-red-2026-11-23";
+window.TROLLEYBIRD_BUILD = "cheapest-price-red-ties-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -506,6 +506,12 @@ for (const product of PRODUCTS) {
 }
 
 const money = new Intl.NumberFormat("en-NZ", { style: "currency", currency: "NZD" });
+
+/* Prices are kept to cents, but compare with a half-cent tolerance so a
+   floating-point remainder never hides a tied cheapest price. */
+function samePrice(a, b) {
+  return a != null && b != null && Math.abs(a - b) < 0.005;
+}
 
 const el = {
   storeList: document.getElementById("store-list"),
@@ -2272,13 +2278,18 @@ function renderTotals() {
     <h3>Basket total <span>${itemCount} item${itemCount === 1 ? "" : "s"}</span></h3>
     <ul class="total-rows">
       ${totals.rows
-        .map(
-          (row) => `
-        <li class="total-row${row.available && row === totals.cheapest && availableRows.length > 1 ? " is-best" : ""}${row.available ? "" : " is-unavailable"}">
-          <span>${escapeHtml(storeLabel(row.store))}${row.available && row === totals.cheapest && availableRows.length > 1 ? ' <em>cheapest</em>' : ""}${row.available && row.dealSavings > 0.004 ? ` <em class="total-row__deal">saves ${money.format(row.dealSavings)}</em>` : ""}${row.available ? "" : ` <em class="total-row__missing">${row.missing} not stocked</em>`}</span>
+        .map((row) => {
+          const isBest =
+            row.available &&
+            totals.cheapest &&
+            availableRows.length > 1 &&
+            samePrice(row.total, totals.cheapest.total);
+          return `
+        <li class="total-row${isBest ? " is-best" : ""}${row.available ? "" : " is-unavailable"}">
+          <span>${escapeHtml(storeLabel(row.store))}${isBest ? ' <em>cheapest</em>' : ""}${row.available && row.dealSavings > 0.004 ? ` <em class="total-row__deal">saves ${money.format(row.dealSavings)}</em>` : ""}${row.available ? "" : ` <em class="total-row__missing">${row.missing} not stocked</em>`}</span>
           <b>${row.available ? money.format(row.total) : "—"}</b>
-        </li>`
-        )
+        </li>`;
+        })
         .join("")}
     </ul>
     <p class="totals__save">${summary}${bestDealSaving > 0.004 ? ` Includes ${money.format(bestDealSaving)} of multi-buy/club savings.` : ""}</p>
@@ -2356,7 +2367,7 @@ function receiptSummaryText(groups) {
   ];
   groups.forEach((group) => {
     const status = group.available
-      ? `${money.format(group.total)}${group === best && availableGroups.length > 1 ? "  ← cheapest" : ""}`
+      ? `${money.format(group.total)}${best && availableGroups.length > 1 && samePrice(group.total, best.total) ? "  ← cheapest" : ""}`
       : `not available — ${group.missing} item${group.missing === 1 ? "" : "s"} not stocked`;
     lines.push(`${group.store.name} (${group.store.branch}) — ${status}`);
     group.lines.forEach((line) => {
@@ -2409,6 +2420,8 @@ function renderReceipt() {
   const best = availableGroups[0] || null;
   const dearest = availableGroups[availableGroups.length - 1] || null;
   const savings = best && dearest && best !== dearest ? dearest.total - best.total : 0;
+  const isBestGroup = (group) =>
+    Boolean(best) && group.available && availableGroups.length > 1 && samePrice(group.total, best.total);
   const hasChecked = groups.some((group) => group.lines.some((line) => line.checked));
   const hasImported = groups.some((group) => group.lines.some((line) => line.imported));
   const hasDeals = groups.some((group) => group.dealSavings > 0.004);
@@ -2432,12 +2445,12 @@ function renderReceipt() {
           ? groups
               .map(
                 (group) => `
-        <section class="receipt-store${group === best && availableGroups.length > 1 ? " is-best" : ""}${group.available ? "" : " is-unavailable"}" aria-label="${escapeHtml(group.store.name)} basket">
+        <section class="receipt-store${isBestGroup(group) ? " is-best" : ""}${group.available ? "" : " is-unavailable"}" aria-label="${escapeHtml(group.store.name)} basket">
           <div class="receipt-store__head">
             <h3 class="receipt-store__name">${escapeHtml(group.store.name)}<span class="receipt-store__branch">${escapeHtml(group.store.branch)}</span></h3>
             <p class="receipt-store__total">
               ${group.available ? money.format(group.total) : "Not available"}
-              ${group === best && availableGroups.length > 1 ? '<span class="receipt-store__badge">Cheapest</span>' : ""}
+              ${isBestGroup(group) ? '<span class="receipt-store__badge">Cheapest</span>' : ""}
             </p>
           </div>
           <ul class="receipt-lines">
@@ -2953,6 +2966,7 @@ function openProduct(productId) {
   const product = PRODUCT_MAP.get(productId);
   if (!product) return;
   const offers = offersFor(productId);
+  const cheapestPrice = offers.length ? offers[0].price : null;
   const hasDeals = offers.some((offer) => storeDealFor(productId, offer.store));
   const months = historyMonths();
   const recorded = recordedPricesFor(productId);
@@ -3008,8 +3022,9 @@ function openProduct(productId) {
             <thead><tr><th scope="col">Store</th><th scope="col">Price</th><th scope="col">Difference</th></tr></thead>
             <tbody>
               ${offers
-                .map((offer, index) => {
+                .map((offer) => {
                   const kind = priceKind(productId, offer.store.id);
+                  const isCheapest = samePrice(offer.price, cheapestPrice);
                   const real = priceState(productId, offer.store.id);
                   const deal = storeDealFor(productId, offer.store);
                   const note =
@@ -3020,10 +3035,10 @@ function openProduct(productId) {
                         : "";
                   const unit = unitPriceFor(product, offer.store);
                   return `
-                <tr class="${index === 0 ? "is-best" : ""}">
+                <tr class="${isCheapest ? "is-best" : ""}">
                   <th scope="row">${escapeHtml(offer.store.name)}<span>${escapeHtml(offer.store.branch)}</span></th>
                   <td class="dialog__price">${money.format(offer.price)}${note ? `<small class="dialog__checked">${note}</small>` : ""}${deal ? `<small class="dialog__deal">${escapeHtml(dealDetail(deal))}</small>` : ""}${unit ? `<small class="dialog__unit">${escapeHtml(unit.display)}</small>` : ""}</td>
-                  <td>${index === 0 ? "Cheapest" : `+${money.format(offer.price - offers[0].price)}`}</td>
+                  <td>${isCheapest ? "Cheapest" : `+${money.format(offer.price - cheapestPrice)}`}</td>
                 </tr>`;
                 })
                 .join("")}
