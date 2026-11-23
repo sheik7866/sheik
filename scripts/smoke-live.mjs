@@ -1543,7 +1543,9 @@ async function main() {
     );
     await page.fill("#store-search", "Four Square");
     await page.waitForSelector("#store-results [data-add-store]");
-    const fourSquareResults = normalize(await page.locator("#store-results").innerText());
+    const fourSquareResults = normalize(
+      await page.locator("#store-results").innerText()
+    ).toLowerCase();
     for (const branch of ["britomart", "eden terrace", "ellerslie", "onehunga"]) {
       assert(
         fourSquareResults.includes(branch),
