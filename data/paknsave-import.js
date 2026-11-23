@@ -1,6 +1,6 @@
 /* A small, dated PAK'nSAVE price import.
    Shelf prices were read from PAK'nSAVE's public online store pages for the
-   Mt Albert store on 2026-11-23, one category page at a time. Only products
+   Mt Albert store on 2026-11-24, one category page at a time. Only products
    that matched a demo staple like-for-like were kept, so 28 of 34 demo
    products have a real shelf price; everything else stays an estimate.
    These are one store's prices on one day: treat them as dated, not live. */
@@ -8,8 +8,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
   storeId: "paknsave",
   store: "PAK'nSAVE",
   branch: "Mt Albert",
-  fetchedAt: "2026-11-23",
-  checkedAt: "2026-11-22T17:20:18.638Z",
+  fetchedAt: "2026-11-24",
+  checkedAt: "2026-11-23T16:02:08.530Z",
   source: "https://www.paknsave.co.nz/shop/category/",
   items: {
     "milk-2l": {
@@ -85,8 +85,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
     "peas-1kg": {
       name: "Pams Frozen Garden Peas",
       size: "1kg",
-      price: 3.19,
-      unit: "$3.19/1kg",
+      price: 3.09,
+      unit: "$3.09/1kg",
       sku: "5003748_ea_000pns",
     },
     "icecream-2l": {
