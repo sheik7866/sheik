@@ -973,6 +973,10 @@
   white-space: nowrap;
 }
 
+.product__price {
+  color: var(--tomato);
+}
+
 .product__best small {
   width: 100%;
   font-size: 0.63rem;
@@ -1516,6 +1520,12 @@ button.grocer-item__price:disabled {
   line-height: 1.4;
 }
 
+.list-item__price {
+  color: var(--tomato);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .list-item__body small.list-item__deal {
   color: var(--leaf-deep);
   font-weight: 600;
@@ -1631,16 +1641,16 @@ button.grocer-item__price:disabled {
 }
 
 .total-row.is-best {
-  border-color: var(--leaf);
-  background: linear-gradient(180deg, var(--leaf), var(--leaf-deep));
-  color: #fff;
+  border-color: rgba(184, 67, 31, 0.5);
+  background: rgba(184, 67, 31, 0.08);
+  color: var(--ink);
   font-weight: 700;
-  box-shadow: 0 12px 24px -18px rgba(13, 74, 46, 0.7);
+  box-shadow: 0 12px 24px -18px rgba(184, 67, 31, 0.45);
 }
 
 .total-row.is-best b {
   font-size: 0.95rem;
-  color: #fff;
+  color: var(--tomato);
 }
 
 .total-row.is-best em {
@@ -1649,12 +1659,12 @@ button.grocer-item__price:disabled {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--lime);
+  color: var(--tomato);
   margin-left: 0.2rem;
 }
 
 .total-row.is-best .total-row__deal {
-  color: var(--lime);
+  color: var(--tomato);
 }
 
 .total-row.is-unavailable {
@@ -2255,7 +2265,11 @@ button.grocer-item__price:disabled {
 }
 
 .receipt-store.is-best .receipt-store__total {
-  color: var(--leaf-deep);
+  color: var(--tomato);
+}
+
+.receipt-store.is-best .receipt-store__foot b {
+  color: var(--tomato);
 }
 
 .receipt-store.is-unavailable .receipt-store__total {
@@ -2271,7 +2285,7 @@ button.grocer-item__price:disabled {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--leaf);
+  color: var(--tomato);
 }
 
 .receipt-lines {
@@ -2416,6 +2430,10 @@ button.grocer-item__price:disabled {
   font-weight: 600;
   line-height: 1.45;
   color: var(--leaf-deep);
+}
+
+.receipt-save__price {
+  color: var(--tomato);
 }
 
 .receipt-note {
@@ -2651,7 +2669,11 @@ button.grocer-item__price:disabled {
 }
 
 .dialog__prices tr.is-best td:last-child {
-  color: var(--leaf);
+  color: var(--tomato);
+}
+
+.dialog__prices tr.is-best .dialog__price {
+  color: var(--tomato);
 }
 
 .dialog__history {

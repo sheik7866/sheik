@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "list-product-open-scroll-2026-11-23";
+window.TROLLEYBIRD_BUILD = "cheapest-price-red-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2006,7 +2006,7 @@ function renderProducts() {
               <span class="product__name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
               <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
               <span class="product__best">
-                ${best ? `<b>${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${pricesLoading ? "loading prices…" : stores.length ? "not stocked" : "no stores selected"}</small>`}
+                ${best ? `<b class="product__price">${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${pricesLoading ? "loading prices…" : stores.length ? "not stocked" : "no stores selected"}</small>`}
               </span>
               <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : pricesLoading ? "Loading branch prices…" : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
               ${unit ? `<span class="product__unit">${escapeHtml(unit.display)}</span>` : ""}
@@ -2100,7 +2100,7 @@ function listItemMarkup(item) {
     <li class="list-item" data-row="${row.id}">
       <button class="list-item__body" type="button" data-open-product="${row.id}" title="View prices for ${escapeHtml(product.name)}" aria-label="View prices for ${escapeHtml(product.name)}">
         <b>${escapeHtml(product.name)}</b>
-        <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.shelfPrice)} at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : missing ? " · not stocked at your stores" : ""}</small>
+        <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from <span class="list-item__price">${money.format(best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : missing ? " · not stocked at your stores" : ""}</small>
         ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
         ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""} · save ${money.format(best.savings)}</small>` : ""}
       </button>
@@ -2483,7 +2483,7 @@ function renderReceipt() {
 
       ${
         savings > 0.004 && best && dearest
-          ? `<p class="receipt-save">Cheapest basket: ${escapeHtml(storeLabel(best.store))} at ${money.format(best.total)} — ${money.format(savings)} less than ${escapeHtml(storeLabel(dearest.store))}.</p>`
+          ? `<p class="receipt-save">Cheapest basket: ${escapeHtml(storeLabel(best.store))} at <b class="receipt-save__price">${money.format(best.total)}</b> — ${money.format(savings)} less than ${escapeHtml(storeLabel(dearest.store))}.</p>`
           : ""
       }
 
@@ -3022,7 +3022,7 @@ function openProduct(productId) {
                   return `
                 <tr class="${index === 0 ? "is-best" : ""}">
                   <th scope="row">${escapeHtml(offer.store.name)}<span>${escapeHtml(offer.store.branch)}</span></th>
-                  <td>${money.format(offer.price)}${note ? `<small class="dialog__checked">${note}</small>` : ""}${deal ? `<small class="dialog__deal">${escapeHtml(dealDetail(deal))}</small>` : ""}${unit ? `<small class="dialog__unit">${escapeHtml(unit.display)}</small>` : ""}</td>
+                  <td class="dialog__price">${money.format(offer.price)}${note ? `<small class="dialog__checked">${note}</small>` : ""}${deal ? `<small class="dialog__deal">${escapeHtml(dealDetail(deal))}</small>` : ""}${unit ? `<small class="dialog__unit">${escapeHtml(unit.display)}</small>` : ""}</td>
                   <td>${index === 0 ? "Cheapest" : `+${money.format(offer.price - offers[0].price)}`}</td>
                 </tr>`;
                 })
