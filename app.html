@@ -191,6 +191,34 @@
           <span class="switch__label">Club card <span class="switch__hint">apply to basket</span></span>
         </label>
 
+        <div class="list-tools" id="list-tools" hidden>
+          <div class="list-tools__search">
+            <label class="sr-only" for="list-filter">Filter shopping list</label>
+            <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="6" />
+              <path d="m16 16 4 4" />
+            </svg>
+            <input id="list-filter" type="search" placeholder="Filter by name…" autocomplete="off" />
+          </div>
+          <label class="list-tools__category">
+            <span class="sr-only">Filter by category</span>
+            <select id="list-category-filter"></select>
+          </label>
+          <div class="list-tools__chips" id="list-status-filters" role="group" aria-label="Filter list items by status">
+            <button class="list-filter-chip" type="button" data-list-status="all" aria-pressed="true">All <span data-list-count="all">0</span></button>
+            <button class="list-filter-chip" type="button" data-list-status="special" aria-pressed="false">Specials <span data-list-count="special">0</span></button>
+            <button class="list-filter-chip" type="button" data-list-status="missing" aria-pressed="false">Not stocked <span data-list-count="missing">0</span></button>
+          </div>
+          <div class="list-tools__foot">
+            <p class="list-tools__status" id="list-filter-status" aria-live="polite"></p>
+            <button class="link-btn list-tools__reset" type="button" id="list-filter-reset" aria-label="Clear list filters" hidden>Clear filters</button>
+          </div>
+          <p class="list-tools__empty" id="list-filter-empty" hidden>
+            No list items match these filters.
+            <button class="link-btn" type="button" id="list-filter-empty-reset">Clear filters</button>
+          </p>
+        </div>
+
         <ul class="list" id="list-items"></ul>
         <p class="empty" id="empty-list">Your list is empty. Add a product to see which store is cheapest for the whole shop.</p>
 

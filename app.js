@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "deal-limits-2026-11-23";
+window.TROLLEYBIRD_BUILD = "list-filters-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -430,6 +430,8 @@ const MAX_PRO_STORES = 30;
 const STORAGE_KEY = "grocer-demo-v1";
 const TAB_IDS = ["stores", "catalog", "list"];
 const SORT_MODES = ["relevance", "price", "unit"];
+const LIST_FILTER_STATUSES = ["all", "special", "missing"];
+const listFilters = { query: "", category: "all", status: "all" };
 
 /* Real product identity comes from Open Food Facts (open database, no key).
    It has no prices, so anything found there is priced with a clearly-labelled
@@ -530,6 +532,15 @@ const el = {
   productGrid: document.getElementById("product-grid"),
   emptyProducts: document.getElementById("empty-products"),
   listItems: document.getElementById("list-items"),
+  listTools: document.getElementById("list-tools"),
+  listFilter: document.getElementById("list-filter"),
+  listFilterReset: document.getElementById("list-filter-reset"),
+  listFilterStatus: document.getElementById("list-filter-status"),
+  listFilterEmpty: document.getElementById("list-filter-empty"),
+  listFilterEmptyReset: document.getElementById("list-filter-empty-reset"),
+  listCategoryFilter: document.getElementById("list-category-filter"),
+  listStatusFilters: document.getElementById("list-status-filters"),
+  listStatusButtons: [...document.querySelectorAll("[data-list-status]")],
   emptyList: document.getElementById("empty-list"),
   totals: document.getElementById("totals"),
   clearList: document.getElementById("clear-list"),
@@ -2063,36 +2074,154 @@ function renderProducts() {
   }
 }
 
-function renderList() {
-  el.listItems.innerHTML = state.list
-    .map((row) => {
-      const product = PRODUCT_MAP.get(row.id);
-      if (!product) return "";
-      const best = bestBasketOffer(row.id, row.qty);
-      const bestKind = best ? priceKind(row.id, best.store.id) : null;
-      const unit = best ? unitPriceFor(product, best.store) : null;
-      return `
-        <li class="list-item" data-row="${row.id}">
-          <span class="list-item__body">
-            <b title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</b>
-            <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.shelfPrice)} at ${escapeHtml(storeLabel(best.store))}` : ""}</small>
-            ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
-            ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""} · save ${money.format(best.savings)}</small>` : ""}
-          </span>
-          <span class="qty">
-            <button type="button" data-step="-1" data-id="${row.id}" aria-label="Decrease quantity of ${escapeHtml(product.name)}">−</button>
-            <output aria-label="Quantity">${row.qty}</output>
-            <button type="button" data-step="1" data-id="${row.id}" aria-label="Increase quantity of ${escapeHtml(product.name)}">+</button>
-          </span>
-          <button class="list-item__remove" type="button" data-remove="${row.id}" aria-label="Remove ${escapeHtml(product.name)}">×</button>
-        </li>`;
-    })
-    .join("");
+function listItemDetails(row, stores, pricesLoading) {
+  const product = PRODUCT_MAP.get(row.id);
+  if (!product) return null;
+  const best = bestBasketOffer(row.id, row.qty);
+  const bestKind = best ? priceKind(row.id, best.store.id) : null;
+  const unit = best ? unitPriceFor(product, best.store) : null;
+  const pricePending = !best && pricesLoading;
+  const missing = stores.length > 0 && !best && !pricesLoading;
+  const special = stores.some((store) => storeDealFor(row.id, store));
+  const category = product.category || "Other";
+  return { row, product, best, bestKind, unit, missing, pricePending, special, category };
+}
 
+function listItemSearchText(item) {
+  const { product, category } = item;
+  return normalizeSearchValue(
+    [product.name, product.brand, category, product.size].filter(Boolean).join(" ")
+  );
+}
+
+function listItemMarkup(item) {
+  const { row, product, best, bestKind, unit, missing, pricePending } = item;
+  return `
+    <li class="list-item" data-row="${row.id}">
+      <span class="list-item__body">
+        <b title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</b>
+        <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.shelfPrice)} at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : missing ? " · not stocked at your stores" : ""}</small>
+        ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
+        ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""} · save ${money.format(best.savings)}</small>` : ""}
+      </span>
+      <span class="qty">
+        <button type="button" data-step="-1" data-id="${row.id}" aria-label="Decrease quantity of ${escapeHtml(product.name)}">−</button>
+        <output aria-label="Quantity">${row.qty}</output>
+        <button type="button" data-step="1" data-id="${row.id}" aria-label="Increase quantity of ${escapeHtml(product.name)}">+</button>
+      </span>
+      <button class="list-item__remove" type="button" data-remove="${row.id}" aria-label="Remove ${escapeHtml(product.name)}">×</button>
+    </li>`;
+}
+
+function resetListFilters({ focus = false } = {}) {
+  listFilters.query = "";
+  listFilters.category = "all";
+  listFilters.status = "all";
+  if (el.listFilter) el.listFilter.value = "";
+  renderList();
+  if (focus && el.listFilter) el.listFilter.focus({ preventScroll: true });
+}
+
+function renderList() {
+  const stores = selectedStores();
+  const pricesLoading = stores.some((store) => !storePricesReady(store));
+  if (!state.list.length) {
+    listFilters.query = "";
+    listFilters.category = "all";
+    listFilters.status = "all";
+    if (el.listFilter) el.listFilter.value = "";
+  }
+
+  const items = state.list.map((row) => listItemDetails(row, stores, pricesLoading)).filter(Boolean);
+  const categories = new Map();
+  for (const item of items) {
+    categories.set(item.category, (categories.get(item.category) || 0) + 1);
+  }
+  if (listFilters.category !== "all" && !categories.has(listFilters.category)) {
+    listFilters.category = "all";
+  }
+  if (listFilters.status === "missing" && !stores.length) {
+    listFilters.status = "all";
+  }
+  if (!LIST_FILTER_STATUSES.includes(listFilters.status)) listFilters.status = "all";
+
+  const terms = normalizeSearchValue(listFilters.query).split(/\s+/).filter(Boolean);
+  const filtered = items.filter((item) => {
+    if (listFilters.category !== "all" && item.category !== listFilters.category) {
+      return false;
+    }
+    if (listFilters.status === "special" && !item.special) return false;
+    if (listFilters.status === "missing" && !item.missing) return false;
+    if (terms.length) {
+      const haystack = listItemSearchText(item);
+      if (!terms.every((term) => haystack.includes(term))) return false;
+    }
+    return true;
+  });
+  const filtersActive =
+    Boolean(terms.length) || listFilters.category !== "all" || listFilters.status !== "all";
+  const counts = {
+    all: items.length,
+    special: items.filter((item) => item.special).length,
+    missing: items.filter((item) => item.missing).length,
+  };
+
+  el.listItems.innerHTML = filtered.map(listItemMarkup).join("");
+  el.listTools.hidden = items.length === 0;
   el.emptyList.hidden = state.list.length > 0;
   el.clearList.hidden = state.list.length === 0;
   el.receiptButton.hidden = state.list.length === 0;
   el.bulkButton.hidden = state.list.length === 0;
+
+  if (el.listFilter) {
+    if (el.listFilter.value !== listFilters.query) el.listFilter.value = listFilters.query;
+    el.listFilterReset.hidden = !filtersActive;
+  }
+
+  if (el.listFilterStatus) {
+    if (!items.length) el.listFilterStatus.textContent = "";
+    else if (filtersActive && filtered.length) {
+      el.listFilterStatus.textContent = `Showing ${filtered.length} of ${items.length} items. Totals include all ${items.length}.`;
+    } else if (filtersActive) {
+      el.listFilterStatus.textContent = `No matches. Totals still include all ${items.length} items.`;
+    } else {
+      el.listFilterStatus.textContent = `${items.length} item${items.length === 1 ? "" : "s"} · filter by name, category or status.`;
+    }
+  }
+
+  if (el.listFilterEmpty) {
+    el.listFilterEmpty.hidden = !filtersActive || filtered.length > 0 || items.length === 0;
+  }
+
+  if (el.listCategoryFilter) {
+    const options = [...categories.entries()].sort((a, b) => a[0].localeCompare(b[0], "en-NZ"));
+    const optionsKey = options.map(([name, count]) => `${name}:${count}`).join("|");
+    if (el.listCategoryFilter.dataset.optionsKey !== optionsKey) {
+      el.listCategoryFilter.innerHTML =
+        `<option value="all">All categories (${items.length})</option>` +
+        options
+          .map(
+            ([name, count]) =>
+              `<option value="${escapeHtml(name)}">${escapeHtml(name)} (${count})</option>`
+          )
+          .join("");
+      el.listCategoryFilter.dataset.optionsKey = optionsKey;
+    }
+    el.listCategoryFilter.value = listFilters.category;
+  }
+
+  for (const button of el.listStatusButtons) {
+    const status = button.dataset.listStatus;
+    if (!LIST_FILTER_STATUSES.includes(status)) continue;
+    const countNode = button.querySelector("[data-list-count]");
+    if (countNode) countNode.textContent = String(counts[status]);
+    const active = listFilters.status === status;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+    button.hidden = status === "missing" && !stores.length;
+    button.disabled = status !== "all" && counts[status] === 0 && !active;
+  }
+
   renderTabs();
 }
 
@@ -3190,6 +3319,22 @@ el.offLookupButton.addEventListener("click", async () => {
       : "Couldn't reach Open Food Facts. Check your connection and try again.";
 });
 el.clearList.addEventListener("click", clearList);
+el.listFilter.addEventListener("input", () => {
+  listFilters.query = el.listFilter.value;
+  renderList();
+});
+el.listCategoryFilter.addEventListener("change", () => {
+  listFilters.category = el.listCategoryFilter.value || "all";
+  renderList();
+});
+el.listStatusFilters.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-list-status]");
+  if (!button || button.disabled) return;
+  listFilters.status = button.dataset.listStatus;
+  renderList();
+});
+el.listFilterReset.addEventListener("click", () => resetListFilters({ focus: true }));
+el.listFilterEmptyReset.addEventListener("click", () => resetListFilters({ focus: true }));
 el.bulkButton.addEventListener("click", openBulkPrices);
 el.bulkStore.addEventListener("change", renderBulkRows);
 el.bulkSave.addEventListener("click", saveBulkPrices);
