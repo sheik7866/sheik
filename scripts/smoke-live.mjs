@@ -9,11 +9,11 @@
   GTINs (including the V can's 8-digit EAN-8) and   decodes the rendered images
   with the site's own vendored ZXing build, so a broken barcode image fails the
   post-deploy check. Products without a valid GTIN must show no barcode card.
-  It also checks quantity-aware multi-buy totals, a limited single-item special
-  (including units beyond its limit reverting to shelf price), the club-card
-  toggle, and the deal-adjusted receipt, and requires a loaded product picture
-  plus the import banner's last price-check time and shelf-price coverage
-  summary.
+  It also checks quantity-aware multi-buy totals, limited single-item specials
+  at PAK'nSAVE and New World (including units beyond their limit reverting to
+  shelf price), the club-card toggle, and the deal-adjusted receipt, and
+  requires a loaded product picture plus the import banner's last price-check
+  time and shelf-price coverage summary.
 
   Usage:
     npm run smoke:live
@@ -167,6 +167,49 @@ async function currentDeals(page) {
       (a, b) => a.limit - b.limit || a.price - b.price || a.sku.localeCompare(b.sku)
     );
     const single = singleDeals[0] || null;
+    // Price another selected store's line exactly as the app would at this
+    // quantity with no club card: a single-item special is capped by its own
+    // limit, and any extra units stay at shelf price.
+    const lineTotal = (sku, zone, shelfIndex, qty) => {
+      const row = bySku.get(sku);
+      const shelf = Number(row?.[shelfIndex]);
+      if (!(shelf > 0)) return null;
+      const deal = catalogue.zones[zone]?.deals?.[sku];
+      if (!deal || deal[2] === 1) return shelf * qty;
+      const threshold = Number(deal[0]);
+      const price = Number(deal[1]);
+      const dealLimit = Number(deal[3]);
+      const eligible = dealLimit > 0 ? Math.min(qty, dealLimit) : qty;
+      const groups = threshold > 1 ? Math.floor(eligible / threshold) : eligible;
+      const units = threshold > 1 ? groups * threshold : eligible;
+      const candidate = groups * price + (qty - units) * shelf;
+      return Math.min(candidate, shelf * qty);
+    };
+    const nwSingles = [];
+    for (const [sku, deal] of Object.entries(catalogue.zones["nw-si"]?.deals || {})) {
+      const row = bySku.get(sku);
+      if (!row) continue;
+      const qty = Number(deal[0]);
+      const price = Number(deal[1]);
+      const limit = Number(deal[3]);
+      const shelf = Number(row[9]);
+      if (qty !== 1 || deal[2] === 1 || !(limit >= 2 && limit <= 12)) continue;
+      if (!(price > 0) || !(shelf > 0) || !(price < shelf)) continue;
+      if (shelf - price < 50) continue;
+      // Keep New World Ilam the cheapest store at one unit, at the limit and
+      // one unit past it, so the card, list and receipt all feature this deal.
+      if (!(lineTotal(sku, "pns-ni", 6, 1) > price)) continue;
+      if (!(lineTotal(sku, "nw-ni", 7, 1) > price)) continue;
+      const atLimit = price * limit;
+      const overLimit = atLimit + shelf;
+      if (!(lineTotal(sku, "pns-ni", 6, limit) > atLimit)) continue;
+      if (!(lineTotal(sku, "nw-ni", 7, limit) > atLimit)) continue;
+      if (!(lineTotal(sku, "pns-ni", 6, limit + 1) > overLimit)) continue;
+      if (!(lineTotal(sku, "nw-ni", 7, limit + 1) > overLimit)) continue;
+      nwSingles.push({ sku, name: row[1], price, shelf, limit, saving: shelf - price });
+    }
+    nwSingles.sort((a, b) => a.limit - b.limit || a.price - b.price || a.sku.localeCompare(b.sku));
+    const nwSingle = nwSingles[0] || null;
     const uniformShelf = (group) =>
       group.products.length > 0 &&
       group.products.every((product) => product.shelf === group.products[0].shelf);
@@ -193,6 +236,7 @@ async function currentDeals(page) {
       pool,
       limited,
       single,
+      nwSingle,
     };
   });
 }
@@ -625,11 +669,16 @@ async function main() {
       deals.single,
       "no current PAK'nSAVE single-item special with a limit found in the catalogue"
     );
+    assert(
+      deals.nwSingle,
+      "no current New World single-item special with a limit found in the catalogue"
+    );
     const multiDeal = deals.multi[0];
     const clubDeal = deals.club[0];
     const poolGroup = deals.pool;
     const limitedGroup = deals.limited;
     const singleDeal = deals.single;
+    const nwSingleDeal = deals.nwSingle;
     const limitedLabel = limitedGroup.products.every(
       (product) => product.brand === limitedGroup.products[0].brand
     )
@@ -653,6 +702,11 @@ async function main() {
       `[smoke] current single-item special: ${singleDeal.name} (${money(
         singleDeal.price
       )}, limit ${singleDeal.limit}, shelf ${money(singleDeal.shelf)})`
+    );
+    console.log(
+      `[smoke] current New World single-item special: ${nwSingleDeal.name} (${money(
+        nwSingleDeal.price
+      )}, limit ${nwSingleDeal.limit}, shelf ${money(nwSingleDeal.shelf)})`
     );
 
     step("checking multi-buy and club-card shelf tags");
@@ -1012,6 +1066,123 @@ async function main() {
       () => document.querySelectorAll("#list-items .list-item").length === 0,
       null,
       { timeout: 5000 }
+    );
+
+    step("adding a New World branch for its single-item special");
+    await addStore(page, { query: "Ilam", brand: "New World", branch: "Ilam" }, 3);
+    assert(
+      normalize(await page.locator("#store-counter").innerText()) === "3 / 6",
+      "store counter should show 3 / 6 with New World Ilam selected"
+    );
+
+    step(`checking a limited New World single-item special: ${nwSingleDeal.name}`);
+    const nwSpecialPrice = money(nwSingleDeal.price);
+    const nwSpecialSaving = money(nwSingleDeal.saving * nwSingleDeal.limit);
+    const nwSpecialCard = await searchProduct(page, {
+      name: nwSingleDeal.name,
+      sku: nwSingleDeal.sku,
+    });
+    assert(
+      nwSpecialCard.includes(`Special ${nwSpecialPrice}`),
+      `New World single-item special price missing from the card: ${nwSpecialCard}`
+    );
+    assert(
+      nwSpecialCard.includes(`limit ${nwSingleDeal.limit}`),
+      `New World single-item special limit missing from the card: ${nwSpecialCard}`
+    );
+    await page.locator(`#product-grid [data-product="${nwSingleDeal.sku}"]`).click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const nwSpecialDialog = normalize(await page.locator("#product-dialog").innerText());
+    assert(
+      nwSpecialDialog.includes(`Special ${nwSpecialPrice}`) &&
+        new RegExp(`limit ${nwSingleDeal.limit}\\b`, "i").test(nwSpecialDialog),
+      `New World single-item special terms missing from the price dialog: ${nwSpecialDialog}`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+
+    await addToList(page, nwSingleDeal.sku, 1);
+    const nwSpecialRow = page.locator(`#list-items [data-row="${nwSingleDeal.sku}"]`);
+    for (let units = 1; units < nwSingleDeal.limit; units += 1) {
+      await nwSpecialRow.locator('[data-step="1"]').click();
+    }
+    await page.waitForFunction(
+      ({ sku, qty }) =>
+        document.querySelector(`#list-items [data-row="${sku}"] output`)?.textContent ===
+        String(qty),
+      { sku: nwSingleDeal.sku, qty: nwSingleDeal.limit },
+      { timeout: 5000 }
+    );
+    const nwAtLimitTotal = money(nwSingleDeal.price * nwSingleDeal.limit);
+    const ilamRow = page.locator("#totals .total-row").filter({ hasText: "Ilam" }).first();
+    let ilamText = normalize(await ilamRow.innerText());
+    assert(
+      ilamText.includes(nwAtLimitTotal),
+      `New World single-item special was not applied to all ${nwSingleDeal.limit} units: ${ilamText}`
+    );
+    const nwSpecialList = normalize(
+      await page.locator(`#list-items [data-row="${nwSingleDeal.sku}"]`).innerText()
+    );
+    assert(
+      nwSpecialList.includes(`Special ${nwSpecialPrice} applied`) &&
+        nwSpecialList.includes(`limit ${nwSingleDeal.limit}`) &&
+        new RegExp(`save ${escapeRegExp(nwSpecialSaving)}`, "i").test(nwSpecialList),
+      `New World single-item special note missing from the list: ${nwSpecialList}`
+    );
+
+    await nwSpecialRow.locator('[data-step="1"]').click();
+    await page.waitForFunction(
+      ({ sku, qty }) =>
+        document.querySelector(`#list-items [data-row="${sku}"] output`)?.textContent ===
+        String(qty),
+      { sku: nwSingleDeal.sku, qty: nwSingleDeal.limit + 1 },
+      { timeout: 5000 }
+    );
+    const nwOverLimitTotal = money(
+      nwSingleDeal.price * nwSingleDeal.limit + nwSingleDeal.shelf
+    );
+    ilamText = normalize(await ilamRow.innerText());
+    assert(
+      ilamText.includes(nwOverLimitTotal),
+      `the New World unit beyond the limit was not charged at shelf price: ${ilamText}`
+    );
+
+    await page.click("#receipt-button");
+    await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
+    const nwSpecialReceipt = normalize(
+      await page
+        .locator("#receipt-body .receipt-store")
+        .filter({ hasText: "Ilam" })
+        .first()
+        .innerText()
+    );
+    assert(
+      nwSpecialReceipt.includes(nwOverLimitTotal) &&
+        new RegExp(`Special ${escapeRegExp(nwSpecialPrice)}`, "i").test(nwSpecialReceipt) &&
+        new RegExp(`deals save ${escapeRegExp(nwSpecialSaving)}`, "i").test(nwSpecialReceipt),
+      `New World receipt did not carry the single-item special and its limit: ${nwSpecialReceipt}`
+    );
+    await page.click("[data-close-receipt]");
+    await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
+    const ilamStore = page
+      .locator("#store-list .store-selected")
+      .filter({ hasText: "Ilam" })
+      .first();
+    await ilamStore.locator("[data-remove-store]").click();
+    await page.waitForFunction(
+      () => document.querySelectorAll("#store-list .store-selected").length === 2,
+      null,
+      { timeout: 5000 }
+    );
+    assert(
+      normalize(await page.locator("#store-counter").innerText()) === "2 / 6",
+      "store counter should return to 2 / 6 after removing New World Ilam"
     );
 
     step(`PAK'nSAVE-only product: ${PAK_ONLY.name}`);
