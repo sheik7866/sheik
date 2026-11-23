@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "list-filters-2026-11-23";
+window.TROLLEYBIRD_BUILD = "list-product-open-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2098,12 +2098,12 @@ function listItemMarkup(item) {
   const { row, product, best, bestKind, unit, missing, pricePending } = item;
   return `
     <li class="list-item" data-row="${row.id}">
-      <span class="list-item__body">
-        <b title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</b>
+      <button class="list-item__body" type="button" data-open-product="${row.id}" title="View prices for ${escapeHtml(product.name)}" aria-label="View prices for ${escapeHtml(product.name)}">
+        <b>${escapeHtml(product.name)}</b>
         <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.shelfPrice)} at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : missing ? " · not stocked at your stores" : ""}</small>
         ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
         ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""} · save ${money.format(best.savings)}</small>` : ""}
-      </span>
+      </button>
       <span class="qty">
         <button type="button" data-step="-1" data-id="${row.id}" aria-label="Decrease quantity of ${escapeHtml(product.name)}">−</button>
         <output aria-label="Quantity">${row.qty}</output>
@@ -3193,6 +3193,11 @@ el.productGrid.addEventListener("error", hideBrokenImage, true);
 el.dialogContent.addEventListener("error", hideBrokenImage, true);
 
 el.listItems.addEventListener("click", (event) => {
+  const open = event.target.closest("[data-open-product]");
+  if (open) {
+    openProduct(open.dataset.openProduct);
+    return;
+  }
   const step = event.target.closest("[data-step]");
   if (step) {
     stepQuantity(step.dataset.id, Number(step.dataset.step));

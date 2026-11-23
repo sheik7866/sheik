@@ -1471,8 +1471,28 @@ button.grocer-item__price:disabled {
 }
 
 .list-item__body {
+  display: block;
   min-width: 0;
   flex: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-item__body:hover b {
+  color: var(--leaf-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.list-item__body:focus-visible {
+  outline: 2px solid var(--leaf);
+  outline-offset: 2px;
+  border-radius: 5px;
 }
 
 .list-item__body b {
