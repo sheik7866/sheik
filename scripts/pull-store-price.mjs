@@ -4,8 +4,9 @@
  *
  * Driven by scripts/pull-all-store-prices.mjs. This deliberately does not keep
  * a full raw catalogue on disk: on a 200-store run the raw JSON would be
- * several gigabytes. It keeps the price overrides, the multi-buy and club-card
- * terms, and metadata for products that are not already in the base union.
+ * several gigabytes. It keeps the price overrides, the single-item, multi-buy
+ * and club-card deal terms, and metadata for products that are not already in
+ * the base union.
  *
  *   STORE_ID=... BRAND=pns ZONE=pns-ni \
  *     BASE_MAP_FILE=/tmp/base-prices.json BASE_IDS_FILE=/tmp/base-ids.json \

@@ -9,10 +9,11 @@
  *   promoId      Foodstuffs promotion id, used to pool mix-and-match products
  *   multiProducts 1 when different products can share the promotion
  *
- * Only multi-buys and club-card prices are kept, and only when their
- * per-unit price beats the branch's single-item shelf price. Ordinary
- * NEW_PRICE promotions without a card are already reflected in the shelf
- * price, so they are not duplicated here.
+ * Single-item specials, multi-buys and club-card prices are kept when their
+ * per-unit price beats the branch's single-item shelf price. A NEW_PRICE
+ * promotion is not always folded into the shelf price — PAK'nSAVE's "Extra
+ * Low" prices are the counter-example — so threshold-1 promotions are kept
+ * too and the app uses the lower price for a single unit.
  */
 
 export function dealForProduct(product, priceCents) {
@@ -29,7 +30,6 @@ export function dealForProduct(product, priceCents) {
 
     if (!Number.isInteger(threshold) || threshold < 1) continue;
     if (!Number.isInteger(rewardValue) || rewardValue <= 0) continue;
-    if (threshold === 1 && !club) continue;
     if (rewardValue / threshold >= shelfPrice) continue;
 
     const candidate = {

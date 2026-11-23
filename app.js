@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "cheapest-price-red-ties2-2026-11-23";
+window.TROLLEYBIRD_BUILD = "single-item-specials-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -757,7 +757,6 @@ function normalizeDeal(raw) {
   const [threshold, priceCents, clubFlag, limit, description, promoId, multiFlag] = raw;
   if (!Number.isInteger(threshold) || threshold < 1) return null;
   if (!Number.isFinite(priceCents) || priceCents <= 0) return null;
-  if (threshold === 1 && !clubFlag) return null;
   return {
     threshold,
     price: priceCents / 100,
@@ -1003,7 +1002,8 @@ function dealLabel(deal) {
   if (deal.threshold > 1) {
     return `${deal.club ? "Club member" : "Multi-buy"} ${deal.threshold} for ${price}`;
   }
-  return `Club member ${price}`;
+  if (deal.club) return `Club member ${price}`;
+  return `Special ${price}`;
 }
 
 function dealLimitLabel(deal) {
@@ -1157,6 +1157,17 @@ function priceFor(productId, storeId) {
   return roundPrice(p.base * s.factor * (1 + jitter));
 }
 
+/* A threshold-1, non-club promotion is a single-item special, so it is the
+   price a shopper pays for one unit. Multi-buys stay as shelf price plus a
+   deal note until the basket reaches their quantity. */
+function effectivePriceFor(productId, store) {
+  const shelf = priceFor(productId, store.id);
+  if (shelf == null) return null;
+  const deal = storeDealFor(productId, store);
+  if (deal && deal.threshold === 1 && !deal.club && deal.price < shelf) return deal.price;
+  return shelf;
+}
+
 /* Unit prices are advertised by the price lists as strings such as
    "$9.14/100g". The denominator is the useful part: the shelf price can move,
    but the pack size stays the same. */
@@ -1283,7 +1294,7 @@ function unitPriceFromReference(reference, price, basePrice) {
 
 function unitPriceFor(product, store) {
   if (!product || !store) return null;
-  const price = priceFor(product.id, store.id);
+  const price = effectivePriceFor(product.id, store);
   if (price == null) return null;
   const catalogueId =
     product.source === "catalogue"
@@ -1458,7 +1469,7 @@ function historyMonths() {
 function offersFor(productId) {
   const stores = selectedStores();
   return stores
-    .map((store) => ({ store, price: priceFor(productId, store.id) }))
+    .map((store) => ({ store, price: effectivePriceFor(productId, store) }))
     .filter((offer) => offer.price != null)
     .sort((a, b) => a.price - b.price);
 }
@@ -1995,7 +2006,7 @@ function renderProducts() {
       const bestDeal = best ? storeDealFor(product.id, best.store) : null;
       const unit = best ? unitPriceFor(product, best.store) : null;
       const unavailableStores = stores.filter((store) => knownUnavailable(product.id, store.id));
-      const prices = stores.map((store) => priceFor(product.id, store.id)).filter((price) => price != null);
+      const prices = stores.map((store) => effectivePriceFor(product.id, store)).filter((price) => price != null);
       const range = prices.length > 1 ? ` · ${money.format(Math.min(...prices))}–${money.format(Math.max(...prices))}` : "";
       const priceSummary = best
         ? `, ${money.format(best.price)} at ${storeLabel(best.store)}${unit ? `, ${unit.display}` : ""}`
@@ -2102,11 +2113,12 @@ function listItemSearchText(item) {
 
 function listItemMarkup(item) {
   const { row, product, best, bestKind, unit, missing, pricePending } = item;
+  const fromPrice = best ? effectivePriceFor(row.id, best.store) : null;
   return `
     <li class="list-item" data-row="${row.id}">
       <button class="list-item__body" type="button" data-open-product="${row.id}" title="View prices for ${escapeHtml(product.name)}" aria-label="View prices for ${escapeHtml(product.name)}">
         <b>${escapeHtml(product.name)}</b>
-        <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from <span class="list-item__price">${money.format(best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : missing ? " · not stocked at your stores" : ""}</small>
+        <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from <span class="list-item__price">${money.format(fromPrice ?? best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : missing ? " · not stocked at your stores" : ""}</small>
         ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
         ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""} · save ${money.format(best.savings)}</small>` : ""}
       </button>
@@ -3049,7 +3061,7 @@ function openProduct(productId) {
 
     ${
       hasDeals
-        ? `<p class="dialog__deal-note">Club prices need a club card; multi-buys apply at the stated quantity. Basket totals apply these terms when they qualify; turn on the Club card switch to include club prices.</p>`
+        ? `<p class="dialog__deal-note">Single-item specials apply automatically; club prices need a club card, and multi-buys apply at the stated quantity. Basket totals apply these terms when they qualify; turn on the Club card switch to include club prices.</p>`
         : ""
     }
 

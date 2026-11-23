@@ -4,7 +4,8 @@
  * The four base lists in data/catalogue.js cover most prices. This script
  * copies each branch's sparse override file and adds products that only appear
  * in branch pulls to the shared catalogue, so selecting that branch can show
- * them. It refuses to build if any non-base branch is missing its files.
+ * them. Override files carry that branch's prices and deal terms. It refuses to
+ * build if any non-base branch is missing its files.
  *
  *   node scripts/build-store-price-data.mjs
  *   SOURCE_DIR=/tmp/store-price-pull node scripts/build-store-price-data.mjs
