@@ -193,7 +193,7 @@ async function currentDeals(page) {
       const price = Number(deal[1]);
       const limit = Number(deal[3]);
       const shelf = Number(row[9]);
-      if (qty !== 1 || deal[2] === 1 || !(limit >= 2 && limit <= 12)) continue;
+      if (qty !== 1 || deal[2] === 1 || deal[6] !== 1 || !(limit >= 2 && limit <= 12)) continue;
       if (!(price > 0) || !(shelf > 0) || !(price < shelf)) continue;
       if (shelf - price < 50) continue;
       // Keep New World Ilam the cheapest store at one unit, at the limit and
@@ -249,7 +249,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "single-item-specials-2026-11-23",
+        () => window.TROLLEYBIRD_BUILD === "mix-and-match-groups-2026-11-23",
         null,
         { timeout: 5000 }
       );
@@ -671,7 +671,7 @@ async function main() {
     );
     assert(
       deals.nwSingle,
-      "no current New World single-item special with a limit found in the catalogue"
+      "no current New World mix & match single-item special with a limit found in the catalogue"
     );
     const multiDeal = deals.multi[0];
     const clubDeal = deals.club[0];
@@ -1120,6 +1120,16 @@ async function main() {
       ilamText.includes(nwAtLimitTotal),
       `New World single-item special was not applied to all ${nwSingleDeal.limit} units: ${ilamText}`
     );
+    const nwSpecialTotals = normalize(await page.locator("#totals").innerText());
+    assert(
+      /mix & match special at/i.test(nwSpecialTotals) &&
+        new RegExp(escapeRegExp(nwSingleDeal.name), "i").test(nwSpecialTotals),
+      `New World single-item special was not grouped as a mix & match special: ${nwSpecialTotals}`
+    );
+    assert(
+      !/assorted multi-buy/i.test(nwSpecialTotals),
+      `New World single-item special was presented as an assorted multi-buy: ${nwSpecialTotals}`
+    );
     const nwSpecialList = normalize(
       await page.locator(`#list-items [data-row="${nwSingleDeal.sku}"]`).innerText()
     );
@@ -1161,6 +1171,11 @@ async function main() {
         new RegExp(`Special ${escapeRegExp(nwSpecialPrice)}`, "i").test(nwSpecialReceipt) &&
         new RegExp(`deals save ${escapeRegExp(nwSpecialSaving)}`, "i").test(nwSpecialReceipt),
       `New World receipt did not carry the single-item special and its limit: ${nwSpecialReceipt}`
+    );
+    assert(
+      /mix & match special/i.test(nwSpecialReceipt) &&
+        !/assorted multi-buy/i.test(nwSpecialReceipt),
+      `New World receipt labelled the single-item special as an assorted multi-buy: ${nwSpecialReceipt}`
     );
     await page.click("[data-close-receipt]");
     await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);

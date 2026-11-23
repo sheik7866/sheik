@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "single-item-specials-2026-11-23";
+window.TROLLEYBIRD_BUILD = "mix-and-match-groups-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -947,8 +947,10 @@ function basketPricingAtStore(store) {
   return lines;
 }
 
-/* The assorted promotions that actually priced this basket, with the products
-   that shared each offer and the units counted against its limit. */
+/* The pooled promotions that actually priced this basket, with the products
+   that shared each offer and the units counted against its limit. A pooled
+   offer is either an assorted multi-buy or a single-item mix-and-match
+   special; promoGroupSections() keeps the two apart when they are shown. */
 function assortedGroups(lines) {
   const groups = new Map();
   for (const line of lines) {
@@ -994,6 +996,30 @@ function groupLimitText(group) {
   const extra = group.basketUnits - used;
   if (extra > 0) parts.push(`${extra} unit${extra === 1 ? "" : "s"} at shelf price`);
   return parts.join(" · ");
+}
+
+/* Grouped promotions read differently: a multi-buy needs several units to
+   qualify, while a single-item special is already cheap at one unit and only
+   pools its limit across products. Keep them in separate lists instead of
+   presenting every pooled offer as an assorted multi-buy. */
+function promoGroupSections(groups) {
+  const multiBuys = groups.filter((group) => group.deal.threshold > 1);
+  const specials = groups.filter((group) => group.deal.threshold === 1);
+  const sections = [];
+  if (multiBuys.length) {
+    sections.push({ heading: "Assorted multi-buy", groups: multiBuys });
+  }
+  if (specials.length) {
+    sections.push({
+      heading: `Mix & match special${specials.length === 1 ? "" : "s"}`,
+      groups: specials,
+    });
+  }
+  return sections;
+}
+
+function promoGroupKind(deal) {
+  return deal?.threshold === 1 ? "mix & match" : "assorted";
 }
 
 function dealLabel(deal) {
@@ -2260,12 +2286,13 @@ function renderTotals() {
         : "Prices are level across your stores for this basket.";
   const bestDealSaving = totals.cheapest?.dealSavings || 0;
   const cheapestGroups = totals.cheapest?.groups || [];
-  const assortedMarkup = cheapestGroups.length
-    ? `
+  const assortedMarkup = promoGroupSections(cheapestGroups)
+    .map(
+      (section) => `
     <div class="totals__groups">
-      <p class="totals__groups-head">Assorted multi-buy at ${escapeHtml(storeLabel(totals.cheapest.store))}</p>
+      <p class="totals__groups-head">${escapeHtml(section.heading)} at ${escapeHtml(storeLabel(totals.cheapest.store))}</p>
       <ul class="totals-groups">
-        ${cheapestGroups
+        ${section.groups
           .map(
             (promo) => `
         <li class="totals-group">
@@ -2277,7 +2304,8 @@ function renderTotals() {
           .join("")}
       </ul>
     </div>`
-    : "";
+    )
+    .join("");
   const cardNote =
     !state.clubCard && totals.rows.some((row) => row.clubDealAvailable)
       ? "Club card is off; club prices are not included."
@@ -2304,7 +2332,7 @@ function renderTotals() {
         })
         .join("")}
     </ul>
-    <p class="totals__save">${summary}${bestDealSaving > 0.004 ? ` Includes ${money.format(bestDealSaving)} of multi-buy/club savings.` : ""}</p>
+    <p class="totals__save">${summary}${bestDealSaving > 0.004 ? ` Includes ${money.format(bestDealSaving)} of deal savings.` : ""}</p>
     ${assortedMarkup}
     ${cardNote ? `<p class="totals__card">${cardNote}</p>` : ""}`;
 }
@@ -2391,7 +2419,7 @@ function receiptSummaryText(groups) {
       const products = promo.products
         .map((entry) => `${entry.product.name} ×${entry.qty}`)
         .join(", ");
-      lines.push(`  ${promo.label} (assorted): ${products} — ${groupLimitText(promo)}`);
+      lines.push(`  ${promo.label} (${promoGroupKind(promo.deal)}): ${products} — ${groupLimitText(promo)}`);
     });
     if (group.available && group.dealSavings > 0.004) {
       lines.push(`  deals save ${money.format(group.dealSavings)} at this store`);
@@ -2403,7 +2431,7 @@ function receiptSummaryText(groups) {
     lines.push("");
   }
   if (groups.some((group) => group.dealSavings > 0.004)) {
-    lines.push("Multi-buy and club-card prices are applied where the quantity qualifies, including assorted offers shared across products.");
+    lines.push("Special, multi-buy and club-card prices are applied where the quantity qualifies, including offers shared across products.");
     lines.push("");
   }
   if (!state.clubCard && groups.some((group) => group.clubDealAvailable)) {
@@ -2439,7 +2467,7 @@ function renderReceipt() {
   const hasDeals = groups.some((group) => group.dealSavings > 0.004);
   const hasClubDeals = groups.some((group) => group.clubDealAvailable);
   const dealNote = hasDeals
-    ? " Multi-buy and club-card prices are applied where the quantity qualifies, including assorted offers shared across products."
+    ? " Special, multi-buy and club-card prices are applied where the quantity qualifies, including offers shared across products."
     : !state.clubCard && hasClubDeals
       ? " Club card is off; club prices are not included."
       : "";
@@ -2479,10 +2507,12 @@ function renderReceipt() {
           </ul>
           ${
             group.groups.length
-              ? `<div class="receipt-groups">
-            <p class="receipt-groups__head">Assorted multi-buy</p>
+              ? promoGroupSections(group.groups)
+                  .map(
+                    (section) => `<div class="receipt-groups">
+            <p class="receipt-groups__head">${escapeHtml(section.heading)}</p>
             <ul class="receipt-groups__list">
-              ${group.groups
+              ${section.groups
                 .map(
                   (promo) => `
                 <li class="receipt-group">
@@ -2494,6 +2524,8 @@ function renderReceipt() {
                 .join("")}
             </ul>
           </div>`
+                  )
+                  .join("")
               : ""
           }
           <div class="receipt-store__foot">
