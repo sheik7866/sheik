@@ -1025,6 +1025,13 @@ async function main() {
       !/assorted multi-buy/i.test(specialTotals),
       `PAK'nSAVE single-item special was presented as an assorted multi-buy: ${specialTotals}`
     );
+    assert(
+      new RegExp(
+        `${singleDeal.limit} of ${singleDeal.limit} shared units used`,
+        "i"
+      ).test(specialTotals),
+      `PAK'nSAVE mix & match special did not report its shared limit: ${specialTotals}`
+    );
     const specialList = normalize(
       await page.locator(`#list-items [data-row="${singleDeal.sku}"]`).innerText()
     );
@@ -1071,6 +1078,13 @@ async function main() {
       /mix & match special/i.test(specialReceipt) &&
         !/assorted multi-buy/i.test(specialReceipt),
       `PAK'nSAVE receipt labelled the single-item special as an assorted multi-buy: ${specialReceipt}`
+    );
+    assert(
+      new RegExp(
+        `${singleDeal.limit} of ${singleDeal.limit} shared units used`,
+        "i"
+      ).test(specialReceipt) && /1 unit at shelf price/i.test(specialReceipt),
+      `PAK'nSAVE receipt did not report the shared limit and the over-limit unit: ${specialReceipt}`
     );
     await page.click("[data-close-receipt]");
     await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
