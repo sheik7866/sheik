@@ -218,6 +218,11 @@ async function currentDeals(page) {
       const nwTotal =
         lineTotal(a.sku, "nw-ni", 7, qtyEach) + lineTotal(b.sku, "nw-ni", 7, qtyEach);
       if (!(pooled < nwTotal)) continue;
+      const savings = totalQty * group.shelf - pooled;
+      const firstUnits = Math.min(qtyEach, group.limit);
+      const secondUnits = group.limit - firstUnits;
+      const firstSaving = Math.round((savings * firstUnits) / group.limit);
+      const secondSaving = savings - firstSaving;
       pnsPair = {
         promoId: group.promo,
         price: group.price,
@@ -228,10 +233,22 @@ async function currentDeals(page) {
         extraUnits: totalQty - group.limit,
         pooled,
         nwTotal,
-        savings: totalQty * group.shelf - pooled,
+        savings,
         products: [
-          { sku: a.sku, name: a.name },
-          { sku: b.sku, name: b.name },
+          {
+            sku: a.sku,
+            name: a.name,
+            promoUnits: firstUnits,
+            savings: firstSaving,
+            lineTotal: qtyEach * group.shelf - firstSaving,
+          },
+          {
+            sku: b.sku,
+            name: b.name,
+            promoUnits: secondUnits,
+            savings: secondSaving,
+            lineTotal: qtyEach * group.shelf - secondSaving,
+          },
         ],
       };
       break;
@@ -1236,6 +1253,15 @@ async function main() {
         .length === 2 && new RegExp(`limit ${pairDeal.limit}\\b`, "i").test(pairList),
       `both pooled products should show the special and its limit: ${pairList}`
     );
+    for (const product of pairDeal.products) {
+      const rowText = normalize(
+        await page.locator(`#list-items [data-row="${product.sku}"]`).innerText()
+      );
+      assert(
+        new RegExp(`save ${escapeRegExp(money(product.savings))}`, "i").test(rowText),
+        `shared-limit savings split is wrong for ${product.name}: ${rowText}`
+      );
+    }
 
     await page.click("#receipt-button");
     await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
@@ -1259,6 +1285,12 @@ async function main() {
         new RegExp(`${pairDeal.extraUnits} units? at shelf price`, "i").test(pairReceipt),
       `receipt did not report the shared limit and shelf-priced units: ${pairReceipt}`
     );
+    for (const product of pairDeal.products) {
+      assert(
+        pairReceipt.includes(money(product.lineTotal)),
+        `receipt line total is wrong for ${product.name}: ${pairReceipt}`
+      );
+    }
     await page.click("[data-close-receipt]");
     await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
     await page.click("#clear-list");
