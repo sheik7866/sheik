@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "unit-rows-2026-11-23";
+window.TROLLEYBIRD_BUILD = "deal-limits-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -987,6 +987,16 @@ function dealLabel(deal) {
     return `${deal.club ? "Club member" : "Multi-buy"} ${deal.threshold} for ${price}`;
   }
   return `Club member ${price}`;
+}
+
+function dealLimitLabel(deal) {
+  return deal && deal.limit > 0 ? `limit ${deal.limit}` : "";
+}
+
+function dealSummary(deal) {
+  if (!deal) return "";
+  const limit = dealLimitLabel(deal);
+  return limit ? `${dealLabel(deal)} · ${limit}` : dealLabel(deal);
 }
 
 function dealDetail(deal) {
@@ -1989,7 +1999,7 @@ function renderProducts() {
               </span>
               <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : pricesLoading ? "Loading branch prices…" : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
               ${unit ? `<span class="product__unit">${escapeHtml(unit.display)}</span>` : ""}
-              ${bestDeal ? `<span class="product__deal" title="${escapeHtml(dealDetail(bestDeal))}">${escapeHtml(dealLabel(bestDeal))}</span>` : ""}
+              ${bestDeal ? `<span class="product__deal" title="${escapeHtml(dealDetail(bestDeal))}">${escapeHtml(dealSummary(bestDeal))}</span>` : ""}
               ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(storeLabel(store))).join(" & ")}</span>` : ""}
             </span>
           </button>
@@ -2067,7 +2077,7 @@ function renderList() {
             <b title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</b>
             <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from ${money.format(best.shelfPrice)} at ${escapeHtml(storeLabel(best.store))}` : ""}</small>
             ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
-            ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied · save ${money.format(best.savings)}</small>` : ""}
+            ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""} · save ${money.format(best.savings)}</small>` : ""}
           </span>
           <span class="qty">
             <button type="button" data-step="-1" data-id="${row.id}" aria-label="Decrease quantity of ${escapeHtml(product.name)}">−</button>
@@ -2222,7 +2232,7 @@ function receiptSummaryText(groups) {
     lines.push(`${group.store.name} (${group.store.branch}) — ${status}`);
     group.lines.forEach((line) => {
       lines.push(
-        `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? "not stocked" : `${money.format(line.line)}${line.unit ? ` (${line.unit.display})` : ""}${line.dealApplied ? ` (${dealLabel(line.deal)})` : ""}${line.checked ? " ✓" : line.imported ? " (imported)" : ""}`}`
+        `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? "not stocked" : `${money.format(line.line)}${line.unit ? ` (${line.unit.display})` : ""}${line.dealApplied ? ` (${dealSummary(line.deal)})` : ""}${line.checked ? " ✓" : line.imported ? " (imported)" : ""}`}`
       );
     });
     group.groups.forEach((promo) => {
@@ -2307,7 +2317,7 @@ function renderReceipt() {
                 (line) => `
               <li class="receipt-line">
                 <span class="receipt-line__qty">${line.qty}×</span>
-                <span class="receipt-line__name">${escapeHtml(line.product.name)}<small>${escapeHtml(line.product.size)}</small>${line.unit ? `<small class="receipt-line__unit">${escapeHtml(line.unit.display)}</small>` : ""}${line.dealApplied ? `<small class="receipt-line__deal">${escapeHtml(dealLabel(line.deal))}</small>` : ""}</span>
+                <span class="receipt-line__name">${escapeHtml(line.product.name)}<small>${escapeHtml(line.product.size)}</small>${line.unit ? `<small class="receipt-line__unit">${escapeHtml(line.unit.display)}</small>` : ""}${line.dealApplied ? `<small class="receipt-line__deal">${escapeHtml(dealSummary(line.deal))}</small>` : ""}</span>
                 <span class="receipt-line__amount${line.unavailable ? " is-missing" : ""}">${line.unavailable ? "Not stocked" : money.format(line.line)}${line.checked ? '<span class="receipt-line__checked" title="Price recorded in store">✓</span>' : line.imported ? '<span class="receipt-line__imported" title="Shelf price imported from the store">imp.</span>' : ""}</span>
               </li>`
               )

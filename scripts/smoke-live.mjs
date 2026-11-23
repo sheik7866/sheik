@@ -176,7 +176,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "unit-rows-2026-11-23",
+        () => window.TROLLEYBIRD_BUILD === "deal-limits-2026-11-23",
         null,
         { timeout: 5000 }
       );
