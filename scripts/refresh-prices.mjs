@@ -194,6 +194,10 @@ function main() {
   });
   run("scripts/build-store-price-data.mjs", { SOURCE_DIR: storePullDir });
 
+  // Four Square has no shelf-price list; keep its four demo branches' weekly
+  // specials current after the catalogue has been rebuilt.
+  run("scripts/pull-foursquare-specials.mjs", {});
+
   console.log(`\n[refresh] prices checked for ${TODAY} (Pacific/Auckland)`);
 }
 

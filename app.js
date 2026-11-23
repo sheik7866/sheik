@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "price-refresh-date-2026-11-24";
+window.TROLLEYBIRD_BUILD = "foursquare-specials-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -13,16 +13,23 @@ window.TROLLEYBIRD_BUILD = "price-refresh-date-2026-11-24";
    their prices differ (scripts/pull-all-store-prices.mjs). Stock coverage is
    that branch's own product range (scripts/pull-coverage.mjs). The two branches
    the demo has always priced keep their old ids so saved lists and the dated
-   staple imports keep working. */
+   staple imports keep working.
+
+   Four Square publishes only weekly specials, not a shelf-price list, so its
+   four demo branches are a separate, explicitly specials-only directory. */
 const ANCHOR_BRANCHES = {
   "b2e98a14-c8ca-401e-99ed-edf74570c6f6": "paknsave",
   "871ff39f-99b5-4030-b035-b2dab7225082": "newworld",
 };
-const BRAND_NAMES = { pns: "Pak'nSave", nw: "New World" };
-const BRAND_TINTS = { pns: "#f3c623", nw: "#c22032" };
-const BRANCH_DIRECTORY = Array.isArray(window.GROCER_STORES?.stores)
-  ? window.GROCER_STORES.stores
+const BRAND_NAMES = { pns: "Pak'nSave", nw: "New World", fsq: "Four Square" };
+const BRAND_TINTS = { pns: "#f3c623", nw: "#c22032", fsq: "#e4002b" };
+const FOURSQUARE_DIRECTORY = Array.isArray(window.GROCER_FOURSQUARE?.stores)
+  ? window.GROCER_FOURSQUARE.stores
   : [];
+const BRANCH_DIRECTORY = [
+  ...(Array.isArray(window.GROCER_STORES?.stores) ? window.GROCER_STORES.stores : []),
+  ...FOURSQUARE_DIRECTORY,
+];
 
 function branchStore(store) {
   return {
@@ -36,6 +43,18 @@ function branchStore(store) {
     zone: `${store.brand}-${String(store.region || "").toLowerCase()}`,
     factor: 1,
     tint: BRAND_TINTS[store.brand] || "#4c5b6b",
+    specialsOnly: Boolean(store.specialsOnly),
+    sourceUrl: store.url || "",
+    specialsEndDate: store.specialsEndDate || "",
+    specialsCount: Number(store.specialsCount) || 0,
+    specialsData: store.specialsOnly
+      ? {
+          prices: store.prices && typeof store.prices === "object" ? store.prices : {},
+          units: store.units && typeof store.units === "object" ? store.units : {},
+          specials: store.specials && typeof store.specials === "object" ? store.specials : {},
+          checkedAt: store.checkedAt || "",
+        }
+      : null,
   };
 }
 
@@ -750,7 +769,18 @@ function zonePriceFor(productId, store) {
 }
 
 function storePriceEntry(store) {
-  if (!store || BASE_STORE_IDS.has(store.storeId)) return null;
+  if (!store) return null;
+  if (store.specialsOnly) {
+    return {
+      status: "ready",
+      prices: store.specialsData?.prices || {},
+      deals: {},
+      units: store.specialsData?.units || {},
+      specials: store.specialsData?.specials || {},
+      checkedAt: store.specialsData?.checkedAt || "",
+    };
+  }
+  if (BASE_STORE_IDS.has(store.storeId)) return null;
   const entry = STORE_PRICE_CACHE.get(store.storeId);
   return entry?.status === "ready" ? entry : null;
 }
@@ -1068,6 +1098,7 @@ function dealDetail(deal) {
 
 function storePricesReady(store) {
   if (!store) return false;
+  if (store.specialsOnly) return true;
   if (BASE_STORE_IDS.has(store.storeId)) return true;
   const entry = STORE_PRICE_CACHE.get(store.storeId);
   return entry?.status === "ready" || entry?.status === "error";
@@ -1115,7 +1146,14 @@ function priceState(productId, storeId) {
   const checked = checkedPrice(productId, storeId);
   if (checked) return { price: checked.price, at: checked.at, kind: "checked" };
   const imported = importedPrice(productId, storeId);
-  if (imported) return { price: imported.price, at: imported.at, kind: "imported" };
+  if (imported) {
+    const store = STORE_MAP.get(storeId);
+    return {
+      price: imported.price,
+      at: imported.at,
+      kind: store?.specialsOnly ? "special" : "imported",
+    };
+  }
   return null;
 }
 
@@ -1166,6 +1204,9 @@ function knownUnavailable(productId, storeId) {
   const product = PRODUCT_MAP.get(productId);
   const store = STORE_MAP.get(storeId);
   if (!product || !store) return false;
+  // Four Square publishes only this week's specials, so a missing price is
+  // not evidence that the store does not stock the product.
+  if (store.specialsOnly) return false;
   if (!storePricesReady(store)) return false;
   // A price you recorded in this store is evidence it had the product, even
   // if the range pull missed it.
@@ -1191,7 +1232,9 @@ function priceFor(productId, storeId) {
   if (real) return real.price;
   const p = PRODUCT_MAP.get(productId);
   const s = STORE_MAP.get(storeId);
-  if (!p || !s || !storePricesReady(s) || knownUnavailable(productId, storeId)) return null;
+  if (!p || !s || s.specialsOnly || !storePricesReady(s) || knownUnavailable(productId, storeId)) {
+    return null;
+  }
   const jitter = noise(hash(productId + storeId), -0.06, 0.06);
   return roundPrice(p.base * s.factor * (1 + jitter));
 }
@@ -1339,6 +1382,11 @@ function unitPriceFor(product, store) {
     product.source === "catalogue"
       ? product.id
       : DEMO_SKU_IDS.get(product.id)?.[store.chain];
+  if (store.specialsOnly && catalogueId) {
+    const entry = storePriceEntry(store);
+    const specialReference = parseUnitReference(entry?.units?.[catalogueId]);
+    if (specialReference) return unitPriceFromReference(specialReference, price, price);
+  }
   const reference = catalogueId ? parseUnitReference(ZONE_UNITS[store.zone]?.[catalogueId]) : null;
   const basePrice = catalogueId ? ZONE_PRICES[store.zone]?.[catalogueId] : null;
   return unitPriceFromReference(reference, price, basePrice) || unitFromSize(product, price);
@@ -1807,11 +1855,13 @@ function listTotals() {
     const missing = lines.filter((line) => line.missing).length;
     const total = lines.reduce((sum, line) => sum + (line.total || 0), 0);
     const dealSavings = lines.reduce((sum, line) => sum + (line.savings || 0), 0);
+    const specialsOnly = Boolean(store.specialsOnly);
     return {
       store,
       total: Math.round(total * 100) / 100,
       missing,
-      available: missing === 0,
+      specialsOnly,
+      available: missing === 0 && !specialsOnly,
       dealSavings: Math.round(dealSavings * 100) / 100,
       groups: assortedGroups(lines),
       clubDealAvailable: lines.some((line) => line.clubDealAvailable),
@@ -1842,8 +1892,24 @@ function storeLabel(store) {
 }
 
 function storeLineLabel(store) {
+  if (store?.specialsOnly) {
+    const count = store.specialsCount;
+    return `${count} weekly special${count === 1 ? "" : "s"}`;
+  }
   const lines = stockedLineCount(store);
   return lines == null ? "lines not checked" : `${lines.toLocaleString("en-NZ")} lines`;
+}
+
+function noPriceLabel(stores) {
+  return stores.length && stores.every((store) => store.specialsOnly)
+    ? "no published price"
+    : "not stocked";
+}
+
+function noPriceRangeLabel(stores) {
+  return stores.length && stores.every((store) => store.specialsOnly)
+    ? "No published price at your Four Square stores"
+    : "Not stocked at your selected stores";
 }
 
 function normalizeStoreSearch(value) {
@@ -1857,7 +1923,12 @@ function storeSearchMatches(query) {
   const terms = normalizeStoreSearch(query).split(/\s+/).filter(Boolean);
   const first = terms[0] || "";
   return BRANCH_STORES.filter((store) => {
-    const aliases = store.chain === "pns" ? "paknsave pak n save pns" : "new world newworld nw";
+    const aliases =
+      store.chain === "pns"
+        ? "paknsave pak n save pns"
+        : store.chain === "nw"
+          ? "new world newworld nw"
+          : "four square foursquare fsq";
     const haystack = normalizeStoreSearch(
       `${store.name} ${store.branch} ${store.address} ${storeRegionLabel(store)} ${aliases}`
     );
@@ -1946,11 +2017,14 @@ function renderStores() {
   el.storeList.innerHTML = selected.length
     ? selected
         .map((store) => {
-          const priceStatus = BASE_STORE_IDS.has(store.storeId)
+          const priceStatus = store.specialsOnly
             ? "ready"
-            : STORE_PRICE_CACHE.get(store.storeId)?.status || "loading";
-          const priceNote =
-            priceStatus === "loading"
+            : BASE_STORE_IDS.has(store.storeId)
+              ? "ready"
+              : STORE_PRICE_CACHE.get(store.storeId)?.status || "loading";
+          const priceNote = store.specialsOnly
+            ? `<small class="store-selected__prices">Weekly specials only${store.specialsEndDate ? ` · ends ${escapeHtml(store.specialsEndDate)}` : ""} — no shelf price list</small>`
+            : priceStatus === "loading"
               ? `<small class="store-selected__prices">Loading branch prices…</small>`
               : priceStatus === "error"
                 ? `<small class="store-selected__prices is-error">Island price list — branch prices unavailable</small>`
@@ -1972,9 +2046,9 @@ function renderStores() {
   el.storeCounter.textContent = `${selected.length} / ${storeCap()}`;
   el.storeHint.textContent = selected.length
     ? selected.length === 1
-      ? "Add another branch to compare, including another PAK'nSAVE or New World."
+      ? "Add another branch to compare, including another PAK'nSAVE, New World or Four Square."
       : "Search to add another branch, or remove one below."
-    : "Search for a PAK'nSAVE or New World branch to start.";
+    : "Search for a PAK'nSAVE, New World or Four Square branch to start.";
   el.storeFoot.textContent = state.pro
     ? `Pro demo: up to ${MAX_PRO_STORES} stores.`
     : `Free demo covers ${MAX_FREE_STORES} stores. Turn on Pro for ${MAX_PRO_STORES}.`;
@@ -2052,7 +2126,7 @@ function renderProducts() {
         : pricesLoading
           ? ", prices loading"
           : stores.length
-            ? ", not stocked"
+            ? `, ${noPriceLabel(stores)}`
             : ", no stores selected";
       return `
         <li class="product">
@@ -2062,9 +2136,9 @@ function renderProducts() {
               <span class="product__name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
               <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
               <span class="product__best">
-                ${best ? `<b class="product__price">${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${pricesLoading ? "loading prices…" : stores.length ? "not stocked" : "no stores selected"}</small>`}
+                ${best ? `<b class="product__price">${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : bestKind === "special" ? ' <em class="product__est is-real">weekly special</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${pricesLoading ? "loading prices…" : stores.length ? noPriceLabel(stores) : "no stores selected"}</small>`}
               </span>
-              <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : pricesLoading ? "Loading branch prices…" : stores.length ? "Not stocked at your selected stores" : "Choose a store to price this"}</span>
+              <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : pricesLoading ? "Loading branch prices…" : stores.length ? noPriceRangeLabel(stores) : "Choose a store to price this"}</span>
               ${unit ? `<span class="product__unit">${escapeHtml(unit.display)}</span>` : ""}
               ${bestDeal ? `<span class="product__deal" title="${escapeHtml(dealDetail(bestDeal))}">${escapeHtml(dealSummary(bestDeal))}</span>` : ""}
               ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(storeLabel(store))).join(" & ")}</span>` : ""}
@@ -2137,10 +2211,26 @@ function listItemDetails(row, stores, pricesLoading) {
   const bestKind = best ? priceKind(row.id, best.store.id) : null;
   const unit = best ? unitPriceFor(product, best.store) : null;
   const pricePending = !best && pricesLoading;
-  const missing = stores.length > 0 && !best && !pricesLoading;
-  const special = stores.some((store) => storeDealFor(row.id, store));
+  const specialsOnly = stores.length > 0 && stores.every((store) => store.specialsOnly);
+  const noPrice = stores.length > 0 && !best && !pricesLoading && specialsOnly;
+  const missing = stores.length > 0 && !best && !pricesLoading && !noPrice;
+  const special = stores.some(
+    (store) => storeDealFor(row.id, store) || priceKind(row.id, store.id) === "special"
+  );
   const category = product.category || "Other";
-  return { row, product, best, bestKind, unit, missing, pricePending, special, category };
+  return {
+    row,
+    product,
+    best,
+    bestKind,
+    unit,
+    missing,
+    noPrice,
+    pricePending,
+    special,
+    specialsOnly,
+    category,
+  };
 }
 
 function listItemSearchText(item) {
@@ -2151,14 +2241,15 @@ function listItemSearchText(item) {
 }
 
 function listItemMarkup(item) {
-  const { row, product, best, bestKind, unit, missing, pricePending } = item;
+  const { row, product, best, bestKind, unit, missing, noPrice, pricePending } = item;
   const fromPrice = best ? effectivePriceFor(row.id, best.store) : null;
+  const bestKindLabel = bestKind === "special" ? "weekly special" : bestKind;
   const unitSplit = dealUnitSplit(best);
   return `
     <li class="list-item" data-row="${row.id}">
       <button class="list-item__body" type="button" data-open-product="${row.id}" title="View prices for ${escapeHtml(product.name)}" aria-label="View prices for ${escapeHtml(product.name)}">
         <b>${escapeHtml(product.name)}</b>
-        <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from <span class="list-item__price">${money.format(fromPrice ?? best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : missing ? " · not stocked at your stores" : ""}</small>
+        <small>${escapeHtml(product.size)}${best ? ` · ${bestKindLabel} from <span class="list-item__price">${money.format(fromPrice ?? best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : noPrice ? " · no published price at Four Square" : missing ? " · not stocked at your stores" : ""}</small>
         ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
         ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""}${unitSplit ? ` · ${escapeHtml(unitSplit)}` : ""} · save ${money.format(best.savings)}</small>` : ""}
       </button>
@@ -2291,8 +2382,11 @@ function renderTotals() {
   }
   const itemCount = state.list.reduce((sum, row) => sum + row.qty, 0);
   const availableRows = totals.rows.filter((row) => row.available);
+  const specialsRows = totals.rows.filter((row) => row.specialsOnly);
   const summary = !totals.hasAvailable
-    ? "No selected store has a price for every item on this list."
+    ? specialsRows.length
+      ? "Four Square publishes weekly specials only, so it isn't included in basket totals."
+      : "No selected store has a price for every item on this list."
     : availableRows.length === 1
       ? `Only ${escapeHtml(storeLabel(totals.cheapest.store))} has a price for every item on this list.`
       : totals.savings > 0.004
@@ -2338,15 +2432,21 @@ function renderTotals() {
             totals.cheapest &&
             availableRows.length > 1 &&
             samePrice(row.total, totals.cheapest.total);
+          const missingNote = row.specialsOnly
+            ? row.missing
+              ? `${row.missing} without a published price`
+              : "specials only"
+            : `${row.missing} not stocked`;
           return `
         <li class="total-row${isBest ? " is-best" : ""}${row.available ? "" : " is-unavailable"}">
-          <span>${escapeHtml(storeLabel(row.store))}${isBest ? ' <em>cheapest</em>' : ""}${row.available && row.dealSavings > 0.004 ? ` <em class="total-row__deal">saves ${money.format(row.dealSavings)}</em>` : ""}${row.available ? "" : ` <em class="total-row__missing">${row.missing} not stocked</em>`}</span>
+          <span>${escapeHtml(storeLabel(row.store))}${isBest ? ' <em>cheapest</em>' : ""}${row.available && row.dealSavings > 0.004 ? ` <em class="total-row__deal">saves ${money.format(row.dealSavings)}</em>` : ""}${row.available ? "" : ` <em class="total-row__missing">${missingNote}</em>`}</span>
           <b>${row.available ? money.format(row.total) : "—"}</b>
         </li>`;
         })
         .join("")}
     </ul>
     <p class="totals__save">${summary}${bestDealSaving > 0.004 ? ` Includes ${money.format(bestDealSaving)} of deal savings.` : ""}</p>
+    ${specialsRows.length && totals.hasAvailable ? `<p class="totals__card">Four Square publishes weekly specials only; its stores are not included in basket totals.</p>` : ""}
     ${assortedMarkup}
     ${cardNote ? `<p class="totals__card">${cardNote}</p>` : ""}`;
 }
@@ -2376,6 +2476,7 @@ function receiptGroups() {
             clubDealAvailable: Boolean(pricing.clubDealAvailable),
             checked: kind === "checked",
             imported: kind === "imported",
+            special: kind === "special",
             unavailable,
           };
         })
@@ -2383,6 +2484,7 @@ function receiptGroups() {
       const missing = lines.filter((line) => line.unavailable).length;
       const total = lines.reduce((sum, line) => sum + line.line, 0);
       const dealSavings = lines.reduce((sum, line) => sum + (line.savings || 0), 0);
+      const specialsOnly = Boolean(store.specialsOnly);
       return {
         store,
         lines,
@@ -2391,7 +2493,8 @@ function receiptGroups() {
         groups: assortedGroups(priced),
         clubDealAvailable: lines.some((line) => line.clubDealAvailable),
         missing,
-        available: missing === 0,
+        specialsOnly,
+        available: missing === 0 && !specialsOnly,
       };
     })
     .sort((a, b) => {
@@ -2422,11 +2525,13 @@ function receiptSummaryText(groups) {
   groups.forEach((group) => {
     const status = group.available
       ? `${money.format(group.total)}${best && availableGroups.length > 1 && samePrice(group.total, best.total) ? "  ← cheapest" : ""}`
-      : `not available — ${group.missing} item${group.missing === 1 ? "" : "s"} not stocked`;
+      : group.specialsOnly
+        ? `specials only — ${group.lines.filter((line) => !line.unavailable).length} item${group.lines.filter((line) => !line.unavailable).length === 1 ? "" : "s"} on special, no full basket price`
+        : `not available — ${group.missing} item${group.missing === 1 ? "" : "s"} not stocked`;
     lines.push(`${group.store.name} (${group.store.branch}) — ${status}`);
     group.lines.forEach((line) => {
       lines.push(
-        `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? "not stocked" : `${money.format(line.line)}${line.unit ? ` (${line.unit.display})` : ""}${line.dealApplied ? ` (${dealSummary(line.deal)})` : ""}${line.checked ? " ✓" : line.imported ? " (imported)" : ""}`}`
+        `  ${line.qty}× ${line.product.name} ${line.product.size}  ${line.unavailable ? (group.specialsOnly ? "no published price" : "not stocked") : `${money.format(line.line)}${line.unit ? ` (${line.unit.display})` : ""}${line.dealApplied ? ` (${dealSummary(line.deal)})` : ""}${line.checked ? " ✓" : line.imported ? " (imported)" : line.special ? " (weekly special)" : ""}`}`
       );
     });
     group.groups.forEach((promo) => {
@@ -2440,7 +2545,10 @@ function receiptSummaryText(groups) {
     }
     lines.push("");
   });
-  if (groups.some((group) => !group.available)) {
+  if (groups.some((group) => group.specialsOnly)) {
+    lines.push("Four Square publishes weekly specials only; its prices are not basket totals.");
+    lines.push("");
+  } else if (groups.some((group) => !group.available)) {
     lines.push("A store missing an item is shown as not available.");
     lines.push("");
   }
@@ -2480,6 +2588,7 @@ function renderReceipt() {
   const hasImported = groups.some((group) => group.lines.some((line) => line.imported));
   const hasDeals = groups.some((group) => group.dealSavings > 0.004);
   const hasClubDeals = groups.some((group) => group.clubDealAvailable);
+  const hasSpecialsOnly = groups.some((group) => group.specialsOnly);
   const dealNote = hasDeals
     ? " Special, multi-buy and club-card prices are applied where the quantity qualifies, including offers shared across products."
     : !state.clubCard && hasClubDeals
@@ -2499,11 +2608,11 @@ function renderReceipt() {
           ? groups
               .map(
                 (group) => `
-        <section class="receipt-store${isBestGroup(group) ? " is-best" : ""}${group.available ? "" : " is-unavailable"}" aria-label="${escapeHtml(group.store.name)} basket">
+        <section class="receipt-store${isBestGroup(group) ? " is-best" : ""}${group.available ? "" : " is-unavailable"}${group.specialsOnly ? " is-specials-only" : ""}" aria-label="${escapeHtml(group.store.name)} basket">
           <div class="receipt-store__head">
             <h3 class="receipt-store__name">${escapeHtml(group.store.name)}<span class="receipt-store__branch">${escapeHtml(group.store.branch)}</span></h3>
             <p class="receipt-store__total">
-              ${group.available ? money.format(group.total) : "Not available"}
+              ${group.available ? money.format(group.total) : group.specialsOnly ? "Specials only" : "Not available"}
               ${isBestGroup(group) ? '<span class="receipt-store__badge">Cheapest</span>' : ""}
             </p>
           </div>
@@ -2514,7 +2623,7 @@ function renderReceipt() {
               <li class="receipt-line">
                 <span class="receipt-line__qty">${line.qty}×</span>
                 <span class="receipt-line__name">${escapeHtml(line.product.name)}<small>${escapeHtml(line.product.size)}</small>${line.unit ? `<small class="receipt-line__unit">${escapeHtml(line.unit.display)}</small>` : ""}${line.dealApplied ? `<small class="receipt-line__deal">${escapeHtml(dealSummary(line.deal))}</small>` : ""}</span>
-                <span class="receipt-line__amount${line.unavailable ? " is-missing" : ""}">${line.unavailable ? "Not stocked" : money.format(line.line)}${line.checked ? '<span class="receipt-line__checked" title="Price recorded in store">✓</span>' : line.imported ? '<span class="receipt-line__imported" title="Shelf price imported from the store">imp.</span>' : ""}</span>
+                <span class="receipt-line__amount${line.unavailable ? " is-missing" : ""}">${line.unavailable ? (group.specialsOnly ? "No price" : "Not stocked") : money.format(line.line)}${line.checked ? '<span class="receipt-line__checked" title="Price recorded in store">✓</span>' : line.imported ? '<span class="receipt-line__imported" title="Shelf price imported from the store">imp.</span>' : line.special ? '<span class="receipt-line__imported" title="Weekly advertised special">special</span>' : ""}</span>
               </li>`
               )
               .join("")}
@@ -2543,8 +2652,12 @@ function renderReceipt() {
               : ""
           }
           <div class="receipt-store__foot">
-            <span>${group.available ? "Basket total" : "Missing items"}${group.available && group.dealSavings > 0.004 ? ` <em class="receipt-store__deal">deals save ${money.format(group.dealSavings)}</em>` : ""}</span>
-            <b>${group.available ? money.format(group.total) : `${group.missing} not stocked`}</b>
+            ${
+              group.specialsOnly
+                ? `<span>Specials only</span><b>No full basket price</b>`
+                : `<span>${group.available ? "Basket total" : "Missing items"}${group.available && group.dealSavings > 0.004 ? ` <em class="receipt-store__deal">deals save ${money.format(group.dealSavings)}</em>` : ""}</span>
+            <b>${group.available ? money.format(group.total) : `${group.missing} not stocked`}</b>`
+            }
           </div>
         </section>`
               )
@@ -2560,11 +2673,13 @@ function renderReceipt() {
 
       <p class="receipt-note">${
         hasChecked
-          ? `✓ price recorded in store${hasImported ? `; imported shelf prices dated ${importDateLabel()}` : ""}. Other prices are estimates from the Trolleybird interactive demo.`
+          ? `✓ price recorded in store${hasImported ? `; imported shelf prices dated ${importDateLabel()}` : ""}. Prices without a published source are estimates from the Trolleybird interactive demo.`
           : hasImported
-            ? `Imported shelf prices dated ${importDateLabel()}. Other prices are estimates from the Trolleybird interactive demo.`
-            : "Prices are illustrative demo data from the Trolleybird interactive demo."
-      }${dealNote}</p>
+            ? `Imported shelf prices dated ${importDateLabel()}. Prices without a published source are estimates from the Trolleybird interactive demo.`
+            : hasSpecialsOnly
+              ? "Prices combine demo catalogue data with Four Square's advertised weekly specials."
+              : "Prices are illustrative demo data from the Trolleybird interactive demo."
+      }${hasSpecialsOnly && (hasChecked || hasImported) ? " Four Square prices are weekly advertised specials only." : ""}${dealNote}</p>
     </div>`;
 
   el.receiptStatus.textContent = "";
@@ -2673,7 +2788,12 @@ function renderAll() {
 
 async function ensureStorePrices(storeId) {
   const store = STORE_MAP.get(storeId);
-  if (!store || BASE_STORE_IDS.has(store.storeId) || STORE_PRICE_CACHE.has(store.storeId)) {
+  if (
+    !store ||
+    store.specialsOnly ||
+    BASE_STORE_IDS.has(store.storeId) ||
+    STORE_PRICE_CACHE.has(store.storeId)
+  ) {
     return;
   }
   STORE_PRICE_CACHE.set(store.storeId, {
@@ -2957,13 +3077,13 @@ function renderBulkRows() {
 }
 
 function openBulkPrices() {
-  const stores = selectedStores();
+  const stores = selectedStores().filter((store) => !store.specialsOnly);
   if (!state.list.length) {
     toast("Add something to your list first.");
     return;
   }
   if (!stores.length) {
-    toast("Select at least one store first.");
+    toast("Four Square publishes weekly specials only; pick a PAK'nSAVE or New World branch to record shelf prices.");
     return;
   }
   el.bulkStore.innerHTML = stores
@@ -3029,6 +3149,17 @@ function openProduct(productId) {
   const months = historyMonths();
   const recorded = recordedPricesFor(productId);
   const unavailable = selectedStores().filter((store) => knownUnavailable(productId, store.id));
+  const specialsOnlySelected = selectedStores().filter((store) => store.specialsOnly);
+  const specialsOnlyNoPrice = specialsOnlySelected.filter(
+    (store) => !offers.some((offer) => offer.store.id === store.id)
+  );
+  const hasSpecialsOnlyPrice = offers.some((offer) => offer.store.specialsOnly);
+  const fourSquareOnlySelection =
+    selectedStores().length > 0 && selectedStores().every((store) => store.specialsOnly);
+  const historyStore = offers.find((offer) => !offer.store.specialsOnly) || null;
+  const catalogueSourceNote = fourSquareOnlySelection
+    ? "Four Square publishes weekly advertised specials, not shelf prices. Prices are checked from its weekly specials."
+    : `${hasSpecialsOnlyPrice ? "Four Square prices here are this week's advertised specials, not shelf prices. " : ""}Shelf prices from each branch's own price list where it differs from the island base, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "listed by both PAK'nSAVE and New World" : "listed by one of PAK'nSAVE or New World"} · stock checked per branch`;
   const anyEstimate = offers.some((offer) => !priceIsChecked(productId, offer.store.id));
   const hasImport = offers.some((offer) => priceKind(productId, offer.store.id) === "imported");
   const barcode = barcodeCard(product);
@@ -3049,7 +3180,7 @@ function openProduct(productId) {
           product.source === "grocer"
             ? `<p class="dialog__source">Real product data from <a href="https://grocer.nz" target="_blank" rel="noopener">Grocer's catalogue</a>${product.stores ? ` · stocked at ${product.stores} stores` : ""}</p>`
             : product.source === "catalogue"
-              ? `<p class="dialog__source">Shelf prices from each branch's own price list where it differs from the island base, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "listed by both chains" : "listed by one chain"} · stock checked per branch</p>`
+              ? `<p class="dialog__source">${catalogueSourceNote}</p>`
               : product.estimated
                 ? `<p class="dialog__source">Real product data from <a href="https://world.openfoodfacts.org/product/${product.code}" target="_blank" rel="noopener">Open Food Facts</a></p>`
                 : ""
@@ -3090,7 +3221,9 @@ function openProduct(productId) {
                       ? `checked ${shortDate(checkedPrice(productId, offer.store.id).at)}`
                       : kind === "imported" && real
                         ? `imported ${shortDate(real.at)}`
-                        : "";
+                        : kind === "special"
+                          ? `weekly special${real?.at ? ` · ${shortDate(real.at)}` : ""}`
+                          : "";
                   const unit = unitPriceFor(product, offer.store);
                   return `
                 <tr class="${isCheapest ? "is-best" : ""}">
@@ -3102,8 +3235,9 @@ function openProduct(productId) {
                 .join("")}
             </tbody>
           </table>`
-        : `<p class="dialog__empty">${unavailable.length ? `Not stocked at ${unavailable.map((store) => escapeHtml(storeLabel(store))).join(" or ")}.` : "Select at least one store in the sidebar to price this product."}</p>`
+        : `<p class="dialog__empty">${unavailable.length ? `Not stocked at ${unavailable.map((store) => escapeHtml(storeLabel(store))).join(" or ")}.` : specialsOnlySelected.length ? "Four Square publishes weekly specials only, and this product isn't in this week's specials." : "Select at least one store in the sidebar to price this product."}</p>`
     }
+
 
     ${
       hasDeals
@@ -3114,6 +3248,12 @@ function openProduct(productId) {
     ${
       unavailable.length && offers.length
         ? `<p class="dialog__stock">Not stocked at ${unavailable.map((store) => escapeHtml(storeLabel(store))).join(" or ")} — no price to compare there.</p>`
+        : ""
+    }
+
+    ${
+      specialsOnlyNoPrice.length && offers.length
+        ? `<p class="dialog__stock">Four Square publishes weekly specials only; no published price for this product there.</p>`
         : ""
     }
 
@@ -3157,14 +3297,16 @@ function openProduct(productId) {
     <section class="dialog__history" aria-label="Price history">
       <div class="dialog__history-head">
         <h3>Price history</h3>
-        <span>${product.estimated ? "Estimated history · demo data" : months === 12 ? "Last 12 months · Pro demo" : "Last 3 months · Free demo"}</span>
+        <span>${historyStore ? (product.estimated ? "Estimated history · demo data" : months === 12 ? "Last 12 months · Pro demo" : "Last 3 months · Free demo") : offers.length ? "Weekly special only" : specialsOnlySelected.length ? "No price history" : product.estimated ? "Estimated history · demo data" : months === 12 ? "Last 12 months · Pro demo" : "Last 3 months · Free demo"}</span>
       </div>
       ${
         offers.length
-          ? `${sparkline(historyFor(productId, offers[0].store.id, months))}
+          ? historyStore
+            ? `${sparkline(historyFor(productId, historyStore.store.id, months))}
              <div class="history-labels">${historyLabels(months).map((m) => `<span>${m}</span>`).join("")}</div>
-             <p class="dialog__note">Showing ${escapeHtml(storeLabel(offers[0].store))}. Prices elsewhere move differently — that's the point.</p>`
-          : `<p class="dialog__empty">${unavailable.length ? "No price history at your selected stores." : "Pick a store to see its price history."}</p>`
+             <p class="dialog__note">Showing ${escapeHtml(storeLabel(historyStore.store))}. Prices elsewhere move differently — that's the point.</p>`
+            : `<p class="dialog__empty">Four Square publishes weekly specials only, so there is no price history.</p>`
+          : `<p class="dialog__empty">${unavailable.length ? "No price history at your selected stores." : specialsOnlySelected.length ? "Four Square publishes weekly specials only; there is no price history for this product." : "Pick a store to see its price history."}</p>`
       }
     </section>
 

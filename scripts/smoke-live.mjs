@@ -320,7 +320,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "price-refresh-date-2026-11-24",
+        () => window.TROLLEYBIRD_BUILD === "foursquare-specials-2026-11-24",
         null,
         { timeout: 5000 }
       );
@@ -1523,6 +1523,106 @@ async function main() {
       `receipt should have no complete basket total: ${receipt}`
     );
     assert(/imp\./i.test(receipt), `receipt should label imported prices: ${receipt}`);
+
+    step("checking Four Square's specials-only stores");
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForCurrentBuild(page);
+    await page.waitForFunction(
+      () => Array.isArray(window.GROCER_FOURSQUARE?.stores) && window.GROCER_FOURSQUARE.stores.length === 4,
+      null,
+      { timeout: 10000 }
+    );
+    while ((await page.locator("#store-list [data-remove-store]").count()) > 0) {
+      await page.locator("#store-list [data-remove-store]").first().click();
+    }
+    await page.waitForFunction(
+      () => document.querySelectorAll("#store-list .store-selected").length === 0,
+      null,
+      { timeout: 5000 }
+    );
+    await page.fill("#store-search", "Four Square");
+    await page.waitForSelector("#store-results [data-add-store]");
+    const fourSquareResults = normalize(await page.locator("#store-results").innerText());
+    for (const branch of ["britomart", "eden terrace", "ellerslie", "onehunga"]) {
+      assert(
+        fourSquareResults.includes(branch),
+        `Four Square store search is missing ${branch}: ${fourSquareResults}`
+      );
+    }
+    await page.locator("#store-results [data-add-store]").filter({ hasText: "Britomart" }).click();
+    await page.waitForFunction(
+      () => document.querySelector("#store-list")?.innerText.includes("Weekly specials only"),
+      null,
+      { timeout: 5000 }
+    );
+
+    await page.fill("#search", "Driscolls Blueberries");
+    await page.waitForSelector('#product-grid [data-product="5045821-EA-000"]', { timeout: 20000 });
+    const blueberryCard = normalize(
+      await page.locator('#product-grid li.product:has([data-product="5045821-EA-000"])').innerText()
+    );
+    assert(blueberryCard.includes("$6.49"), `Four Square special price is missing: ${blueberryCard}`);
+    assert(
+      blueberryCard.includes("weekly special"),
+      `Four Square special is not labelled: ${blueberryCard}`
+    );
+    assert(
+      !blueberryCard.includes("est."),
+      `Four Square special should not be estimated: ${blueberryCard}`
+    );
+
+    await page.locator('#product-grid [data-product="5045821-EA-000"]').click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const fourSquareDialog = normalize(await page.locator("#product-dialog").innerText());
+    assert(
+      fourSquareDialog.includes("weekly special") &&
+        fourSquareDialog.includes("advertised specials, not shelf prices"),
+      `Four Square dialog does not explain its special-only price: ${fourSquareDialog}`
+    );
+    assert(
+      fourSquareDialog.includes("no price history"),
+      `Four Square should not show an estimated price history: ${fourSquareDialog}`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+
+    await page.fill("#search", "Anchor Blue Milk");
+    await page.waitForSelector('#product-grid [data-product="milk-2l"]', { timeout: 20000 });
+    const milkCard = normalize(
+      await page.locator('#product-grid li.product:has([data-product="milk-2l"])').innerText()
+    );
+    assert(
+      milkCard.includes("no published price"),
+      `unpriced Four Square product should say no published price: ${milkCard}`
+    );
+    assert(
+      !milkCard.includes("not stocked"),
+      `unpriced Four Square product should not be called not stocked: ${milkCard}`
+    );
+
+    await page.fill("#search", "Driscolls Blueberries");
+    await page.waitForSelector('#product-grid [data-add="5045821-EA-000"]', { timeout: 20000 });
+    await page.locator('#product-grid [data-add="5045821-EA-000"]').click();
+    const fourSquareTotals = normalize(await page.locator("#totals").innerText());
+    assert(
+      fourSquareTotals.includes("publishes weekly specials only"),
+      `Four Square basket total does not explain the missing shelf prices: ${fourSquareTotals}`
+    );
+    assert(
+      fourSquareTotals.includes("specials only") && fourSquareTotals.includes("—"),
+      `Four Square should not show a full basket total: ${fourSquareTotals}`
+    );
+
+    await page.click("#receipt-button");
+    await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
+    const fourSquareReceipt = normalize(await page.locator("#receipt-body").innerText());
+    assert(
+      fourSquareReceipt.includes("specials only") &&
+        fourSquareReceipt.includes("advertised weekly specials"),
+      `Four Square receipt should list specials only: ${fourSquareReceipt}`
+    );
+    await page.keyboard.press("Escape");
 
     assert(
       consoleErrors.length === 0,
