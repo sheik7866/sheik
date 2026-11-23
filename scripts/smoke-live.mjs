@@ -9,9 +9,11 @@
   GTINs (including the V can's 8-digit EAN-8) and   decodes the rendered images
   with the site's own vendored ZXing build, so a broken barcode image fails the
   post-deploy check. Products without a valid GTIN must show no barcode card.
-  It also checks quantity-aware multi-buy totals, the club-card toggle, and the
-  deal-adjusted receipt, and requires a loaded product picture plus the import
-  banner's last price-check time and shelf-price coverage summary.
+  It also checks quantity-aware multi-buy totals, a limited single-item special
+  (including units beyond its limit reverting to shelf price), the club-card
+  toggle, and the deal-adjusted receipt, and requires a loaded product picture
+  plus the import banner's last price-check time and shelf-price coverage
+  summary.
 
   Usage:
     npm run smoke:live
@@ -139,6 +141,32 @@ async function currentDeals(page) {
       if (pnsDeal && Number(pnsDeal[0]) >= 2 && Number(pnsDeal[1]) > 0) continue;
       club.push({ sku, name: row[1], price, pns, nw });
     }
+    const singleDeals = [];
+    for (const [sku, deal] of Object.entries(catalogue.zones["pns-ni"]?.deals || {})) {
+      const row = bySku.get(sku);
+      if (!row) continue;
+      const qty = Number(deal[0]);
+      const price = Number(deal[1]);
+      const limit = Number(deal[3]);
+      const shelf = Number(row[6]);
+      const nw = Number(row[7]);
+      if (qty !== 1 || deal[2] === 1 || !(limit >= 2 && limit <= 12)) continue;
+      if (!(price > 0) || !(shelf > 0) || !(price < shelf)) continue;
+      if (shelf - price < 50) continue;
+      // Keep Mt Albert the cheapest offer at every tested quantity so the card,
+      // list and basket all report this special rather than the other store.
+      const nwDeal = catalogue.zones["nw-ni"]?.deals?.[sku];
+      const nwEffective =
+        nwDeal && Number(nwDeal[0]) === 1 && Number(nwDeal[2]) !== 1 && Number(nwDeal[1]) > 0
+          ? Number(nwDeal[1])
+          : nw;
+      if (nwEffective > 0 && nwEffective <= shelf) continue;
+      singleDeals.push({ sku, name: row[1], price, shelf, limit, saving: shelf - price });
+    }
+    singleDeals.sort(
+      (a, b) => a.limit - b.limit || a.price - b.price || a.sku.localeCompare(b.sku)
+    );
+    const single = singleDeals[0] || null;
     const uniformShelf = (group) =>
       group.products.length > 0 &&
       group.products.every((product) => product.shelf === group.products[0].shelf);
@@ -164,6 +192,7 @@ async function currentDeals(page) {
       club: club.sort(byName),
       pool,
       limited,
+      single,
     };
   });
 }
@@ -592,10 +621,15 @@ async function main() {
       deals.limited,
       "no current New World club group with a shared limit found in the catalogue"
     );
+    assert(
+      deals.single,
+      "no current PAK'nSAVE single-item special with a limit found in the catalogue"
+    );
     const multiDeal = deals.multi[0];
     const clubDeal = deals.club[0];
     const poolGroup = deals.pool;
     const limitedGroup = deals.limited;
+    const singleDeal = deals.single;
     const limitedLabel = limitedGroup.products.every(
       (product) => product.brand === limitedGroup.products[0].brand
     )
@@ -614,6 +648,11 @@ async function main() {
       `[smoke] current shared limit: ${limitedLabel} (${limitedGroup.limit} units at ${money(
         limitedGroup.price
       )})`
+    );
+    console.log(
+      `[smoke] current single-item special: ${singleDeal.name} (${money(
+        singleDeal.price
+      )}, limit ${singleDeal.limit}, shelf ${money(singleDeal.shelf)})`
     );
 
     step("checking multi-buy and club-card shelf tags");
@@ -880,6 +919,100 @@ async function main() {
     await page.waitForFunction(() => !document.querySelector("#club-toggle")?.checked, null, {
       timeout: 5000,
     });
+
+    step(`checking a limited PAK'nSAVE single-item special: ${singleDeal.name}`);
+    const specialPrice = money(singleDeal.price);
+    const specialSaving = money(singleDeal.saving * singleDeal.limit);
+    const specialCard = await searchProduct(page, { name: singleDeal.name, sku: singleDeal.sku });
+    assert(
+      specialCard.includes(`Special ${specialPrice}`),
+      `single-item special price missing from the card: ${specialCard}`
+    );
+    assert(
+      specialCard.includes(`limit ${singleDeal.limit}`),
+      `single-item special limit missing from the card: ${specialCard}`
+    );
+    await page.locator(`#product-grid [data-product="${singleDeal.sku}"]`).click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const specialDialog = normalize(await page.locator("#product-dialog").innerText());
+    assert(
+      specialDialog.includes(`Special ${specialPrice}`) &&
+        new RegExp(`limit ${singleDeal.limit}\\b`, "i").test(specialDialog),
+      `single-item special terms missing from the price dialog: ${specialDialog}`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+
+    await addToList(page, singleDeal.sku, 1);
+    const specialRow = page.locator(`#list-items [data-row="${singleDeal.sku}"]`);
+    for (let units = 1; units < singleDeal.limit; units += 1) {
+      await specialRow.locator('[data-step="1"]').click();
+    }
+    await page.waitForFunction(
+      ({ sku, qty }) =>
+        document.querySelector(`#list-items [data-row="${sku}"] output`)?.textContent ===
+        String(qty),
+      { sku: singleDeal.sku, qty: singleDeal.limit },
+      { timeout: 5000 }
+    );
+    const atLimitTotal = money(singleDeal.price * singleDeal.limit);
+    const mtAlbertRow = page.locator("#totals .total-row").filter({ hasText: "Mt Albert" }).first();
+    let mtAlbertText = normalize(await mtAlbertRow.innerText());
+    assert(
+      mtAlbertText.includes(atLimitTotal),
+      `single-item special was not applied to all ${singleDeal.limit} units: ${mtAlbertText}`
+    );
+    const specialList = normalize(
+      await page.locator(`#list-items [data-row="${singleDeal.sku}"]`).innerText()
+    );
+    assert(
+      specialList.includes(`Special ${specialPrice} applied`) &&
+        specialList.includes(`limit ${singleDeal.limit}`) &&
+        new RegExp(`save ${escapeRegExp(specialSaving)}`, "i").test(specialList),
+      `single-item special note missing from the list: ${specialList}`
+    );
+
+    await specialRow.locator('[data-step="1"]').click();
+    await page.waitForFunction(
+      ({ sku, qty }) =>
+        document.querySelector(`#list-items [data-row="${sku}"] output`)?.textContent ===
+        String(qty),
+      { sku: singleDeal.sku, qty: singleDeal.limit + 1 },
+      { timeout: 5000 }
+    );
+    const overLimitTotal = money(
+      singleDeal.price * singleDeal.limit + singleDeal.shelf
+    );
+    mtAlbertText = normalize(await mtAlbertRow.innerText());
+    assert(
+      mtAlbertText.includes(overLimitTotal),
+      `the unit beyond the limit was not charged at shelf price: ${mtAlbertText}`
+    );
+
+    await page.click("#receipt-button");
+    await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
+    const specialReceipt = normalize(
+      await page
+        .locator("#receipt-body .receipt-store")
+        .filter({ hasText: "Mt Albert" })
+        .first()
+        .innerText()
+    );
+    assert(
+      specialReceipt.includes(overLimitTotal) &&
+        new RegExp(`Special ${escapeRegExp(specialPrice)}`, "i").test(specialReceipt) &&
+        new RegExp(`deals save ${escapeRegExp(specialSaving)}`, "i").test(specialReceipt),
+      `receipt did not carry the single-item special and its limit: ${specialReceipt}`
+    );
+    await page.click("[data-close-receipt]");
+    await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
+
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
 
     step(`PAK'nSAVE-only product: ${PAK_ONLY.name}`);
     let card = await searchProduct(page, PAK_ONLY);
