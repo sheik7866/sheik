@@ -11,7 +11,8 @@
   post-deploy check. Products without a valid GTIN must show no barcode card.
   It also checks quantity-aware multi-buy totals, limited single-item specials
   at PAK'nSAVE and New World (including units beyond their limit reverting to
-  shelf price), the club-card toggle, and the deal-adjusted receipt, and
+  shelf price and a limit shared across two PAK'nSAVE products), the club-card
+  toggle, and the deal-adjusted receipt, and
   requires a loaded product picture plus the import banner's last price-check
   time and shelf-price coverage summary.
 
@@ -184,6 +185,57 @@ async function currentDeals(page) {
       (a, b) => a.limit - b.limit || a.price - b.price || a.sku.localeCompare(b.sku)
     );
     const single = singleDeals[0] || null;
+    const pairGroups = new Map();
+    for (const [sku, deal] of Object.entries(catalogue.zones["pns-ni"]?.deals || {})) {
+      const row = bySku.get(sku);
+      if (!row) continue;
+      const qty = Number(deal[0]);
+      const price = Number(deal[1]);
+      const limit = Number(deal[3]);
+      const promo = String(deal[5] || "");
+      const shelf = Number(row[6]);
+      const nw = Number(row[7]);
+      if (qty !== 1 || deal[2] === 1 || deal[6] !== 1 || !promo) continue;
+      if (!(limit >= 3 && limit <= 12) || !(price > 0) || !(shelf > 0) || !(price < shelf)) continue;
+      if (shelf - price < 50 || !(nw > 0)) continue;
+      if (catalogue.zones["nw-ni"]?.deals?.[sku]) continue;
+      const key = `${promo}|${price}|${limit}`;
+      if (!pairGroups.has(key)) {
+        pairGroups.set(key, { promo, price, limit, shelf, products: [] });
+      }
+      pairGroups.get(key).products.push({ sku, name: row[1], shelf });
+    }
+    let pnsPair = null;
+    for (const group of pairGroups.values()) {
+      const products = group.products
+        .filter((product) => product.shelf === group.shelf)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      if (products.length < 2) continue;
+      const [a, b] = products;
+      const qtyEach = Math.floor(group.limit / 2) + 1;
+      const totalQty = qtyEach * 2;
+      const pooled = group.limit * group.price + (totalQty - group.limit) * group.shelf;
+      const nwTotal =
+        lineTotal(a.sku, "nw-ni", 7, qtyEach) + lineTotal(b.sku, "nw-ni", 7, qtyEach);
+      if (!(pooled < nwTotal)) continue;
+      pnsPair = {
+        promoId: group.promo,
+        price: group.price,
+        limit: group.limit,
+        shelf: group.shelf,
+        qtyEach,
+        totalQty,
+        extraUnits: totalQty - group.limit,
+        pooled,
+        nwTotal,
+        savings: totalQty * group.shelf - pooled,
+        products: [
+          { sku: a.sku, name: a.name },
+          { sku: b.sku, name: b.name },
+        ],
+      };
+      break;
+    }
     const nwSingles = [];
     for (const [sku, deal] of Object.entries(catalogue.zones["nw-si"]?.deals || {})) {
       const row = bySku.get(sku);
@@ -235,6 +287,7 @@ async function currentDeals(page) {
       pool,
       limited,
       single,
+      pnsPair,
       nwSingle,
     };
   });
@@ -669,6 +722,10 @@ async function main() {
       "no current PAK'nSAVE mix & match single-item special with a limit found in the catalogue"
     );
     assert(
+      deals.pnsPair,
+      "no current PAK'nSAVE mix & match promotion shared by two products found in the catalogue"
+    );
+    assert(
       deals.nwSingle,
       "no current New World mix & match single-item special with a limit found in the catalogue"
     );
@@ -677,6 +734,7 @@ async function main() {
     const poolGroup = deals.pool;
     const limitedGroup = deals.limited;
     const singleDeal = deals.single;
+    const pairDeal = deals.pnsPair;
     const nwSingleDeal = deals.nwSingle;
     const limitedLabel = limitedGroup.products.every(
       (product) => product.brand === limitedGroup.products[0].brand
@@ -701,6 +759,11 @@ async function main() {
       `[smoke] current single-item special: ${singleDeal.name} (${money(
         singleDeal.price
       )}, limit ${singleDeal.limit}, shelf ${money(singleDeal.shelf)})`
+    );
+    console.log(
+      `[smoke] current shared mix & match limit: ${pairDeal.products
+        .map((product) => product.name)
+        .join(" + ")} (${pairDeal.limit} units at ${money(pairDeal.price)})`
     );
     console.log(
       `[smoke] current New World single-item special: ${nwSingleDeal.name} (${money(
@@ -1089,6 +1152,115 @@ async function main() {
     await page.click("[data-close-receipt]");
     await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
 
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
+
+    step("checking a mix & match limit shared across two PAK'nSAVE products");
+    const [pairA, pairB] = pairDeal.products;
+    const pairPrice = money(pairDeal.price);
+    const pairSaving = money(pairDeal.savings);
+    await searchProduct(page, { name: pairA.name, sku: pairA.sku });
+    await addToList(page, pairA.sku, 1);
+    const pairARow = page.locator(`#list-items [data-row="${pairA.sku}"]`);
+    for (let units = 1; units < pairDeal.qtyEach; units += 1) {
+      await pairARow.locator('[data-step="1"]').click();
+    }
+    await page.waitForFunction(
+      ({ sku, qty }) =>
+        document.querySelector(`#list-items [data-row="${sku}"] output`)?.textContent ===
+        String(qty),
+      { sku: pairA.sku, qty: pairDeal.qtyEach },
+      { timeout: 5000 }
+    );
+    await searchProduct(page, { name: pairB.name, sku: pairB.sku });
+    await addToList(page, pairB.sku, 2);
+    const pairBRow = page.locator(`#list-items [data-row="${pairB.sku}"]`);
+    for (let units = 1; units < pairDeal.qtyEach; units += 1) {
+      await pairBRow.locator('[data-step="1"]').click();
+    }
+    await page.waitForFunction(
+      ({ sku, qty }) =>
+        document.querySelector(`#list-items [data-row="${sku}"] output`)?.textContent ===
+        String(qty),
+      { sku: pairB.sku, qty: pairDeal.qtyEach },
+      { timeout: 5000 }
+    );
+
+    const pairTotal = money(pairDeal.pooled);
+    const pairOther = money(pairDeal.nwTotal);
+    const pairTotals = normalize(await page.locator("#totals").innerText());
+    const pairMtAlbert = page
+      .locator("#totals .total-row")
+      .filter({ hasText: "Mt Albert" })
+      .first();
+    assert(
+      (await pairMtAlbert.innerText()).includes(pairTotal),
+      `shared mix & match special was not pooled at the limit: ${pairTotals}`
+    );
+    const pairNewWorld = page
+      .locator("#totals .total-row")
+      .filter({ hasText: "Point Chevalier" })
+      .first();
+    assert(
+      (await pairNewWorld.innerText()).includes(pairOther),
+      `shared mix & match comparison total is wrong: ${pairTotals}`
+    );
+    assert(
+      /mix & match special at/i.test(pairTotals) &&
+        new RegExp(escapeRegExp(pairA.name), "i").test(pairTotals) &&
+        new RegExp(escapeRegExp(pairB.name), "i").test(pairTotals),
+      `shared group did not name both products: ${pairTotals}`
+    );
+    assert(
+      new RegExp(`${pairDeal.limit} of ${pairDeal.limit} shared units used`, "i").test(
+        pairTotals
+      ) &&
+        new RegExp(`${pairDeal.extraUnits} units? at shelf price`, "i").test(pairTotals),
+      `shared group did not report its pooled limit: ${pairTotals}`
+    );
+    assert(
+      new RegExp(`saves ${escapeRegExp(pairSaving)}`, "i").test(pairTotals),
+      `shared group savings missing: ${pairTotals}`
+    );
+    assert(
+      !/assorted multi-buy/i.test(pairTotals),
+      `shared special was presented as an assorted multi-buy: ${pairTotals}`
+    );
+    const pairList = normalize(await page.locator("#list-items").innerText());
+    assert(
+      (pairList.match(new RegExp(`Special ${escapeRegExp(pairPrice)} applied`, "g")) || [])
+        .length === 2 && new RegExp(`limit ${pairDeal.limit}\\b`, "i").test(pairList),
+      `both pooled products should show the special and its limit: ${pairList}`
+    );
+
+    await page.click("#receipt-button");
+    await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
+    const pairReceipt = normalize(await page.locator("#receipt-body").innerText());
+    assert(
+      pairReceipt.includes(pairTotal) &&
+        new RegExp(`deals save ${escapeRegExp(pairSaving)}`, "i").test(pairReceipt),
+      `shared mix & match receipt total or savings missing: ${pairReceipt}`
+    );
+    assert(
+      /mix & match special/i.test(pairReceipt) &&
+        !/assorted multi-buy/i.test(pairReceipt) &&
+        new RegExp(escapeRegExp(pairA.name), "i").test(pairReceipt) &&
+        new RegExp(escapeRegExp(pairB.name), "i").test(pairReceipt),
+      `shared group was mislabelled in the receipt: ${pairReceipt}`
+    );
+    assert(
+      new RegExp(`${pairDeal.limit} of ${pairDeal.limit} shared units used`, "i").test(
+        pairReceipt
+      ) &&
+        new RegExp(`${pairDeal.extraUnits} units? at shelf price`, "i").test(pairReceipt),
+      `receipt did not report the shared limit and shelf-priced units: ${pairReceipt}`
+    );
+    await page.click("[data-close-receipt]");
+    await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
     await page.click("#clear-list");
     await page.waitForFunction(
       () => document.querySelectorAll("#list-items .list-item").length === 0,
