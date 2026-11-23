@@ -239,6 +239,7 @@ async function currentDeals(page) {
             sku: a.sku,
             name: a.name,
             promoUnits: firstUnits,
+            shelfUnits: qtyEach - firstUnits,
             savings: firstSaving,
             lineTotal: qtyEach * group.shelf - firstSaving,
           },
@@ -246,6 +247,7 @@ async function currentDeals(page) {
             sku: b.sku,
             name: b.name,
             promoUnits: secondUnits,
+            shelfUnits: qtyEach - secondUnits,
             savings: secondSaving,
             lineTotal: qtyEach * group.shelf - secondSaving,
           },
@@ -318,7 +320,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "mix-and-match-groups-2026-11-23",
+        () => window.TROLLEYBIRD_BUILD === "shared-limit-unit-splits-2026-11-23",
         null,
         { timeout: 5000 }
       );
@@ -1260,6 +1262,12 @@ async function main() {
       assert(
         new RegExp(`save ${escapeRegExp(money(product.savings))}`, "i").test(rowText),
         `shared-limit savings split is wrong for ${product.name}: ${rowText}`
+      );
+      assert(
+        rowText.includes(
+          `${product.promoUnits} at special price · ${product.shelfUnits} at shelf price`
+        ),
+        `shared-limit unit split is wrong for ${product.name}: ${rowText}`
       );
     }
 

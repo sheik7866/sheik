@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "mix-and-match-groups-2026-11-23";
+window.TROLLEYBIRD_BUILD = "shared-limit-unit-splits-2026-11-23";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -1040,6 +1040,16 @@ function dealSummary(deal) {
   if (!deal) return "";
   const limit = dealLimitLabel(deal);
   return limit ? `${dealLabel(deal)} · ${limit}` : dealLabel(deal);
+}
+
+/* A pooled promotion has one limit across every product in the group. Show how
+   many of a line's own units consumed that limit and how many stayed at shelf
+   price, since the line's saving alone does not make the split visible. */
+function dealUnitSplit(line) {
+  if (!line?.dealApplied || !line.grouped || !(line.deal?.limit > 0)) return "";
+  const promoUnits = Math.max(0, Math.min(line.qty, line.promoUnits || 0));
+  const shelfUnits = Math.max(0, line.qty - promoUnits);
+  return `${promoUnits} at special price · ${shelfUnits} at shelf price`;
 }
 
 function dealDetail(deal) {
@@ -2140,13 +2150,14 @@ function listItemSearchText(item) {
 function listItemMarkup(item) {
   const { row, product, best, bestKind, unit, missing, pricePending } = item;
   const fromPrice = best ? effectivePriceFor(row.id, best.store) : null;
+  const unitSplit = dealUnitSplit(best);
   return `
     <li class="list-item" data-row="${row.id}">
       <button class="list-item__body" type="button" data-open-product="${row.id}" title="View prices for ${escapeHtml(product.name)}" aria-label="View prices for ${escapeHtml(product.name)}">
         <b>${escapeHtml(product.name)}</b>
         <small>${escapeHtml(product.size)}${best ? ` · ${bestKind} from <span class="list-item__price">${money.format(fromPrice ?? best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : missing ? " · not stocked at your stores" : ""}</small>
         ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
-        ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""} · save ${money.format(best.savings)}</small>` : ""}
+        ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""}${unitSplit ? ` · ${escapeHtml(unitSplit)}` : ""} · save ${money.format(best.savings)}</small>` : ""}
       </button>
       <span class="qty">
         <button type="button" data-step="-1" data-id="${row.id}" aria-label="Decrease quantity of ${escapeHtml(product.name)}">−</button>
