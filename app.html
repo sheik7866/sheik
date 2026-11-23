@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Keep this version in step with the build marker so a cached bundle cannot
        outlive a deployment. -->
-  <link rel="stylesheet" href="app.css?v=shared-limit-unit-splits-2026-11-23" />
+  <link rel="stylesheet" href="app.css?v=price-refresh-date-2026-11-24" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
@@ -48,6 +48,12 @@
         <span class="brand__name">Trolleybird</span>
       </a>
       <span class="app-bar__tag">Interactive demo</span>
+      <span class="price-freshness" id="price-freshness" hidden>
+        <span class="price-freshness__dot" aria-hidden="true"></span>
+        <span class="price-freshness__label">Shelf prices</span>
+        <b class="price-freshness__date" id="price-freshness-date"></b>
+        <span class="price-freshness__age" id="price-freshness-age" hidden></span>
+      </span>
 
       <div class="app-bar__actions">
         <label class="switch" for="pro-toggle">
@@ -344,7 +350,7 @@
     <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
   </div>
 
-  <script src="app.js?v=shared-limit-unit-splits-2026-11-23" defer></script>
+  <script src="app.js?v=price-refresh-date-2026-11-24" defer></script>
   <script src="scanner.js" defer></script>
 </body>
 </html>

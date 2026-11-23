@@ -320,7 +320,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "shared-limit-unit-splits-2026-11-23",
+        () => window.TROLLEYBIRD_BUILD === "price-refresh-date-2026-11-24",
         null,
         { timeout: 5000 }
       );
@@ -713,6 +713,12 @@ async function main() {
     assert(
       importBannerDateText.includes(`Import dated ${expectedImportDates.long}`),
       `import banner is not dated ${expectedImportDates.long} in Auckland: ${importBannerDateText}`
+    );
+    step("checking the visible shelf-price date");
+    const freshnessText = normalize(await page.locator("#price-freshness").innerText());
+    assert(
+      freshnessText.includes(`Shelf prices ${expectedImportDates.short}`),
+      `top-bar shelf-price date is not ${expectedImportDates.short}: ${freshnessText}`
     );
     const storePriceNotes = await storePriceRows.evaluateAll((rows) =>
       rows.map((row) => row.innerText.replace(/\s+/g, " ").trim())

@@ -189,6 +189,59 @@
   white-space: nowrap;
 }
 
+/* Shelf-price freshness: the refresh date stays in the top bar on every tab,
+   so a missed nightly refresh shows up as an age label instead of hiding
+   inside the catalogue banner. */
+.price-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.27rem 0.62rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.price-freshness[hidden] {
+  display: none;
+}
+
+.price-freshness__dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--leaf);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--leaf) 18%, transparent);
+}
+
+.price-freshness__date {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.price-freshness.is-stale {
+  border-color: color-mix(in srgb, var(--tomato) 42%, var(--line));
+  background: color-mix(in srgb, var(--tomato) 9%, var(--paper));
+  color: var(--tomato);
+}
+
+.price-freshness.is-stale .price-freshness__dot {
+  background: var(--tomato);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tomato) 20%, transparent);
+}
+
+.price-freshness.is-stale .price-freshness__date {
+  color: inherit;
+}
+
+.price-freshness__age[hidden] {
+  display: none;
+}
+
 .app-bar__actions {
   display: flex;
   align-items: center;

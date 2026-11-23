@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "shared-limit-unit-splits-2026-11-23";
+window.TROLLEYBIRD_BUILD = "price-refresh-date-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -566,6 +566,9 @@ const el = {
   bulkSave: document.getElementById("bulk-save"),
   importBanner: document.getElementById("import-banner"),
   coverageLine: document.getElementById("coverage-line"),
+  priceFreshness: document.getElementById("price-freshness"),
+  priceFreshnessDate: document.getElementById("price-freshness-date"),
+  priceFreshnessAge: document.getElementById("price-freshness-age"),
   proToggle: document.getElementById("pro-toggle"),
   clubToggle: document.getElementById("club-toggle"),
   tabButtons: [...document.querySelectorAll("[data-tab]")],
@@ -4006,6 +4009,48 @@ function renderCoverageLine() {
   el.coverageLine.hidden = false;
 }
 
+/* The newest price import is the app's shelf-price date. It stays visible in
+   the top bar on every tab, and gains an age warning once a nightly refresh
+   is late, so stale prices cannot hide inside the catalogue banner. */
+function priceRefreshDate() {
+  const iso = String(CATALOGUE?.fetchedAt || IMPORTS[0]?.fetchedAt || "");
+  const day = iso.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "";
+}
+
+function daysSince(iso) {
+  const then = Date.parse(`${iso}T00:00:00Z`);
+  const now = Date.parse(`${todayIso()}T00:00:00Z`);
+  if (Number.isNaN(then) || Number.isNaN(now)) return null;
+  return Math.round((now - then) / 86400000);
+}
+
+function renderPriceFreshness() {
+  if (!el.priceFreshness) return;
+  const day = priceRefreshDate();
+  if (!day) {
+    el.priceFreshness.hidden = true;
+    return;
+  }
+  const age = daysSince(day);
+  const stale = typeof age === "number" && age >= 1;
+  const long = new Intl.DateTimeFormat("en-NZ", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Pacific/Auckland",
+  }).format(new Date(`${day}T00:00:00Z`));
+  el.priceFreshnessDate.textContent = shortDate(day);
+  el.priceFreshnessAge.textContent =
+    stale ? `· ${age === 1 ? "1 day" : `${age} days`} old` : "";
+  el.priceFreshnessAge.hidden = !el.priceFreshnessAge.textContent;
+  el.priceFreshness.classList.toggle("is-stale", stale);
+  el.priceFreshness.title = stale
+    ? `Shelf prices were last refreshed on ${long}, ${age === 1 ? "a day" : `${age} days`} ago. They refresh every night after midnight, NZ time.`
+    : `Shelf prices were refreshed on ${long}. They refresh every night after midnight, NZ time.`;
+  el.priceFreshness.hidden = false;
+}
+
 function renderImportBanner() {
   if (!el.importBanner || !IMPORTS.length) return;
   const checkedAt = priceCheckLabel();
@@ -4020,11 +4065,17 @@ function renderImportBanner() {
   el.importBanner.hidden = false;
 }
 
+renderPriceFreshness();
 renderImportBanner();
 renderCoverageLine();
 renderAll();
 setTab(state.tab || (state.stores.length ? "catalog" : "stores"));
 for (const storeId of state.stores) void ensureStorePrices(storeId);
+
+/* Recheck the shelf-price age when a left-open tab comes back into view. */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") renderPriceFreshness();
+});
 
 /* Keep the branded splash up briefly so a fast initial render does not make
    it flash, then fade it away. */
