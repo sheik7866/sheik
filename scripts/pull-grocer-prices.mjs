@@ -95,6 +95,10 @@ const ALL_STORES = [
   { id: 182, branch: "Westgate" },
   { id: 185, branch: "Whangaparaoa" },
 ]
+/* Grocer's store table has no address column, and every branch above is in
+   Auckland (see ALL_STORES), so the directory records the city directly. */
+const STORE_CITY = "Auckland";
+
 const STORES = process.env.STORES
   ? ALL_STORES.filter((store) => process.env.STORES.split(",").map(Number).includes(store.id))
   : ALL_STORES;
@@ -238,6 +242,7 @@ async function main() {
       branch: store.branch,
       region: "NI",
       address: "",
+      city: STORE_CITY,
       checkedAt,
       priceCount: rows.length,
       specialsCount: onSale,

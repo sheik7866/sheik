@@ -327,7 +327,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "store-location-label-2026-11-24",
+        () => window.TROLLEYBIRD_BUILD === "store-city-2026-11-24",
         null,
         { timeout: 5000 }
       );
@@ -1726,6 +1726,10 @@ async function main() {
     assert(
       woolworthsStoreCard.includes(woolworths.branch.toLowerCase()),
       `selected Woolworths branch is missing: ${woolworthsStoreCard}`
+    );
+    assert(
+      woolworthsStoreCard.includes("· auckland"),
+      `selected Woolworths branch is missing its city: ${woolworthsStoreCard}`
     );
     assert(
       !woolworthsStoreCard.includes("weekly specials only"),

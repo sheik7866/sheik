@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "store-location-label-2026-11-24";
+window.TROLLEYBIRD_BUILD = "store-city-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -58,6 +58,7 @@ function branchStore(store) {
     name: BRAND_NAMES[store.brand] || store.name,
     branch: store.branch,
     address: store.address || "",
+    city: typeof store.city === "string" ? store.city : "",
     region: store.region,
     zone: `${store.brand}-${String(store.region || "").toLowerCase()}`,
     factor: 1,
@@ -1960,7 +1961,7 @@ function storeSearchMatches(query) {
   return BRANCH_STORES.filter((store) => {
     const aliases = STORE_SEARCH_ALIASES[store.chain] || STORE_SEARCH_ALIASES.fsq;
     const haystack = normalizeStoreSearch(
-      `${store.name} ${store.branch} ${store.address} ${storeRegionLabel(store)} ${aliases}`
+      `${store.name} ${store.branch} ${store.address} ${store.city || ""} ${storeRegionLabel(store)} ${aliases}`
     );
     return terms.every((term) => haystack.includes(term));
   }).sort((a, b) => {
@@ -2057,6 +2058,10 @@ function setTab(tab, { persist = false } = {}) {
 }
 
 function storeCityLabel(store) {
+  // Woolworths has no street address in Grocer's dataset, so its directory
+  // carries the city directly; the other banners derive it from the address.
+  const named = String(store.city || "").trim();
+  if (named) return named;
   const parts = String(store.address || "")
     .split(",")
     .map((part) => part.trim())

@@ -14,6 +14,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Auckland Airport",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:04:19.000Z",
       "priceCount": 8339,
       "specialsCount": 2886
@@ -24,6 +25,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Auckland City",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:04:40.000Z",
       "priceCount": 10170,
       "specialsCount": 3499
@@ -34,6 +36,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Beachlands",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:09:23.000Z",
       "priceCount": 10190,
       "specialsCount": 3467
@@ -44,6 +47,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Birkenhead",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:11:24.000Z",
       "priceCount": 10580,
       "specialsCount": 3604
@@ -54,6 +58,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Botany Downs",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:12:14.000Z",
       "priceCount": 10427,
       "specialsCount": 3557
@@ -64,6 +69,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Browns Bay",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:13:04.000Z",
       "priceCount": 10546,
       "specialsCount": 3595
@@ -74,6 +80,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Glenfield",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:25:10.000Z",
       "priceCount": 10348,
       "specialsCount": 3520
@@ -84,6 +91,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Greenlane",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:26:17.000Z",
       "priceCount": 10674,
       "specialsCount": 3636
@@ -94,6 +102,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Grey Lynn",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:26:45.000Z",
       "priceCount": 10403,
       "specialsCount": 3532
@@ -104,6 +113,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Helensville",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:29:24.000Z",
       "priceCount": 7093,
       "specialsCount": 2426
@@ -114,6 +124,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Henderson",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:30:13.000Z",
       "priceCount": 9514,
       "specialsCount": 3224
@@ -124,6 +135,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Highland Park",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:30:54.000Z",
       "priceCount": 10464,
       "specialsCount": 3557
@@ -134,6 +146,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Hobsonville",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:30:55.000Z",
       "priceCount": 9455,
       "specialsCount": 3226
@@ -144,6 +157,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Howick",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:32:05.000Z",
       "priceCount": 8631,
       "specialsCount": 2919
@@ -154,6 +168,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Kelston",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:36:27.000Z",
       "priceCount": 9506,
       "specialsCount": 3247
@@ -164,6 +179,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Lynfield",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:39:55.000Z",
       "priceCount": 10248,
       "specialsCount": 3490
@@ -174,6 +190,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Lynnmall",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:40:28.000Z",
       "priceCount": 10136,
       "specialsCount": 3437
@@ -184,6 +201,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Mairangi Bay",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:41:06.000Z",
       "priceCount": 7473,
       "specialsCount": 2529
@@ -194,6 +212,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Mangere East",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:41:33.000Z",
       "priceCount": 6787,
       "specialsCount": 2352
@@ -204,6 +223,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Manukau",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:42:01.000Z",
       "priceCount": 10001,
       "specialsCount": 3399
@@ -214,6 +234,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Manukau City Mall",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:42:24.000Z",
       "priceCount": 9353,
       "specialsCount": 3172
@@ -224,6 +245,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Manurewa",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:42:52.000Z",
       "priceCount": 9332,
       "specialsCount": 3182
@@ -234,6 +256,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Meadowbank",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:44:24.000Z",
       "priceCount": 10526,
       "specialsCount": 3570
@@ -244,6 +267,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Meadowlands",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:44:51.000Z",
       "priceCount": 10062,
       "specialsCount": 3434
@@ -254,6 +278,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Metro Albert Street",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:45:26.000Z",
       "priceCount": 10536,
       "specialsCount": 3584
@@ -264,6 +289,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Metro Auckland Victoria Street West",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:45:42.000Z",
       "priceCount": 9510,
       "specialsCount": 3306
@@ -274,6 +300,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Metro Halsey Street",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:46:22.000Z",
       "priceCount": 10536,
       "specialsCount": 3584
@@ -284,6 +311,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Metro Herne Bay",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:46:58.000Z",
       "priceCount": 10536,
       "specialsCount": 3584
@@ -294,6 +322,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Milford",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:47:14.000Z",
       "priceCount": 10431,
       "specialsCount": 3545
@@ -304,6 +333,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Mount Eden",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:49:43.000Z",
       "priceCount": 10624,
       "specialsCount": 3609
@@ -314,6 +344,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Mount Roskill",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:50:16.000Z",
       "priceCount": 10426,
       "specialsCount": 3528
@@ -324,6 +355,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Mount Wellington",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:50:51.000Z",
       "priceCount": 10205,
       "specialsCount": 3477
@@ -334,6 +366,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Newmarket",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:53:51.000Z",
       "priceCount": 10410,
       "specialsCount": 3536
@@ -344,6 +377,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Northcote",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:54:42.000Z",
       "priceCount": 9741,
       "specialsCount": 3320
@@ -354,6 +388,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Northwest",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:55:14.000Z",
       "priceCount": 9800,
       "specialsCount": 3328
@@ -364,6 +399,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Onehunga",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:56:26.000Z",
       "priceCount": 7162,
       "specialsCount": 2375
@@ -374,6 +410,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Orewa",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:56:51.000Z",
       "priceCount": 10268,
       "specialsCount": 3472
@@ -384,6 +421,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Pakuranga",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:58:04.000Z",
       "priceCount": 8763,
       "specialsCount": 2990
@@ -394,6 +432,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Papakura",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T16:59:31.000Z",
       "priceCount": 9566,
       "specialsCount": 3265
@@ -404,6 +443,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Papatoetoe",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:00:00.000Z",
       "priceCount": 8040,
       "specialsCount": 2800
@@ -414,6 +454,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Ponsonby",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:02:34.000Z",
       "priceCount": 10550,
       "specialsCount": 3581
@@ -424,6 +465,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Pt Chevalier",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:03:05.000Z",
       "priceCount": 10112,
       "specialsCount": 3484
@@ -434,6 +476,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Pukekohe",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:03:56.000Z",
       "priceCount": 10048,
       "specialsCount": 3407
@@ -444,6 +487,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Pukekohe South",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:04:40.000Z",
       "priceCount": 10568,
       "specialsCount": 3579
@@ -454,6 +498,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Silverdale",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:10:31.000Z",
       "priceCount": 10482,
       "specialsCount": 3557
@@ -464,6 +509,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "St Johns",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:13:03.000Z",
       "priceCount": 10556,
       "specialsCount": 3588
@@ -474,6 +520,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "St Lukes",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:13:11.000Z",
       "priceCount": 10188,
       "specialsCount": 3487
@@ -484,6 +531,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Sunnynook",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:14:37.000Z",
       "priceCount": 9729,
       "specialsCount": 3320
@@ -494,6 +542,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Takanini",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:14:56.000Z",
       "priceCount": 10262,
       "specialsCount": 3480
@@ -504,6 +553,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Takapuna",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:15:58.000Z",
       "priceCount": 10497,
       "specialsCount": 3559
@@ -514,6 +564,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Te Atatu South",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:18:26.000Z",
       "priceCount": 7804,
       "specialsCount": 2657
@@ -524,6 +575,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Three Kings",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:21:25.000Z",
       "priceCount": 9553,
       "specialsCount": 3238
@@ -534,6 +586,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Waiata Shores",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:25:55.000Z",
       "priceCount": 10248,
       "specialsCount": 3497
@@ -544,6 +597,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Waiheke Island",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:26:25.000Z",
       "priceCount": 10460,
       "specialsCount": 3550
@@ -554,6 +608,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Warkworth",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:29:20.000Z",
       "priceCount": 10359,
       "specialsCount": 3528
@@ -564,6 +619,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Westgate",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:29:22.000Z",
       "priceCount": 9629,
       "specialsCount": 3275
@@ -574,6 +630,7 @@ window.GROCER_WOOLWORTHS = {
       "branch": "Whangaparaoa",
       "region": "NI",
       "address": "",
+      "city": "Auckland",
       "checkedAt": "2026-11-23T17:30:58.000Z",
       "priceCount": 10253,
       "specialsCount": 3492
