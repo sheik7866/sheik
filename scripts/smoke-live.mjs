@@ -81,6 +81,13 @@ const normalize = (value) => value.replace(/\s+/g, " ").trim();
 const money = (cents) => `$${(Number(cents) / 100).toFixed(2)}`;
 const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// The tab bar only exists on phone widths; desktop layouts show every panel at
+// once, so clicking the hidden tab would hang until the Playwright timeout.
+async function showShoppingList(page) {
+  const listTab = page.locator('[data-tab="list"]');
+  if (await listTab.isVisible()) await listTab.click();
+}
+
 async function currentDeals(page) {
   return page.evaluate(() => {
     const catalogue = window.GROCER_CATALOGUE;
@@ -1606,7 +1613,7 @@ async function main() {
     await page.fill("#search", "Driscolls Blueberries");
     await page.waitForSelector('#product-grid [data-add="5045821-EA-000"]', { timeout: 20000 });
     await page.locator('#product-grid [data-add="5045821-EA-000"]').click();
-    await page.locator('[data-tab="list"]').click();
+    await showShoppingList(page);
     const fourSquareTotals = normalize(await page.locator("#totals").innerText()).toLowerCase();
     assert(
       fourSquareTotals.includes("publishes weekly specials only"),
@@ -1755,7 +1762,7 @@ async function main() {
       null,
       { timeout: 5000 }
     );
-    await page.locator('[data-tab="list"]').click();
+    await showShoppingList(page);
     const woolworthsTotals = normalize(
       await page.locator("#totals").innerText()
     ).toLowerCase();
