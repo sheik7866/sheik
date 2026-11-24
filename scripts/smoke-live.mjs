@@ -1660,7 +1660,7 @@ async function main() {
       };
     });
     assert(
-      woolworths.branches.length >= 4,
+      woolworths.branches.length >= 50,
       `Woolworths has too few branches: ${woolworths.branches.join(", ")}`
     );
     assert(

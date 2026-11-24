@@ -33,16 +33,68 @@ const TODAY = new Intl.DateTimeFormat("en-CA", {
 const CACHE = process.env.CACHE || `/tmp/trolleybird-grocer-${TODAY}`;
 const USER_AGENT = "TrolleybirdDemo/1.0 (price comparison demo; contact via GitHub)";
 
-/* The Auckland branches the demo shows. Grocer ids come from its public store
-   table; the branch names match the Woolworths store names it publishes. */
+/* Every Woolworths branch in the Auckland region, from Grocer's public store
+   table. Grocer publishes no island field, so the nationwide set is out of
+   scope here: every id below is an Auckland store. */
 const ALL_STORES = [
+  { id: 8, branch: "Auckland Airport" },
   { id: 9, branch: "Auckland City" },
+  { id: 15, branch: "Beachlands" },
+  { id: 18, branch: "Birkenhead" },
   { id: 21, branch: "Botany Downs" },
+  { id: 24, branch: "Browns Bay" },
   { id: 45, branch: "Glenfield" },
+  { id: 47, branch: "Greenlane" },
+  { id: 50, branch: "Grey Lynn" },
+  { id: 56, branch: "Helensville" },
   { id: 57, branch: "Henderson" },
+  { id: 58, branch: "Highland Park" },
+  { id: 59, branch: "Hobsonville" },
+  { id: 61, branch: "Howick" },
+  { id: 70, branch: "Kelston" },
+  { id: 77, branch: "Lynfield" },
+  { id: 78, branch: "Lynnmall" },
+  { id: 81, branch: "Mairangi Bay" },
+  { id: 82, branch: "Mangere East" },
+  { id: 84, branch: "Manukau" },
+  { id: 85, branch: "Manukau City Mall" },
+  { id: 86, branch: "Manurewa" },
+  { id: 90, branch: "Meadowbank" },
+  { id: 91, branch: "Meadowlands" },
+  { id: 300323, branch: "Metro Albert Street" },
+  { id: 10, branch: "Metro Auckland Victoria Street West" },
+  { id: 300325, branch: "Metro Halsey Street" },
+  { id: 300326, branch: "Metro Herne Bay" },
+  { id: 92, branch: "Milford" },
+  { id: 97, branch: "Mount Eden" },
+  { id: 98, branch: "Mount Roskill" },
+  { id: 99, branch: "Mount Wellington" },
+  { id: 104, branch: "Newmarket" },
+  { id: 106, branch: "Northcote" },
+  { id: 108, branch: "Northwest" },
+  { id: 110, branch: "Onehunga" },
+  { id: 111, branch: "Orewa" },
+  { id: 116, branch: "Pakuranga" },
   { id: 118, branch: "Papakura" },
+  { id: 120, branch: "Papatoetoe" },
+  { id: 124, branch: "Ponsonby" },
   { id: 126, branch: "Pt Chevalier" },
-];
+  { id: 127, branch: "Pukekohe" },
+  { id: 128, branch: "Pukekohe South" },
+  { id: 141, branch: "Silverdale" },
+  { id: 145, branch: "St Johns" },
+  { id: 146, branch: "St Lukes" },
+  { id: 149, branch: "Sunnynook" },
+  { id: 150, branch: "Takanini" },
+  { id: 151, branch: "Takapuna" },
+  { id: 157, branch: "Te Atatu South" },
+  { id: 163, branch: "Three Kings" },
+  { id: 172, branch: "Waiata Shores" },
+  { id: 155089, branch: "Waiheke Island" },
+  { id: 181, branch: "Warkworth" },
+  { id: 182, branch: "Westgate" },
+  { id: 185, branch: "Whangaparaoa" },
+]
 const STORES = process.env.STORES
   ? ALL_STORES.filter((store) => process.env.STORES.split(",").map(Number).includes(store.id))
   : ALL_STORES;

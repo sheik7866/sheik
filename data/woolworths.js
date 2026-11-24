@@ -9,6 +9,16 @@ window.GROCER_WOOLWORTHS = {
   "note": "Per-branch Woolworths prices, read from grocer.nz's published static dataset. A product shows the price advertised today: the sale price when there is one, otherwise the shelf price. Club and multi-buy prices are excluded.",
   "stores": [
     {
+      "id": 8,
+      "brand": "wow",
+      "branch": "Auckland Airport",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:04:19.000Z",
+      "priceCount": 8340,
+      "specialsCount": 2886
+    },
+    {
       "id": 9,
       "brand": "wow",
       "branch": "Auckland City",
@@ -17,6 +27,26 @@ window.GROCER_WOOLWORTHS = {
       "checkedAt": "2026-11-23T16:04:40.000Z",
       "priceCount": 10170,
       "specialsCount": 3499
+    },
+    {
+      "id": 15,
+      "brand": "wow",
+      "branch": "Beachlands",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:09:23.000Z",
+      "priceCount": 10190,
+      "specialsCount": 3467
+    },
+    {
+      "id": 18,
+      "brand": "wow",
+      "branch": "Birkenhead",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:11:24.000Z",
+      "priceCount": 10580,
+      "specialsCount": 3604
     },
     {
       "id": 21,
@@ -29,6 +59,16 @@ window.GROCER_WOOLWORTHS = {
       "specialsCount": 3557
     },
     {
+      "id": 24,
+      "brand": "wow",
+      "branch": "Browns Bay",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:13:04.000Z",
+      "priceCount": 10547,
+      "specialsCount": 3595
+    },
+    {
       "id": 45,
       "brand": "wow",
       "branch": "Glenfield",
@@ -37,6 +77,36 @@ window.GROCER_WOOLWORTHS = {
       "checkedAt": "2026-11-23T16:25:10.000Z",
       "priceCount": 10348,
       "specialsCount": 3520
+    },
+    {
+      "id": 47,
+      "brand": "wow",
+      "branch": "Greenlane",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:26:17.000Z",
+      "priceCount": 10674,
+      "specialsCount": 3636
+    },
+    {
+      "id": 50,
+      "brand": "wow",
+      "branch": "Grey Lynn",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:26:45.000Z",
+      "priceCount": 10403,
+      "specialsCount": 3532
+    },
+    {
+      "id": 56,
+      "brand": "wow",
+      "branch": "Helensville",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:29:24.000Z",
+      "priceCount": 7093,
+      "specialsCount": 2426
     },
     {
       "id": 57,
@@ -49,6 +119,276 @@ window.GROCER_WOOLWORTHS = {
       "specialsCount": 3224
     },
     {
+      "id": 58,
+      "brand": "wow",
+      "branch": "Highland Park",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:30:54.000Z",
+      "priceCount": 10464,
+      "specialsCount": 3557
+    },
+    {
+      "id": 59,
+      "brand": "wow",
+      "branch": "Hobsonville",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:30:55.000Z",
+      "priceCount": 9455,
+      "specialsCount": 3226
+    },
+    {
+      "id": 61,
+      "brand": "wow",
+      "branch": "Howick",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:32:05.000Z",
+      "priceCount": 8631,
+      "specialsCount": 2919
+    },
+    {
+      "id": 70,
+      "brand": "wow",
+      "branch": "Kelston",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:36:27.000Z",
+      "priceCount": 9506,
+      "specialsCount": 3247
+    },
+    {
+      "id": 77,
+      "brand": "wow",
+      "branch": "Lynfield",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:39:55.000Z",
+      "priceCount": 10250,
+      "specialsCount": 3490
+    },
+    {
+      "id": 78,
+      "brand": "wow",
+      "branch": "Lynnmall",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:40:28.000Z",
+      "priceCount": 10136,
+      "specialsCount": 3437
+    },
+    {
+      "id": 81,
+      "brand": "wow",
+      "branch": "Mairangi Bay",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:41:06.000Z",
+      "priceCount": 7473,
+      "specialsCount": 2529
+    },
+    {
+      "id": 82,
+      "brand": "wow",
+      "branch": "Mangere East",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:41:33.000Z",
+      "priceCount": 6788,
+      "specialsCount": 2352
+    },
+    {
+      "id": 84,
+      "brand": "wow",
+      "branch": "Manukau",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:42:01.000Z",
+      "priceCount": 10001,
+      "specialsCount": 3399
+    },
+    {
+      "id": 85,
+      "brand": "wow",
+      "branch": "Manukau City Mall",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:42:24.000Z",
+      "priceCount": 9354,
+      "specialsCount": 3172
+    },
+    {
+      "id": 86,
+      "brand": "wow",
+      "branch": "Manurewa",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:42:52.000Z",
+      "priceCount": 9332,
+      "specialsCount": 3182
+    },
+    {
+      "id": 90,
+      "brand": "wow",
+      "branch": "Meadowbank",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:44:24.000Z",
+      "priceCount": 10526,
+      "specialsCount": 3570
+    },
+    {
+      "id": 91,
+      "brand": "wow",
+      "branch": "Meadowlands",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:44:51.000Z",
+      "priceCount": 10063,
+      "specialsCount": 3434
+    },
+    {
+      "id": 300323,
+      "brand": "wow",
+      "branch": "Metro Albert Street",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:45:26.000Z",
+      "priceCount": 10537,
+      "specialsCount": 3584
+    },
+    {
+      "id": 10,
+      "brand": "wow",
+      "branch": "Metro Auckland Victoria Street West",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:45:42.000Z",
+      "priceCount": 9510,
+      "specialsCount": 3306
+    },
+    {
+      "id": 300325,
+      "brand": "wow",
+      "branch": "Metro Halsey Street",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:46:22.000Z",
+      "priceCount": 10537,
+      "specialsCount": 3584
+    },
+    {
+      "id": 300326,
+      "brand": "wow",
+      "branch": "Metro Herne Bay",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:46:58.000Z",
+      "priceCount": 10537,
+      "specialsCount": 3584
+    },
+    {
+      "id": 92,
+      "brand": "wow",
+      "branch": "Milford",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:47:14.000Z",
+      "priceCount": 10431,
+      "specialsCount": 3545
+    },
+    {
+      "id": 97,
+      "brand": "wow",
+      "branch": "Mount Eden",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:49:43.000Z",
+      "priceCount": 10625,
+      "specialsCount": 3609
+    },
+    {
+      "id": 98,
+      "brand": "wow",
+      "branch": "Mount Roskill",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:50:16.000Z",
+      "priceCount": 10426,
+      "specialsCount": 3528
+    },
+    {
+      "id": 99,
+      "brand": "wow",
+      "branch": "Mount Wellington",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:50:51.000Z",
+      "priceCount": 10205,
+      "specialsCount": 3477
+    },
+    {
+      "id": 104,
+      "brand": "wow",
+      "branch": "Newmarket",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:53:51.000Z",
+      "priceCount": 10410,
+      "specialsCount": 3536
+    },
+    {
+      "id": 106,
+      "brand": "wow",
+      "branch": "Northcote",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:54:42.000Z",
+      "priceCount": 9741,
+      "specialsCount": 3320
+    },
+    {
+      "id": 108,
+      "brand": "wow",
+      "branch": "Northwest",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:55:14.000Z",
+      "priceCount": 9800,
+      "specialsCount": 3328
+    },
+    {
+      "id": 110,
+      "brand": "wow",
+      "branch": "Onehunga",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:56:26.000Z",
+      "priceCount": 7162,
+      "specialsCount": 2375
+    },
+    {
+      "id": 111,
+      "brand": "wow",
+      "branch": "Orewa",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:56:51.000Z",
+      "priceCount": 10268,
+      "specialsCount": 3472
+    },
+    {
+      "id": 116,
+      "brand": "wow",
+      "branch": "Pakuranga",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T16:58:04.000Z",
+      "priceCount": 8765,
+      "specialsCount": 2991
+    },
+    {
       "id": 118,
       "brand": "wow",
       "branch": "Papakura",
@@ -59,6 +399,26 @@ window.GROCER_WOOLWORTHS = {
       "specialsCount": 3265
     },
     {
+      "id": 120,
+      "brand": "wow",
+      "branch": "Papatoetoe",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:00:00.000Z",
+      "priceCount": 8040,
+      "specialsCount": 2800
+    },
+    {
+      "id": 124,
+      "brand": "wow",
+      "branch": "Ponsonby",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:02:34.000Z",
+      "priceCount": 10552,
+      "specialsCount": 3581
+    },
+    {
       "id": 126,
       "brand": "wow",
       "branch": "Pt Chevalier",
@@ -67,6 +427,156 @@ window.GROCER_WOOLWORTHS = {
       "checkedAt": "2026-11-23T17:03:05.000Z",
       "priceCount": 10112,
       "specialsCount": 3484
+    },
+    {
+      "id": 127,
+      "brand": "wow",
+      "branch": "Pukekohe",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:03:56.000Z",
+      "priceCount": 10048,
+      "specialsCount": 3407
+    },
+    {
+      "id": 128,
+      "brand": "wow",
+      "branch": "Pukekohe South",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:04:40.000Z",
+      "priceCount": 10568,
+      "specialsCount": 3579
+    },
+    {
+      "id": 141,
+      "brand": "wow",
+      "branch": "Silverdale",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:10:31.000Z",
+      "priceCount": 10482,
+      "specialsCount": 3557
+    },
+    {
+      "id": 145,
+      "brand": "wow",
+      "branch": "St Johns",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:13:03.000Z",
+      "priceCount": 10556,
+      "specialsCount": 3588
+    },
+    {
+      "id": 146,
+      "brand": "wow",
+      "branch": "St Lukes",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:13:11.000Z",
+      "priceCount": 10189,
+      "specialsCount": 3487
+    },
+    {
+      "id": 149,
+      "brand": "wow",
+      "branch": "Sunnynook",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:14:37.000Z",
+      "priceCount": 9729,
+      "specialsCount": 3320
+    },
+    {
+      "id": 150,
+      "brand": "wow",
+      "branch": "Takanini",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:14:56.000Z",
+      "priceCount": 10264,
+      "specialsCount": 3480
+    },
+    {
+      "id": 151,
+      "brand": "wow",
+      "branch": "Takapuna",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:15:58.000Z",
+      "priceCount": 10498,
+      "specialsCount": 3559
+    },
+    {
+      "id": 157,
+      "brand": "wow",
+      "branch": "Te Atatu South",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:18:26.000Z",
+      "priceCount": 7805,
+      "specialsCount": 2657
+    },
+    {
+      "id": 163,
+      "brand": "wow",
+      "branch": "Three Kings",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:21:25.000Z",
+      "priceCount": 9554,
+      "specialsCount": 3238
+    },
+    {
+      "id": 172,
+      "brand": "wow",
+      "branch": "Waiata Shores",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:25:55.000Z",
+      "priceCount": 10248,
+      "specialsCount": 3497
+    },
+    {
+      "id": 155089,
+      "brand": "wow",
+      "branch": "Waiheke Island",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:26:25.000Z",
+      "priceCount": 10461,
+      "specialsCount": 3550
+    },
+    {
+      "id": 181,
+      "brand": "wow",
+      "branch": "Warkworth",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:29:20.000Z",
+      "priceCount": 10359,
+      "specialsCount": 3528
+    },
+    {
+      "id": 182,
+      "brand": "wow",
+      "branch": "Westgate",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:29:22.000Z",
+      "priceCount": 9629,
+      "specialsCount": 3275
+    },
+    {
+      "id": 185,
+      "brand": "wow",
+      "branch": "Whangaparaoa",
+      "region": "NI",
+      "address": "",
+      "checkedAt": "2026-11-23T17:30:58.000Z",
+      "priceCount": 10253,
+      "specialsCount": 3492
     }
   ]
 };
