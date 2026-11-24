@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "grocer-woolworths-2026-11-24";
+window.TROLLEYBIRD_BUILD = "grocer-woolworths-2026-11-24b";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -770,6 +770,16 @@ function checkedPrice(productId, storeId) {
   return row && Number.isFinite(row.price) && row.price > 0 ? row : null;
 }
 
+/* The curated staple imports name a Foodstuffs catalogue id per chain. The
+   Woolworths price files are keyed by those same catalogue ids (the GTIN join
+   in scripts/pull-grocer-prices.mjs), so a staple without its own Woolworths
+   mapping can reuse the PAK'nSAVE or New World id for the same physical pack. */
+function demoSkuId(productId, chain) {
+  const ids = DEMO_SKU_IDS.get(productId);
+  if (!ids) return null;
+  return ids[chain] || ids.pns || ids.nw || null;
+}
+
 /* Shelf prices imported from PAK'nSAVE on the date in the data file. They are
    real numbers, but one store on one day — so they are labelled, not treated
    as live prices. */
@@ -784,7 +794,7 @@ function zonePriceFor(productId, store) {
   const prices = ZONE_PRICES[store.zone];
   if (!prices) return null;
   if (prices[productId]) return prices[productId];
-  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
+  const skuId = demoSkuId(productId, store.chain);
   return skuId && prices[skuId] ? prices[skuId] : null;
 }
 
@@ -826,7 +836,7 @@ function dealFromMap(deals, productId, store) {
   if (!deals || typeof deals !== "object") return null;
   const direct = normalizeDeal(deals[productId]);
   if (direct) return direct;
-  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
+  const skuId = demoSkuId(productId, store.chain);
   return skuId ? normalizeDeal(deals[skuId]) : null;
 }
 
@@ -1133,7 +1143,7 @@ function storePriceOverrideFor(productId, store) {
   if (prices[productId]) {
     return { price: prices[productId] / 100, at: entry.checkedAt || "" };
   }
-  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
+  const skuId = demoSkuId(productId, store.chain);
   if (skuId && prices[skuId]) {
     return { price: prices[skuId] / 100, at: entry.checkedAt || "" };
   }
@@ -1231,7 +1241,7 @@ function knownUnavailable(productId, storeId) {
   // A price you recorded in this store is evidence it had the product, even
   // if the range pull missed it.
   if (checkedPrice(productId, storeId)) return false;
-  const skuId = DEMO_SKU_IDS.get(productId)?.[store.chain];
+  const skuId = demoSkuId(productId, store.chain);
   const catalogueId = product.source === "catalogue" ? productId : skuId;
   if (catalogueId) {
     const stocked = branchStocks(catalogueId, store);
@@ -1401,7 +1411,7 @@ function unitPriceFor(product, store) {
   const catalogueId =
     product.source === "catalogue"
       ? product.id
-      : DEMO_SKU_IDS.get(product.id)?.[store.chain];
+      : demoSkuId(product.id, store.chain);
   if (store.specialsOnly && catalogueId) {
     const entry = storePriceEntry(store);
     const specialReference = parseUnitReference(entry?.units?.[catalogueId]);

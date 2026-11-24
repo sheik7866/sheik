@@ -320,7 +320,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "grocer-woolworths-2026-11-24",
+        () => window.TROLLEYBIRD_BUILD === "grocer-woolworths-2026-11-24b",
         null,
         { timeout: 5000 }
       );
