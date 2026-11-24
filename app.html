@@ -13,13 +13,13 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Keep this version in step with the build marker so a cached bundle cannot
        outlive a deployment. -->
-  <link rel="stylesheet" href="app.css?v=woolworths-specials-2026-11-24" />
+  <link rel="stylesheet" href="app.css?v=grocer-woolworths-2026-11-24" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
   <script src="data/stores.js" defer></script>
-  <script src="data/foursquare.js?v=woolworths-specials-2026-11-24" defer></script>
-  <script src="data/woolworths.js?v=woolworths-specials-2026-11-24" defer></script>
+  <script src="data/foursquare.js?v=grocer-woolworths-2026-11-24" defer></script>
+  <script src="data/woolworths.js?v=grocer-woolworths-2026-11-24" defer></script>
 </head>
 <body class="app-body">
   <div class="splash" id="splash" role="status" aria-label="Loading Trolleybird">
@@ -73,26 +73,26 @@
         <p class="eyebrow"><span class="eyebrow__dot"></span>Working demo</p>
         <h1>Compare your shop.</h1>
         <p class="app-intro__lede">
-          Pick your PAK'nSAVE and New World branches, or check Four Square and
-          Woolworths weekly specials, then build a shopping list and compare the basket.
+          Pick your PAK'nSAVE, New World and Woolworths branches, or check Four
+          Square's weekly specials, then build a shopping list and compare the basket.
         </p>
         <details class="app-intro__about">
           <summary>About the demo data</summary>
           <p>
             Scanned barcodes match products by their real GTIN, with a fallback to Open
             Food Facts. Searches also query Grocer's public product catalogue, so names,
-            brands, sizes and store coverage are real. Grocer doesn't publish prices, so
-            prices are estimates — except the PAK'nSAVE and New World shelf prices
-            checked every night. Every branch uses its own price list where it differs
-            from the banner's island base list, and stockedness comes from that branch's
-            own product range. Multi-buy and club-member shelf tags are shown where the
-            branch lists them, and basket totals pool assorted multi-buy groups across
-            products plus club prices when the club-card switch is on. Four Square
-            and Woolworths publish only weekly specials, so their demo branches show
-            those advertised prices and mark everything else as having no published
-            price; they are not included in basket totals. Woolworths prices are the
-            Auckland delivery zone's advertised specials. Nothing here is live
-            supermarket pricing.
+            brands, sizes and store coverage are real. Prices are estimates, except the
+            PAK'nSAVE, New World and Woolworths branch prices checked every night. Every
+            branch uses its own price list where it differs from the banner's island base
+            list, and stockedness comes from that branch's own product range. Multi-buy
+            and club-member shelf tags are shown where the branch lists them, and basket
+            totals pool assorted multi-buy groups across products plus club prices when
+            the club-card switch is on. Four Square publishes only weekly specials, so its
+            demo branches show those advertised prices and mark everything else as having
+            no published price; they are not included in basket totals. Woolworths prices
+            come from Grocer's published per-store dataset and show the price advertised
+            that day — the sale price when there is one, otherwise the shelf price.
+            Nothing here is live supermarket pricing.
           </p>
         </details>
       </div>
@@ -183,8 +183,9 @@
           <ul class="grocer-list" id="grocer-results"></ul>
           <p class="grocer-live__note">
             Live product data from <a href="https://grocer.nz" target="_blank" rel="noopener">grocer.nz</a>'s
-            public catalogue. It publishes products, not prices, so anything you add stays
-            estimated until you record what you saw on the shelf.
+            public catalogue; its published per-store price dataset supplies the
+            Woolworths branch prices. Anything else stays estimated until you record what
+            you saw on the shelf.
           </p>
         </section>
         <p class="empty" id="empty-products" hidden>
@@ -239,7 +240,7 @@
         <div class="totals" id="totals" aria-live="polite"></div>
         <button class="btn btn--leaf receipt-open" type="button" id="bulk-price-button" hidden>Record shelf prices</button>
         <button class="btn btn--outline receipt-open" type="button" id="receipt-button" hidden>View receipt</button>
-        <p class="demo-note" id="totals-note">Totals use estimates plus any shelf prices you've recorded or imported. Multi-buys apply at the stated quantity, with assorted offers pooled across products; turn on Club card for club prices. Four Square's and Woolworths' weekly specials are shown per product but are not included in basket totals.</p>
+        <p class="demo-note" id="totals-note">Totals use estimates plus any shelf prices you've recorded or imported. Multi-buys apply at the stated quantity, with assorted offers pooled across products; turn on Club card for club prices. Four Square's weekly specials are shown per product but are not included in basket totals.</p>
       </aside>
     </div>
   </main>
@@ -356,7 +357,7 @@
     <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
   </div>
 
-  <script src="app.js?v=woolworths-specials-2026-11-24" defer></script>
+  <script src="app.js?v=grocer-woolworths-2026-11-24" defer></script>
   <script src="scanner.js" defer></script>
 </body>
 </html>

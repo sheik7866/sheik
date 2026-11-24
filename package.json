@@ -8,11 +8,12 @@
     "stores:pull": "node scripts/pull-stores.mjs",
     "coverage:pull": "node scripts/pull-coverage.mjs",
     "foursquare:refresh": "node scripts/pull-foursquare-specials.mjs",
-    "woolworths:refresh": "node scripts/pull-woolworths-specials.mjs",
+    "grocer:refresh": "node scripts/pull-grocer-prices.mjs",
     "gtins:pull": "node scripts/pull-gtins.mjs",
     "smoke:live": "node scripts/smoke-live.mjs"
   },
   "devDependencies": {
+    "@duckdb/node-api": "2.0.1-r.1",
     "playwright": "^1.65.1"
   }
 }

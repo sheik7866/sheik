@@ -320,7 +320,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "woolworths-specials-2026-11-24",
+        () => window.TROLLEYBIRD_BUILD === "grocer-woolworths-2026-11-24",
         null,
         { timeout: 5000 }
       );
@@ -1606,6 +1606,7 @@ async function main() {
     await page.fill("#search", "Driscolls Blueberries");
     await page.waitForSelector('#product-grid [data-add="5045821-EA-000"]', { timeout: 20000 });
     await page.locator('#product-grid [data-add="5045821-EA-000"]').click();
+    await page.locator('[data-tab="list"]').click();
     const fourSquareTotals = normalize(await page.locator("#totals").innerText()).toLowerCase();
     assert(
       fourSquareTotals.includes("publishes weekly specials only"),
@@ -1628,61 +1629,89 @@ async function main() {
     );
     await page.keyboard.press("Escape");
 
-    step("checking Woolworths' Auckland-zone specials");
+    step("checking Woolworths branch prices from Grocer's public dataset");
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForCurrentBuild(page);
     await page.waitForFunction(
       () =>
         Array.isArray(window.GROCER_WOOLWORTHS?.stores) &&
-        window.GROCER_WOOLWORTHS.stores.length === 1,
+        window.GROCER_WOOLWORTHS.stores.length >= 4,
       null,
       { timeout: 10000 }
     );
-    const woolworths = await page.evaluate(() => {
+    const woolworths = await page.evaluate(async () => {
       const data = window.GROCER_WOOLWORTHS;
-      const store = data.stores[0];
+      const store = data.stores.find((row) => row.branch === "Glenfield") || data.stores[0];
+      const res = await fetch(`data/woolworths-prices/${store.id}.json`, { cache: "no-cache" });
+      const prices = (await res.json()).prices || {};
       const byId = new Map(window.GROCER_CATALOGUE.items.map((row) => [row[0], row]));
-      const priced = Object.entries(store.prices)
+      const priced = Object.entries(prices)
         .map(([id, cents]) => ({ id, cents, name: byId.get(id)?.[1] || "" }))
         .filter((row) => row.name.length > 3)
         .sort((a, b) => a.name.localeCompare(b.name));
-      const unpriced = window.GROCER_CATALOGUE.items
-        .map((row) => ({ id: row[0], name: row[1] }))
-        .find((row) => row.name.length > 3 && !store.prices[row.id]);
       return {
-        zone: data.zone,
+        fetchedAt: data.fetchedAt,
+        branches: data.stores.map((row) => row.branch),
+        branch: store.branch,
         checkedAt: store.checkedAt,
-        count: store.specialsCount,
-        priceCount: Object.keys(store.prices).length,
+        count: Object.keys(prices).length,
         entry: priced[0] || null,
-        unpriced,
       };
     });
-    assert(/auckland/i.test(woolworths.zone?.name || ""), `Woolworths zone is not Auckland: ${woolworths.zone?.name}`);
-    assert(woolworths.checkedAt, "the Woolworths feed has no check time");
-    assert(woolworths.count > 0, "Woolworths has no Auckland-zone specials");
     assert(
-      woolworths.priceCount === woolworths.count,
-      `Woolworths prices and specials disagree: ${woolworths.priceCount} vs ${woolworths.count}`
+      woolworths.branches.length >= 4,
+      `Woolworths has too few branches: ${woolworths.branches.join(", ")}`
     );
-    assert(woolworths.entry, "no Woolworths special matches the demo catalogue");
+    assert(
+      woolworths.branches.includes("Glenfield"),
+      `Woolworths branches are missing Glenfield: ${woolworths.branches.join(", ")}`
+    );
+    assert(woolworths.checkedAt, "the Woolworths price list has no check time");
+    assert(woolworths.count > 1000, `Woolworths only has ${woolworths.count} prices`);
+    assert(woolworths.entry, "no Woolworths price matches the demo catalogue");
     console.log(
-      `[smoke] Woolworths Auckland zone: ${woolworths.count} specials, e.g. ${woolworths.entry.name}`
+      `[smoke] Woolworths ${woolworths.branch}: ${woolworths.count} prices, e.g. ${woolworths.entry.name}`
     );
 
-    await page.fill("#store-search", "Woolworths");
+    await page.fill("#store-search", `Woolworths ${woolworths.branch}`);
     await page.waitForSelector("#store-results [data-add-store]", { timeout: 5000 });
     const woolworthsResults = normalize(
       await page.locator("#store-results").innerText()
     ).toLowerCase();
-    assert(woolworthsResults.includes("woolworths"), `store search is missing Woolworths: ${woolworthsResults}`);
-    assert(woolworthsResults.includes("auckland"), `store search is missing the Auckland zone: ${woolworthsResults}`);
-    await page.locator("#store-results [data-add-store]").filter({ hasText: "Woolworths" }).first().click();
+    assert(
+      woolworthsResults.includes("woolworths"),
+      `store search is missing Woolworths: ${woolworthsResults}`
+    );
+    assert(
+      woolworthsResults.includes(woolworths.branch.toLowerCase()),
+      `store search is missing ${woolworths.branch}: ${woolworthsResults}`
+    );
+    await page
+      .locator("#store-results [data-add-store]")
+      .filter({ hasText: woolworths.branch })
+      .first()
+      .click();
     await page.waitForFunction(
-      () => document.querySelector("#store-list")?.innerText.includes("Weekly specials only"),
-      null,
+      (branch) => document.querySelector("#store-list")?.innerText.includes(branch),
+      woolworths.branch,
       { timeout: 5000 }
+    );
+    await page.waitForFunction(
+      () => !/loading branch prices/i.test(document.querySelector("#store-list")?.innerText || ""),
+      null,
+      { timeout: 20000 }
+    );
+    const woolworthsStoreCard = normalize(
+      await page.locator("#store-list").innerText()
+    ).toLowerCase();
+    assert(
+      woolworthsStoreCard.includes(woolworths.branch.toLowerCase()),
+      `selected Woolworths branch is missing: ${woolworthsStoreCard}`
+    );
+    assert(
+      !woolworthsStoreCard.includes("weekly specials only"),
+      `Woolworths should now have branch prices, not specials only: ${woolworthsStoreCard}`
     );
 
     const woolworthsPrice = money(woolworths.entry.cents);
@@ -1697,28 +1726,21 @@ async function main() {
     ).toLowerCase();
     assert(
       woolworthsCard.includes(woolworthsPrice),
-      `Woolworths special price ${woolworthsPrice} is missing: ${woolworthsCard}`
-    );
-    assert(
-      woolworthsCard.includes("weekly special"),
-      `Woolworths special is not labelled: ${woolworthsCard}`
+      `Woolworths price ${woolworthsPrice} is missing: ${woolworthsCard}`
     );
     assert(
       !woolworthsCard.includes("est."),
-      `Woolworths special should not be estimated: ${woolworthsCard}`
+      `Woolworths price should not be estimated: ${woolworthsCard}`
     );
 
     await page.locator(`#product-grid [data-product="${woolworths.entry.id}"]`).click();
     await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
-    const woolworthsDialog = normalize(await page.locator("#product-dialog").innerText()).toLowerCase();
+    const woolworthsDialog = normalize(
+      await page.locator("#product-dialog").innerText()
+    ).toLowerCase();
     assert(
-      woolworthsDialog.includes("weekly special") &&
-        woolworthsDialog.includes("advertised specials, not shelf prices"),
-      `Woolworths dialog does not explain its special-only price: ${woolworthsDialog}`
-    );
-    assert(
-      woolworthsDialog.includes("no price history"),
-      `Woolworths should not show an estimated price history: ${woolworthsDialog}`
+      !woolworthsDialog.includes("advertised specials, not shelf prices"),
+      `Woolworths dialog still claims special-only pricing: ${woolworthsDialog}`
     );
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
@@ -1733,14 +1755,17 @@ async function main() {
       null,
       { timeout: 5000 }
     );
-    const woolworthsTotals = normalize(await page.locator("#totals").innerText()).toLowerCase();
+    await page.locator('[data-tab="list"]').click();
+    const woolworthsTotals = normalize(
+      await page.locator("#totals").innerText()
+    ).toLowerCase();
     assert(
-      woolworthsTotals.includes("publishes weekly specials only"),
-      `Woolworths basket total does not explain the missing shelf prices: ${woolworthsTotals}`
+      woolworthsTotals.includes("woolworths") && woolworthsTotals.includes(woolworthsPrice),
+      `Woolworths basket total is missing its price: ${woolworthsTotals}`
     );
     assert(
-      woolworthsTotals.includes("specials only") && woolworthsTotals.includes("—"),
-      `Woolworths should not show a full basket total: ${woolworthsTotals}`
+      !woolworthsTotals.includes("specials only"),
+      `Woolworths basket should no longer be specials only: ${woolworthsTotals}`
     );
 
     await page.click("#receipt-button");
@@ -1749,31 +1774,10 @@ async function main() {
       await page.locator("#receipt-body").innerText()
     ).toLowerCase();
     assert(
-      woolworthsReceipt.includes("specials only") &&
-        woolworthsReceipt.includes("advertised weekly specials"),
-      `Woolworths receipt should list specials only: ${woolworthsReceipt}`
+      woolworthsReceipt.includes("woolworths") && !woolworthsReceipt.includes("specials only"),
+      `Woolworths receipt should price the basket: ${woolworthsReceipt}`
     );
     await page.keyboard.press("Escape");
-
-    if (woolworths.unpriced) {
-      await page.fill("#search", woolworths.unpriced.name);
-      await page.waitForSelector(`#product-grid [data-product="${woolworths.unpriced.id}"]`, {
-        timeout: 20000,
-      });
-      const woolworthsUnpriced = normalize(
-        await page
-          .locator(`#product-grid li.product:has([data-product="${woolworths.unpriced.id}"])`)
-          .innerText()
-      ).toLowerCase();
-      assert(
-        woolworthsUnpriced.includes("no published price"),
-        `unpriced Woolworths product should say no published price: ${woolworthsUnpriced}`
-      );
-      assert(
-        !woolworthsUnpriced.includes("not stocked"),
-        `unpriced Woolworths product should not be called not stocked: ${woolworthsUnpriced}`
-      );
-    }
 
     assert(
       consoleErrors.length === 0,

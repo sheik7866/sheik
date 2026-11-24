@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "woolworths-specials-2026-11-24";
+window.TROLLEYBIRD_BUILD = "grocer-woolworths-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -15,9 +15,11 @@ window.TROLLEYBIRD_BUILD = "woolworths-specials-2026-11-24";
    the demo has always priced keep their old ids so saved lists and the dated
    staple imports keep working.
 
-   Four Square and Woolworths publish only weekly specials, not a shelf-price
-   list, so their demo branches sit in a separate, explicitly specials-only
-   directory. */
+   Four Square publishes only weekly specials, not a shelf-price list, so its
+   demo branches sit in a separate, explicitly specials-only directory.
+   Woolworths branches are priced from Grocer's published per-store dataset
+   (scripts/pull-grocer-prices.mjs), which writes each branch's prices to
+   data/woolworths-prices/<id>.json. */
 const ANCHOR_BRANCHES = {
   "b2e98a14-c8ca-401e-99ed-edf74570c6f6": "paknsave",
   "871ff39f-99b5-4030-b035-b2dab7225082": "newworld",
@@ -64,6 +66,7 @@ function branchStore(store) {
     sourceUrl: store.url || "",
     specialsEndDate: store.specialsEndDate || "",
     specialsCount: Number(store.specialsCount) || 0,
+    priceCount: Number(store.priceCount) || 0,
     specialsData: store.specialsOnly
       ? {
           prices: store.prices && typeof store.prices === "object" ? store.prices : {},
@@ -1936,6 +1939,9 @@ function storeLineLabel(store) {
     const count = store.specialsCount;
     return `${count} weekly special${count === 1 ? "" : "s"}`;
   }
+  if (store?.priceCount) {
+    return `${store.priceCount.toLocaleString("en-NZ")} prices`;
+  }
   const lines = stockedLineCount(store);
   return lines == null ? "lines not checked" : `${lines.toLocaleString("en-NZ")} lines`;
 }
@@ -2844,7 +2850,10 @@ async function ensureStorePrices(storeId) {
     checkedAt: "",
   });
   try {
-    const res = await fetch(`data/store-prices/${encodeURIComponent(store.storeId)}.json`, {
+    /* Woolworths branch prices are kept apart from the Foodstuffs folder,
+       which the nightly rebuild clears. */
+    const priceDir = store.chain === "wow" ? "data/woolworths-prices" : "data/store-prices";
+    const res = await fetch(`${priceDir}/${encodeURIComponent(store.storeId)}.json`, {
       cache: "no-cache",
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
