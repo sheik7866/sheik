@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "store-city-2026-11-24";
+window.TROLLEYBIRD_BUILD = "smart-list-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -583,6 +583,11 @@ const el = {
   listCategoryFilter: document.getElementById("list-category-filter"),
   listStatusFilters: document.getElementById("list-status-filters"),
   listStatusButtons: [...document.querySelectorAll("[data-list-status]")],
+  listProgress: document.getElementById("list-progress"),
+  listProgressText: document.getElementById("list-progress-text"),
+  listProgressReset: document.getElementById("list-progress-reset"),
+  shoppingPlan: document.getElementById("shopping-plan"),
+  shareList: document.getElementById("share-list"),
   emptyList: document.getElementById("empty-list"),
   totals: document.getElementById("totals"),
   clearList: document.getElementById("clear-list"),
@@ -623,6 +628,7 @@ const defaults = {
   pro: false,
   clubCard: false,
   list: [],
+  picked: [],
   live: [],
   prices: {},
   category: "All",
@@ -710,15 +716,21 @@ function loadState() {
       ? [...new Set(parsed.stores.filter((id) => STORE_MAP.has(id)))]
       : [];
 
+    const savedList = Array.isArray(parsed.list)
+      ? parsed.list
+          .filter((row) => row && PRODUCT_MAP.has(row.id) && Number.isFinite(row.qty) && row.qty > 0)
+          .map((row) => ({ id: row.id, qty: Math.min(Math.round(row.qty), 99) }))
+      : [];
+    const listIds = new Set(savedList.map((row) => row.id));
+
     return {
       stores: savedStores,
       pro: Boolean(parsed.pro),
       clubCard: Boolean(parsed.clubCard),
       prices,
-      list: Array.isArray(parsed.list)
-        ? parsed.list
-            .filter((row) => row && PRODUCT_MAP.has(row.id) && Number.isFinite(row.qty) && row.qty > 0)
-            .map((row) => ({ id: row.id, qty: Math.min(Math.round(row.qty), 99) }))
+      list: savedList,
+      picked: Array.isArray(parsed.picked)
+        ? [...new Set(parsed.picked.filter((id) => typeof id === "string" && listIds.has(id)))]
         : [],
       category: CATEGORIES.includes(savedCategory) ? savedCategory : "All",
       sort: SORT_MODES.includes(parsed.sort) ? parsed.sort : "relevance",
@@ -1898,6 +1910,69 @@ function listTotals() {
   };
 }
 
+/* A split shop buys each line where it is cheapest, then groups the lines by
+   store. Multi-buy offers shared across different products are not counted
+   here, because splitting them would break the offer; the plan falls back to
+   the cheapest single store when that pooling makes one shop cheaper. */
+const SPLIT_MIN_SAVING = 1;
+
+function splitPlan() {
+  const stores = selectedStores().filter(
+    (store) => !store.specialsOnly && storePricesReady(store)
+  );
+  if (!stores.length || !state.list.length) return null;
+  const groups = new Map();
+  const unpriced = [];
+  let total = 0;
+  for (const row of state.list) {
+    let pick = null;
+    for (const store of stores) {
+      const pricing = basketLinePricing(row.id, store, row.qty);
+      if (!pricing) continue;
+      if (!pick || pricing.total < pick.pricing.total - 0.004) pick = { store, pricing };
+    }
+    if (!pick) {
+      unpriced.push(row);
+      continue;
+    }
+    total += pick.pricing.total;
+    if (!groups.has(pick.store.id)) {
+      groups.set(pick.store.id, { store: pick.store, lines: [], total: 0 });
+    }
+    const group = groups.get(pick.store.id);
+    group.lines.push({ row, pricing: pick.pricing });
+    group.total += pick.pricing.total;
+  }
+  return {
+    groups: [...groups.values()]
+      .map((group) => ({
+        store: group.store,
+        lines: group.lines,
+        total: Math.round(group.total * 100) / 100,
+        itemCount: group.lines.reduce((sum, line) => sum + line.row.qty, 0),
+      }))
+      .sort((a, b) => b.total - a.total),
+    unpriced,
+    total: Math.round(total * 100) / 100,
+    complete: unpriced.length === 0,
+  };
+}
+
+function shoppingPlan(totals = listTotals()) {
+  if (!totals) return null;
+  const split = splitPlan();
+  const single = totals.cheapest;
+  const saving =
+    single && split?.complete ? Math.round((single.total - split.total) * 100) / 100 : 0;
+  const mode =
+    split?.complete && (!single || saving >= SPLIT_MIN_SAVING)
+      ? "split"
+      : single
+        ? "single"
+        : "partial";
+  return { totals, split, single, saving, mode };
+}
+
 /* ---------- Rendering ---------- */
 
 function storeRegionLabel(store) {
@@ -2382,8 +2457,12 @@ function listItemMarkup(item) {
   const fromPrice = best ? effectivePriceFor(row.id, best.store) : null;
   const bestKindLabel = bestKind === "special" ? "weekly special" : bestKind;
   const unitSplit = dealUnitSplit(best);
+  const picked = state.picked.includes(row.id);
   return `
-    <li class="list-item" data-row="${row.id}">
+    <li class="list-item${picked ? " is-picked" : ""}" data-row="${row.id}">
+      <label class="list-item__check">
+        <input type="checkbox" data-picked="${row.id}"${picked ? " checked" : ""} aria-label="Mark ${escapeHtml(product.name)} as picked up" />
+      </label>
       <button class="list-item__body" type="button" data-open-product="${row.id}" title="View prices for ${escapeHtml(product.name)}" aria-label="View prices for ${escapeHtml(product.name)}">
         <b>${escapeHtml(product.name)}</b>
         <small>${escapeHtml(product.size)}${best ? ` · ${bestKindLabel} from <span class="list-item__price">${money.format(fromPrice ?? best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : noPrice ? ` · no published price at ${escapeHtml(noPriceChain)}` : missing ? " · not stocked at your stores" : ""}</small>
@@ -2458,6 +2537,7 @@ function renderList() {
   el.clearList.hidden = state.list.length === 0;
   el.receiptButton.hidden = state.list.length === 0;
   el.bulkButton.hidden = state.list.length === 0;
+  el.shareList.hidden = state.list.length === 0;
 
   if (el.listFilter) {
     if (el.listFilter.value !== listFilters.query) el.listFilter.value = listFilters.query;
@@ -2508,11 +2588,50 @@ function renderList() {
     button.disabled = status !== "all" && counts[status] === 0 && !active;
   }
 
+  renderListProgress();
   renderTabs();
+}
+
+function pickedCount() {
+  const ids = new Set(state.list.map((row) => row.id));
+  return state.picked.filter((id) => ids.has(id)).length;
+}
+
+function renderListProgress() {
+  const picked = pickedCount();
+  el.listProgress.hidden = picked === 0;
+  if (picked) {
+    el.listProgressText.textContent = `${picked} of ${state.list.length} picked up`;
+  }
+}
+
+function setPicked(productId, picked, rowNode) {
+  const ids = new Set(state.picked);
+  if (picked) ids.add(productId);
+  else ids.delete(productId);
+  state.picked = [...ids];
+  saveState();
+  const row = rowNode || el.listItems.querySelector(`[data-row="${productId}"]`);
+  if (row) row.classList.toggle("is-picked", picked);
+  renderListProgress();
+}
+
+function resetPicked() {
+  if (!state.picked.length) return;
+  state.picked = [];
+  saveState();
+  renderList();
+  toast("Ticks cleared.");
+}
+
+function prunePicked() {
+  const ids = new Set(state.list.map((row) => row.id));
+  state.picked = state.picked.filter((id) => ids.has(id));
 }
 
 function renderTotals() {
   const totals = listTotals();
+  renderShoppingPlan(totals);
   if (!totals) {
     el.totals.innerHTML = `<p class="totals__empty">${state.list.length ? "Select a store to total your list." : ""}</p>`;
     return;
@@ -2560,7 +2679,7 @@ function renderTotals() {
           ? "Club-card prices apply at the listed quantity."
           : "";
   el.totals.innerHTML = `
-    <h3>Basket total <span>${itemCount} item${itemCount === 1 ? "" : "s"}</span></h3>
+    <h3>Estimated basket total <span>${itemCount} item${itemCount === 1 ? "" : "s"}</span></h3>
     <ul class="total-rows">
       ${totals.rows
         .map((row) => {
@@ -2586,6 +2705,67 @@ function renderTotals() {
     ${specialsRows.length && totals.hasAvailable ? `<p class="totals__card">${escapeHtml(specialsOnlyNote(totals.rows.map((row) => row.store)))}</p>` : ""}
     ${assortedMarkup}
     ${cardNote ? `<p class="totals__card">${cardNote}</p>` : ""}`;
+}
+
+/* The headline answer: one store when it prices the whole list, otherwise a
+   split plan that buys each line where it is cheapest. */
+function renderShoppingPlan(totals) {
+  const plan = state.list.length ? shoppingPlan(totals) : null;
+  if (!plan || (plan.mode === "partial" && !plan.split?.groups.length)) {
+    el.shoppingPlan.hidden = true;
+    el.shoppingPlan.innerHTML = "";
+    return;
+  }
+  const itemCount = listQuantity();
+  const items = `${itemCount.toLocaleString("en-NZ")} item${itemCount === 1 ? "" : "s"}`;
+  let headline = "";
+  let detail = "";
+  if (plan.mode === "single") {
+    headline = `Shop at ${storeLabel(plan.single.store)}`;
+    detail = `${money.format(plan.single.total)} for ${items}`;
+    if (plan.split?.complete && plan.saving > 0.004) {
+      detail += ` · splitting would save only ${money.format(plan.saving)}`;
+    }
+  } else if (plan.mode === "split") {
+    const count = plan.split.groups.length;
+    headline = `Split across ${count} store${count === 1 ? "" : "s"}`;
+    detail = `${money.format(plan.split.total)} for ${items}`;
+    detail += plan.single
+      ? ` · ${money.format(plan.saving)} less than ${storeLabel(plan.single.store)}`
+      : " · no single store covers the list";
+  } else {
+    const count = plan.split.groups.length;
+    const covered = plan.split.groups.reduce((sum, group) => sum + group.itemCount, 0);
+    headline = "No single store covers this list";
+    detail = `${covered} of ${itemCount} items priced across ${count} store${count === 1 ? "" : "s"}`;
+  }
+  const splitMarkup =
+    plan.mode === "split"
+      ? `<ul class="plan__stores">
+          ${plan.split.groups
+            .map(
+              (group) => `
+          <li>
+            <span class="plan__store">
+              <b>${escapeHtml(group.store.name)}</b>
+              <small>${escapeHtml(group.store.branch)} · ${group.itemCount} item${group.itemCount === 1 ? "" : "s"}</small>
+            </span>
+            <b class="plan__store-total">${money.format(group.total)}</b>
+          </li>`
+            )
+            .join("")}
+        </ul>`
+      : "";
+  const unpriced = plan.split?.unpriced.length || 0;
+  el.shoppingPlan.hidden = false;
+  el.shoppingPlan.innerHTML = `
+    <h3 class="plan__title">Where should I shop today?</h3>
+    <p class="plan__headline">${escapeHtml(headline)}</p>
+    <p class="plan__detail">${escapeHtml(detail)}</p>
+    ${splitMarkup}
+    ${unpriced ? `<p class="plan__note">${unpriced} list item${unpriced === 1 ? " has" : "s have"} no price at your stores.</p>` : ""}
+    ${plan.mode === "split" ? `<p class="plan__note">Split totals pick the cheapest store for each line. A multi-buy shared across products may need the whole shop at one store.</p>` : ""}
+  `;
 }
 
 /* ---------- Basket receipt ---------- */
@@ -2891,6 +3071,76 @@ async function copyReceiptSummary() {
   }
 }
 
+/* The list can leave the app as plain text: grouped by aisle, with ticked
+   items and the cheapest store for each line, so family can shop from it. */
+function listSummaryText() {
+  const plan = shoppingPlan();
+  const itemCount = listQuantity();
+  const lines = [
+    `Trolleybird shopping list — ${receiptDate()}`,
+    `${itemCount} item${itemCount === 1 ? "" : "s"} · ${state.list.length} line${state.list.length === 1 ? "" : "s"}`,
+    "",
+  ];
+  const byCategory = new Map();
+  for (const row of state.list) {
+    const product = PRODUCT_MAP.get(row.id);
+    if (!product) continue;
+    const category = product.category || "Other";
+    if (!byCategory.has(category)) byCategory.set(category, []);
+    byCategory.get(category).push({ row, product });
+  }
+  for (const category of [...byCategory.keys()].sort((a, b) => a.localeCompare(b, "en-NZ"))) {
+    lines.push(category);
+    const rows = byCategory
+      .get(category)
+      .sort((a, b) => a.product.name.localeCompare(b.product.name, "en-NZ"));
+    for (const { row, product } of rows) {
+      const best = bestBasketOffer(row.id, row.qty);
+      const tick = state.picked.includes(row.id) ? "[x]" : "[ ]";
+      const price = best ? ` — ${money.format(best.total)} at ${storeLabel(best.store)}` : "";
+      lines.push(
+        `  ${tick} ${row.qty}× ${product.name}${product.size ? ` ${product.size}` : ""}${price}`
+      );
+    }
+    lines.push("");
+  }
+  if (plan?.mode === "single") {
+    lines.push(`Where to shop: ${storeLabel(plan.single.store)} — ${money.format(plan.single.total)}`);
+  } else if (plan?.mode === "split") {
+    lines.push(
+      `Where to shop: split across ${plan.split.groups.length} stores — ${money.format(plan.split.total)}`
+    );
+    for (const group of plan.split.groups) {
+      lines.push(`  ${storeLabel(group.store)} — ${money.format(group.total)}`);
+    }
+    if (plan.single) {
+      lines.push(`Cheapest single store: ${storeLabel(plan.single.store)} — ${money.format(plan.single.total)}`);
+    }
+  }
+  lines.push("", "Demo prices from the Trolleybird interactive demo — not live supermarket data.");
+  return lines.join("\n");
+}
+
+async function shareList() {
+  if (!state.list.length) return;
+  const text = listSummaryText();
+  if (typeof navigator.share === "function") {
+    try {
+      await navigator.share({ title: "Trolleybird shopping list", text });
+      toast("Shopping list shared.");
+      return;
+    } catch (error) {
+      if (error && error.name === "AbortError") return;
+    }
+  }
+  try {
+    await writeTextToClipboard(text);
+    toast("Shopping list copied — paste it into a message.");
+  } catch {
+    toast("Couldn't share the list here.");
+  }
+}
+
 async function shareReceiptSummary() {
   const groups = receiptGroups();
   try {
@@ -3050,6 +3300,7 @@ function stepQuantity(productId, delta) {
   if (!row) return;
   row.qty = Math.max(0, Math.min(row.qty + delta, 99));
   if (row.qty === 0) state.list = state.list.filter((item) => item.id !== productId);
+  prunePicked();
   saveState();
   renderList();
   renderTotals();
@@ -3057,6 +3308,7 @@ function stepQuantity(productId, delta) {
 
 function removeFromList(productId) {
   state.list = state.list.filter((item) => item.id !== productId);
+  prunePicked();
   saveState();
   renderList();
   renderTotals();
@@ -3065,7 +3317,9 @@ function removeFromList(productId) {
 function clearList() {
   if (!state.list.length) return;
   const previous = state.list.map((row) => ({ ...row }));
+  const previousPicked = [...state.picked];
   state.list = [];
+  state.picked = [];
   saveState();
   renderList();
   renderTotals();
@@ -3079,6 +3333,7 @@ function clearList() {
         if (!restored.some((item) => item.id === row.id)) restored.push({ ...row });
       }
       state.list = restored;
+      state.picked = previousPicked.filter((id) => restored.some((row) => row.id === id));
       saveState();
       renderList();
       renderTotals();
@@ -3622,6 +3877,12 @@ el.listItems.addEventListener("click", (event) => {
   if (remove) removeFromList(remove.dataset.remove);
 });
 
+el.listItems.addEventListener("change", (event) => {
+  const check = event.target.closest("[data-picked]");
+  if (!check) return;
+  setPicked(check.dataset.picked, check.checked, check.closest(".list-item"));
+});
+
 el.dialogContent.addEventListener("click", (event) => {
   const copyBarcodeButton = event.target.closest("[data-copy-barcode]");
   if (copyBarcodeButton) {
@@ -3739,6 +4000,8 @@ el.offLookupButton.addEventListener("click", async () => {
       : "Couldn't reach Open Food Facts. Check your connection and try again.";
 });
 el.clearList.addEventListener("click", clearList);
+el.listProgressReset.addEventListener("click", resetPicked);
+el.shareList.addEventListener("click", shareList);
 el.listFilter.addEventListener("input", () => {
   listFilters.query = el.listFilter.value;
   renderList();

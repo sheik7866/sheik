@@ -13,14 +13,14 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Keep this version in step with the build marker so a cached bundle cannot
        outlive a deployment. -->
-  <link rel="stylesheet" href="app.css?v=store-city-2026-11-24" />
+  <link rel="stylesheet" href="app.css?v=smart-list-2026-11-24" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
   <script src="data/stores.js" defer></script>
-  <script src="data/foursquare.js?v=store-city-2026-11-24" defer></script>
-  <script src="data/woolworths.js?v=store-city-2026-11-24" defer></script>
-  <script src="demo-sku-map.js?v=store-city-2026-11-24" defer></script>
+  <script src="data/foursquare.js?v=smart-list-2026-11-24" defer></script>
+  <script src="data/woolworths.js?v=smart-list-2026-11-24" defer></script>
+  <script src="demo-sku-map.js?v=smart-list-2026-11-24" defer></script>
 </head>
 <body class="app-body">
   <div class="splash" id="splash" role="status" aria-label="Loading Trolleybird">
@@ -242,12 +242,18 @@
           </p>
         </div>
 
+        <p class="list-progress" id="list-progress" hidden>
+          <span id="list-progress-text"></span>
+          <button class="link-btn" type="button" id="list-progress-reset">Reset ticks</button>
+        </p>
         <ul class="list" id="list-items"></ul>
         <p class="empty" id="empty-list">Your list is empty. Add a product to see which store is cheapest for the whole shop.</p>
 
+        <section class="plan" id="shopping-plan" aria-label="Where should I shop today?" hidden></section>
         <div class="totals" id="totals" aria-live="polite"></div>
         <button class="btn btn--leaf receipt-open" type="button" id="bulk-price-button" hidden>Record shelf prices</button>
         <button class="btn btn--outline receipt-open" type="button" id="receipt-button" hidden>View receipt</button>
+        <button class="btn btn--outline receipt-open" type="button" id="share-list" hidden>Share list</button>
         <p class="demo-note" id="totals-note">Totals use estimates plus any shelf prices you've recorded or imported. Multi-buys apply at the stated quantity, with assorted offers pooled across products; turn on Club card for club prices. Four Square's weekly specials are shown per product but are not included in basket totals.</p>
       </aside>
     </div>
@@ -365,7 +371,7 @@
     <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
   </div>
 
-  <script src="app.js?v=store-city-2026-11-24" defer></script>
+  <script src="app.js?v=smart-list-2026-11-24" defer></script>
   <script src="scanner.js" defer></script>
 </body>
 </html>

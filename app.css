@@ -462,6 +462,8 @@
 .panel--list > .panel__head,
 .panel--list > .club-toggle,
 .panel--list > .list-tools,
+.panel--list > .list-progress,
+.panel--list > .plan,
 .panel--list > .totals,
 .panel--list > .receipt-open,
 .panel--list > .demo-note {
@@ -1753,6 +1755,30 @@ button.grocer-item__price:disabled {
   font-size: 0.7rem;
 }
 
+.list-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.15rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(230, 248, 194, 0.7);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--leaf-deep);
+}
+
+.list-progress[hidden] {
+  display: none;
+}
+
+.list-progress .link-btn {
+  flex: none;
+  font-size: 0.64rem;
+  color: var(--ink-mute);
+}
+
 .list-item {
   display: flex;
   align-items: flex-start;
@@ -1814,6 +1840,37 @@ button.grocer-item__price:disabled {
   font-weight: 600;
 }
 
+.list-item__check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding-top: 0.12rem;
+  cursor: pointer;
+}
+
+.list-item__check input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--leaf);
+  cursor: pointer;
+}
+
+.list-item.is-picked .list-item__body b {
+  color: var(--ink-mute);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.list-item.is-picked .list-item__body small,
+.list-item.is-picked .list-item__price {
+  color: var(--ink-mute);
+}
+
+.list-item.is-picked .list-item__price {
+  text-decoration: line-through;
+}
+
 .qty {
   display: inline-flex;
   align-items: center;
@@ -1868,6 +1925,94 @@ button.grocer-item__price:disabled {
 .list-item__remove:hover {
   background: rgba(217, 82, 44, 0.12);
   color: var(--tomato);
+}
+
+.plan {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.7rem 0.6rem;
+  border: 1px solid rgba(21, 121, 75, 0.24);
+  border-radius: 0.8rem;
+  background: linear-gradient(180deg, rgba(230, 248, 194, 0.75), rgba(255, 253, 248, 0.9));
+}
+
+.plan[hidden] {
+  display: none;
+}
+
+.plan__title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--leaf-deep);
+}
+
+.plan__headline {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.plan__detail {
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.plan__stores {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.55rem 0 0;
+  padding: 0.5rem 0 0;
+  border-top: 1px dashed rgba(21, 121, 75, 0.28);
+  list-style: none;
+}
+
+.plan__stores li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.plan__store {
+  flex: 1;
+  display: grid;
+  min-width: 0;
+}
+
+.plan__store b {
+  overflow: hidden;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan__store small {
+  overflow: hidden;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: var(--ink-mute);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan__store-total {
+  flex: none;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan__note {
+  margin: 0.45rem 0 0;
+  font-size: 0.6rem;
+  line-height: 1.4;
+  color: var(--ink-mute);
 }
 
 .totals {
