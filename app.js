@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "grocer-woolworths-2026-11-24c";
+window.TROLLEYBIRD_BUILD = "design-refresh-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -456,6 +456,7 @@ const CATEGORIES = ["All", ...new Set(PRODUCTS.map((p) => p.category))];
 const STAPLE_IDS = new Set(DEMO_PRODUCTS.map((product) => product.id));
 const PAGE_SIZE = 60;
 let visibleLimit = PAGE_SIZE;
+let freshStoreId = "";
 
 const MAX_FREE_STORES = 6;
 const MAX_PRO_STORES = 30;
@@ -2053,6 +2054,7 @@ function setTab(tab, { persist = false } = {}) {
 
 function renderStores() {
   const selected = state.stores.map((id) => STORE_MAP.get(id)).filter(Boolean);
+  const newId = freshStoreId;
   el.storeList.innerHTML = selected.length
     ? selected
         .map((store) => {
@@ -2069,7 +2071,7 @@ function renderStores() {
                 ? `<small class="store-selected__prices is-error">Island price list — branch prices unavailable</small>`
                 : "";
           return `
-          <li class="store-selected" data-price-status="${priceStatus}">
+          <li class="store-selected${store.id === newId ? " is-new" : ""}" data-price-status="${priceStatus}">
             <span class="store-chip__dot" style="--dot:${store.tint}"></span>
             <span class="store-chip__body">
               <b>${escapeHtml(store.name)}</b>
@@ -2082,6 +2084,7 @@ function renderStores() {
         .join("")
     : `<li class="store-empty">No stores selected. Search for a branch above to start.</li>`;
 
+  freshStoreId = "";
   el.storeCounter.textContent = `${selected.length} / ${storeCap()}`;
   el.storeHint.textContent = selected.length
     ? selected.length === 1
@@ -2881,6 +2884,8 @@ function addStore(storeId) {
     return;
   }
   state.stores = [...state.stores, storeId];
+  freshStoreId = storeId;
+  el.storeSearch.value = "";
   saveState();
   renderAll();
   void ensureCoverage();
@@ -2889,7 +2894,29 @@ function addStore(storeId) {
   toast(`${store.name} · ${store.branch} added.`);
 }
 
+const removingStores = new Set();
+
 function removeStore(storeId) {
+  const store = STORE_MAP.get(storeId);
+  if (!store || !state.stores.includes(storeId)) return;
+  const card = el.storeList
+    .querySelector(`[data-remove-store="${storeId}"]`)
+    ?.closest(".store-selected");
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (card && !reduceMotion && !removingStores.has(storeId)) {
+    removingStores.add(storeId);
+    card.classList.add("is-removing");
+    card.querySelector("button")?.setAttribute("disabled", "");
+    window.setTimeout(() => {
+      removingStores.delete(storeId);
+      finishRemoveStore(storeId);
+    }, 160);
+    return;
+  }
+  finishRemoveStore(storeId);
+}
+
+function finishRemoveStore(storeId) {
   const store = STORE_MAP.get(storeId);
   if (!store || !state.stores.includes(storeId)) return;
   state.stores = state.stores.filter((id) => id !== storeId);
