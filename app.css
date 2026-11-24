@@ -3672,6 +3672,49 @@ button.grocer-item__price:disabled {
     white-space: nowrap;
   }
 
+  .app-tab__count.is-loading {
+    right: -0.5rem;
+    width: 14px;
+    height: 14px;
+    min-width: 0;
+    padding: 0;
+    border-color: transparent;
+    background: var(--app-surface-2);
+    box-shadow: 0 0 0 2px var(--app-surface);
+  }
+
+  .app-tab__count.is-loading::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 1.5px solid color-mix(in srgb, var(--leaf) 30%, transparent);
+    border-top-color: var(--leaf);
+    border-radius: 50%;
+    animation: app-tab-loading 0.7s linear infinite;
+  }
+
+  .app-tab.is-active .app-tab__count.is-loading {
+    background: rgba(255, 255, 255, 0.22);
+    box-shadow: none;
+  }
+
+  .app-tab.is-active .app-tab__count.is-loading::after {
+    border-color: rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+  }
+
+  @keyframes app-tab-loading {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .app-tab__count.is-loading::after {
+      animation: none;
+    }
+  }
+
   .app-layout > .panel {
     display: none;
   }

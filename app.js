@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "list-badge-money-2026-11-24";
+window.TROLLEYBIRD_BUILD = "list-badge-loading-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2125,10 +2125,16 @@ function renderTabs(totals = state.list.length ? listTotals() : null) {
   const listCount = listQuantity();
   const total = basketTotalFor(totals);
   const totalText = total == null ? "" : money.format(total);
+  // While a selected branch is fetching its prices there is no total yet; the
+  // badge shows a spinner rather than vanishing, so the wait is visible.
+  const pricesLoading =
+    state.list.length > 0 && selectedStores().some((store) => !storePricesReady(store));
+  const loading = total == null && pricesLoading;
   el.tabStoreCount.textContent = String(storeCount);
   el.tabStoreCount.hidden = storeCount === 0;
-  el.tabListCount.textContent = totalText;
-  el.tabListCount.hidden = total == null;
+  el.tabListCount.textContent = loading ? "" : totalText;
+  el.tabListCount.hidden = !loading && total == null;
+  el.tabListCount.classList.toggle("is-loading", loading);
   el.tabListCount.classList.toggle("is-money", total != null);
   // The badge sits inside the aria-hidden icon, so name the tab with its total.
   for (const button of el.tabButtons) {
@@ -2142,7 +2148,9 @@ function renderTabs(totals = state.list.length ? listTotals() : null) {
           ? "My List"
           : total != null
             ? `My List, estimated basket total ${totalText} for ${items}`
-            : `My List, ${items}, basket total unavailable`
+            : loading
+              ? `My List, ${items}, basket total loading`
+              : `My List, ${items}, basket total unavailable`
       );
     }
   }
