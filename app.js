@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "store-cards-2026-11-24";
+window.TROLLEYBIRD_BUILD = "store-search-cards-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -1930,18 +1930,6 @@ function specialsOnlyNote(stores) {
   } not included in basket totals.`;
 }
 
-function storeLineLabel(store) {
-  if (store?.specialsOnly) {
-    const count = store.specialsCount;
-    return `${count} weekly special${count === 1 ? "" : "s"}`;
-  }
-  if (store?.priceCount) {
-    return `${store.priceCount.toLocaleString("en-NZ")} prices`;
-  }
-  const lines = stockedLineCount(store);
-  return lines == null ? "lines not checked" : `${lines.toLocaleString("en-NZ")} lines`;
-}
-
 function noPriceLabel(stores) {
   return stores.length && stores.every((store) => store.specialsOnly)
     ? "no published price"
@@ -2013,15 +2001,29 @@ function renderStoreResults() {
     shown
       .map((store) => {
         const on = state.stores.includes(store.id);
+        const badge = storePriceBadge(store);
+        const updated = storeUpdatedLabel(store);
+        // A branch that is not selected yet has no branch prices loaded, so a
+        // "Loading prices" pill would say nothing; show it only once the status
+        // is known rather than repeating the same pill on every result.
+        const pill =
+          badge.tone === "loading"
+            ? ""
+            : `<span class="store-result__pill is-${badge.tone}"${badge.title ? ` title="${escapeHtml(badge.title)}"` : ""}>${badge.label}</span>`;
         return `
           <li>
             <button class="store-result${on ? " is-added" : ""}" type="button" data-add-store="${store.id}"${on ? " disabled" : ""}>
-              <span class="store-chip__dot" style="--dot:${store.tint}"></span>
-              <span class="store-result__body">
-                <b>${escapeHtml(store.name)} · ${escapeHtml(store.branch)}</b>
-                <small>${escapeHtml(storeRegionLabel(store))} · ${escapeHtml(storeLineLabel(store))}</small>
+              <span class="store-result__head">
+                <span class="store-chip__dot" style="--dot:${store.tint}" aria-hidden="true"></span>
+                <b class="store-result__name">${escapeHtml(store.name)}</b>
+                ${pill}
+                <span class="store-result__action">${on ? "Added" : "Add"}</span>
               </span>
-              <span class="store-result__action">${on ? "Added" : "Add"}</span>
+              <span class="store-result__meta">${escapeHtml(store.branch)} · ${escapeHtml(storeCityLabel(store))}</span>
+              <span class="store-result__stats">
+                <span>${escapeHtml(storeProductLabel(store))}</span>
+                ${updated ? `<span>${escapeHtml(updated)}</span>` : ""}
+              </span>
             </button>
           </li>`;
       })

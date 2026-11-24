@@ -583,8 +583,8 @@
 
 .store-results {
   display: grid;
-  gap: 0.24rem;
-  max-height: 220px;
+  gap: 0.3rem;
+  max-height: 292px;
   margin: 0 0 0.5rem;
   padding: 0 0.1rem 0 0;
   list-style: none;
@@ -595,14 +595,16 @@
   display: none;
 }
 
+/* Search results carry the same three lines as a selected store card:
+   banner + status, branch · city, then range size and check date. */
 .store-result {
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
+  flex-direction: column;
+  gap: 0.1rem;
   width: 100%;
-  padding: 0.34rem 0.45rem;
+  padding: 0.48rem 0.55rem;
   border: 1px solid var(--line-soft);
-  border-radius: var(--radius-sm);
+  border-radius: 0.7rem;
   background: #fff;
   color: var(--ink);
   font: inherit;
@@ -622,31 +624,82 @@
   cursor: default;
 }
 
-.store-result__body {
+.store-result__head {
+  display: flex;
+  align-items: center;
+  gap: 0.34rem;
   min-width: 0;
 }
 
-.store-result__body b {
-  display: block;
+.store-result__name {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.3;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.store-result__body small {
-  display: block;
-  font-size: 0.63rem;
-  color: var(--ink-mute);
+.store-result__pill {
+  flex: none;
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.54rem;
+  font-weight: 700;
   line-height: 1.35;
+  white-space: nowrap;
+}
+
+.store-result__pill.is-ready {
+  background: rgba(21, 121, 75, 0.1);
+  color: var(--leaf-deep);
+}
+
+.store-result__pill.is-specials {
+  background: rgba(243, 198, 35, 0.2);
+  color: #6f5200;
+}
+
+.store-result__pill.is-loading {
+  background: var(--paper-2);
+  color: var(--ink-mute);
+}
+
+.store-result__pill.is-error {
+  background: rgba(217, 82, 44, 0.1);
+  color: var(--tomato);
+}
+
+.store-result__meta {
+  overflow: hidden;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--ink-mute);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-result__stats {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  color: var(--ink-mute);
+}
+
+.store-result__stats span:last-child:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .store-result__action {
   flex: none;
-  margin-left: auto;
-  font-size: 0.58rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -3603,7 +3656,6 @@ button.grocer-item__price:disabled {
 .product__unit,
 .product__range,
 .product__best small,
-.store-result__body small,
 .store-chip__body small,
 .list-item__body small,
 .grocer-item__body small {
@@ -3621,7 +3673,6 @@ button.grocer-item__price:disabled {
 .receipt-note,
 .receipt-store__branch,
 .receipt-paper__meta,
-.store-result__action,
 .store-results__note,
 .import-banner,
 .coverage-line,
