@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "store-search-cards-2026-11-24";
+window.TROLLEYBIRD_BUILD = "store-location-label-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2019,7 +2019,7 @@ function renderStoreResults() {
                 ${pill}
                 <span class="store-result__action">${on ? "Added" : "Add"}</span>
               </span>
-              <span class="store-result__meta">${escapeHtml(store.branch)} · ${escapeHtml(storeCityLabel(store))}</span>
+              <span class="store-result__meta">${escapeHtml(storeLocationLabel(store))}</span>
               <span class="store-result__stats">
                 <span>${escapeHtml(storeProductLabel(store))}</span>
                 ${updated ? `<span>${escapeHtml(updated)}</span>` : ""}
@@ -2066,6 +2066,17 @@ function storeCityLabel(store) {
     if (part && !/^\d{4}$/.test(part)) return part;
   }
   return storeRegionLabel(store);
+}
+
+/* A branch in a one-town district has its own name as the city (Blenheim ·
+   Blenheim), so only add the city when it says something new. */
+function storeLocationLabel(store) {
+  const branch = String(store.branch || "").trim();
+  const city = storeCityLabel(store);
+  if (!branch) return city;
+  return !city || normalizeStoreSearch(city) === normalizeStoreSearch(branch)
+    ? branch
+    : `${branch} · ${city}`;
 }
 
 function storeProductLabel(store) {
@@ -2149,7 +2160,7 @@ function renderStores() {
               <span class="store-selected__pill is-${badge.tone}"${badge.title ? ` title="${escapeHtml(badge.title)}"` : ""}>${badge.label}</span>
               <button class="store-selected__menu-toggle" type="button" data-store-menu="${store.id}" aria-label="Options for ${escapeHtml(store.name)} ${escapeHtml(store.branch)}" aria-expanded="false" aria-controls="${menuId}"><span aria-hidden="true">⋯</span></button>
             </div>
-            <p class="store-selected__meta">${escapeHtml(store.branch)} · ${escapeHtml(storeCityLabel(store))}</p>
+            <p class="store-selected__meta">${escapeHtml(storeLocationLabel(store))}</p>
             <p class="store-selected__stats">
               <span>${escapeHtml(storeProductLabel(store))}</span>
               ${updated ? `<span>${escapeHtml(updated)}</span>` : ""}
