@@ -5,6 +5,8 @@
    Do not edit by hand — re-run the script instead. */
 window.GROCER_WOOLWORTHS = {
   "fetchedAt": "2026-11-25",
+  "sourceCheckedAt": "2026-11-24T17:30:35.000Z",
+  "sourceDate": "2026-11-25",
   "source": "Grocer public price dataset (Woolworths NZ)",
   "note": "Per-branch Woolworths prices, read from grocer.nz's published static dataset. A product shows the price advertised today: the sale price when there is one, otherwise the shelf price. Club and multi-buy prices are excluded.",
   "stores": [
@@ -15,8 +17,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:04:19.000Z",
-      "priceCount": 8339,
+      "checkedAt": "2026-11-24T16:04:10.000Z",
+      "priceCount": 8342,
       "specialsCount": 2886
     },
     {
@@ -26,8 +28,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:04:40.000Z",
-      "priceCount": 10170,
+      "checkedAt": "2026-11-24T16:04:38.000Z",
+      "priceCount": 10173,
       "specialsCount": 3499
     },
     {
@@ -37,8 +39,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:09:23.000Z",
-      "priceCount": 10190,
+      "checkedAt": "2026-11-24T16:09:35.000Z",
+      "priceCount": 10193,
       "specialsCount": 3467
     },
     {
@@ -48,8 +50,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:11:24.000Z",
-      "priceCount": 10580,
+      "checkedAt": "2026-11-24T16:11:15.000Z",
+      "priceCount": 10584,
       "specialsCount": 3604
     },
     {
@@ -59,8 +61,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:12:14.000Z",
-      "priceCount": 10427,
+      "checkedAt": "2026-11-24T16:11:41.000Z",
+      "priceCount": 10429,
       "specialsCount": 3557
     },
     {
@@ -70,8 +72,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:13:04.000Z",
-      "priceCount": 10546,
+      "checkedAt": "2026-11-24T16:12:56.000Z",
+      "priceCount": 10548,
       "specialsCount": 3595
     },
     {
@@ -81,8 +83,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:25:10.000Z",
-      "priceCount": 10348,
+      "checkedAt": "2026-11-24T16:24:07.000Z",
+      "priceCount": 10351,
       "specialsCount": 3520
     },
     {
@@ -92,8 +94,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:26:17.000Z",
-      "priceCount": 10674,
+      "checkedAt": "2026-11-24T16:25:25.000Z",
+      "priceCount": 10677,
       "specialsCount": 3636
     },
     {
@@ -103,8 +105,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:26:45.000Z",
-      "priceCount": 10403,
+      "checkedAt": "2026-11-24T16:26:19.000Z",
+      "priceCount": 10406,
       "specialsCount": 3532
     },
     {
@@ -114,8 +116,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:29:24.000Z",
-      "priceCount": 7093,
+      "checkedAt": "2026-11-24T16:29:08.000Z",
+      "priceCount": 7096,
       "specialsCount": 2426
     },
     {
@@ -125,8 +127,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:30:13.000Z",
-      "priceCount": 9514,
+      "checkedAt": "2026-11-24T16:29:49.000Z",
+      "priceCount": 9517,
       "specialsCount": 3224
     },
     {
@@ -136,8 +138,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:30:54.000Z",
-      "priceCount": 10464,
+      "checkedAt": "2026-11-24T16:30:22.000Z",
+      "priceCount": 10466,
       "specialsCount": 3557
     },
     {
@@ -147,8 +149,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:30:55.000Z",
-      "priceCount": 9455,
+      "checkedAt": "2026-11-24T16:30:33.000Z",
+      "priceCount": 9458,
       "specialsCount": 3226
     },
     {
@@ -158,8 +160,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:32:05.000Z",
-      "priceCount": 8631,
+      "checkedAt": "2026-11-24T16:31:35.000Z",
+      "priceCount": 8634,
       "specialsCount": 2919
     },
     {
@@ -169,8 +171,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:36:27.000Z",
-      "priceCount": 9506,
+      "checkedAt": "2026-11-24T16:35:23.000Z",
+      "priceCount": 9509,
       "specialsCount": 3247
     },
     {
@@ -180,8 +182,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:39:55.000Z",
-      "priceCount": 10248,
+      "checkedAt": "2026-11-24T16:38:33.000Z",
+      "priceCount": 10250,
       "specialsCount": 3490
     },
     {
@@ -191,8 +193,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:40:28.000Z",
-      "priceCount": 10136,
+      "checkedAt": "2026-11-24T16:39:25.000Z",
+      "priceCount": 10139,
       "specialsCount": 3437
     },
     {
@@ -202,8 +204,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:41:06.000Z",
-      "priceCount": 7473,
+      "checkedAt": "2026-11-24T16:39:44.000Z",
+      "priceCount": 7475,
       "specialsCount": 2529
     },
     {
@@ -213,8 +215,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:41:33.000Z",
-      "priceCount": 6787,
+      "checkedAt": "2026-11-24T16:40:19.000Z",
+      "priceCount": 6790,
       "specialsCount": 2352
     },
     {
@@ -224,8 +226,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:42:01.000Z",
-      "priceCount": 10001,
+      "checkedAt": "2026-11-24T16:40:53.000Z",
+      "priceCount": 10004,
       "specialsCount": 3399
     },
     {
@@ -235,8 +237,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:42:24.000Z",
-      "priceCount": 9353,
+      "checkedAt": "2026-11-24T16:41:04.000Z",
+      "priceCount": 9355,
       "specialsCount": 3172
     },
     {
@@ -246,8 +248,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:42:52.000Z",
-      "priceCount": 9332,
+      "checkedAt": "2026-11-24T16:41:40.000Z",
+      "priceCount": 9333,
       "specialsCount": 3182
     },
     {
@@ -257,8 +259,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:44:24.000Z",
-      "priceCount": 10526,
+      "checkedAt": "2026-11-24T16:43:10.000Z",
+      "priceCount": 10528,
       "specialsCount": 3570
     },
     {
@@ -268,8 +270,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:44:51.000Z",
-      "priceCount": 10062,
+      "checkedAt": "2026-11-24T16:43:38.000Z",
+      "priceCount": 10065,
       "specialsCount": 3434
     },
     {
@@ -279,8 +281,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:45:26.000Z",
-      "priceCount": 10536,
+      "checkedAt": "2026-11-24T16:44:03.000Z",
+      "priceCount": 10538,
       "specialsCount": 3584
     },
     {
@@ -290,8 +292,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:45:42.000Z",
-      "priceCount": 9510,
+      "checkedAt": "2026-11-24T16:44:26.000Z",
+      "priceCount": 9512,
       "specialsCount": 3306
     },
     {
@@ -301,8 +303,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:46:22.000Z",
-      "priceCount": 10536,
+      "checkedAt": "2026-11-24T16:45:11.000Z",
+      "priceCount": 10538,
       "specialsCount": 3584
     },
     {
@@ -312,8 +314,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:46:58.000Z",
-      "priceCount": 10536,
+      "checkedAt": "2026-11-24T16:45:36.000Z",
+      "priceCount": 10538,
       "specialsCount": 3584
     },
     {
@@ -323,8 +325,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:47:14.000Z",
-      "priceCount": 10431,
+      "checkedAt": "2026-11-24T16:45:58.000Z",
+      "priceCount": 10434,
       "specialsCount": 3545
     },
     {
@@ -334,8 +336,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:49:43.000Z",
-      "priceCount": 10624,
+      "checkedAt": "2026-11-24T16:48:12.000Z",
+      "priceCount": 10627,
       "specialsCount": 3609
     },
     {
@@ -345,8 +347,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:50:16.000Z",
-      "priceCount": 10426,
+      "checkedAt": "2026-11-24T16:48:59.000Z",
+      "priceCount": 10429,
       "specialsCount": 3528
     },
     {
@@ -356,8 +358,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:50:51.000Z",
-      "priceCount": 10205,
+      "checkedAt": "2026-11-24T16:49:38.000Z",
+      "priceCount": 10208,
       "specialsCount": 3477
     },
     {
@@ -367,8 +369,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:53:51.000Z",
-      "priceCount": 10410,
+      "checkedAt": "2026-11-24T16:52:21.000Z",
+      "priceCount": 10413,
       "specialsCount": 3536
     },
     {
@@ -378,8 +380,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:54:42.000Z",
-      "priceCount": 9741,
+      "checkedAt": "2026-11-24T16:53:26.000Z",
+      "priceCount": 9744,
       "specialsCount": 3320
     },
     {
@@ -389,8 +391,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:55:14.000Z",
-      "priceCount": 9800,
+      "checkedAt": "2026-11-24T16:54:11.000Z",
+      "priceCount": 9803,
       "specialsCount": 3328
     },
     {
@@ -400,8 +402,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:56:26.000Z",
-      "priceCount": 7162,
+      "checkedAt": "2026-11-24T16:55:00.000Z",
+      "priceCount": 7164,
       "specialsCount": 2375
     },
     {
@@ -411,8 +413,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:56:51.000Z",
-      "priceCount": 10268,
+      "checkedAt": "2026-11-24T16:55:42.000Z",
+      "priceCount": 10271,
       "specialsCount": 3472
     },
     {
@@ -422,8 +424,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:58:04.000Z",
-      "priceCount": 8763,
+      "checkedAt": "2026-11-24T16:56:57.000Z",
+      "priceCount": 8766,
       "specialsCount": 2990
     },
     {
@@ -433,8 +435,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T16:59:31.000Z",
-      "priceCount": 9566,
+      "checkedAt": "2026-11-24T16:58:25.000Z",
+      "priceCount": 9567,
       "specialsCount": 3265
     },
     {
@@ -444,8 +446,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:00:00.000Z",
-      "priceCount": 8040,
+      "checkedAt": "2026-11-24T16:58:36.000Z",
+      "priceCount": 8042,
       "specialsCount": 2800
     },
     {
@@ -455,8 +457,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:02:34.000Z",
-      "priceCount": 10550,
+      "checkedAt": "2026-11-24T17:01:31.000Z",
+      "priceCount": 10555,
       "specialsCount": 3581
     },
     {
@@ -466,8 +468,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:03:05.000Z",
-      "priceCount": 10112,
+      "checkedAt": "2026-11-24T17:01:48.000Z",
+      "priceCount": 10114,
       "specialsCount": 3484
     },
     {
@@ -477,8 +479,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:03:56.000Z",
-      "priceCount": 10048,
+      "checkedAt": "2026-11-24T17:03:00.000Z",
+      "priceCount": 10051,
       "specialsCount": 3407
     },
     {
@@ -488,8 +490,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:04:40.000Z",
-      "priceCount": 10568,
+      "checkedAt": "2026-11-24T17:03:25.000Z",
+      "priceCount": 10570,
       "specialsCount": 3579
     },
     {
@@ -499,8 +501,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:10:31.000Z",
-      "priceCount": 10482,
+      "checkedAt": "2026-11-24T17:09:33.000Z",
+      "priceCount": 10484,
       "specialsCount": 3557
     },
     {
@@ -510,8 +512,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:13:03.000Z",
-      "priceCount": 10556,
+      "checkedAt": "2026-11-24T17:12:12.000Z",
+      "priceCount": 10558,
       "specialsCount": 3588
     },
     {
@@ -521,8 +523,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:13:11.000Z",
-      "priceCount": 10188,
+      "checkedAt": "2026-11-24T17:12:27.000Z",
+      "priceCount": 10191,
       "specialsCount": 3487
     },
     {
@@ -532,8 +534,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:14:37.000Z",
-      "priceCount": 9729,
+      "checkedAt": "2026-11-24T17:13:59.000Z",
+      "priceCount": 9731,
       "specialsCount": 3320
     },
     {
@@ -543,8 +545,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:14:56.000Z",
-      "priceCount": 10262,
+      "checkedAt": "2026-11-24T17:14:20.000Z",
+      "priceCount": 10264,
       "specialsCount": 3480
     },
     {
@@ -554,8 +556,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:15:58.000Z",
-      "priceCount": 10497,
+      "checkedAt": "2026-11-24T17:15:09.000Z",
+      "priceCount": 10500,
       "specialsCount": 3559
     },
     {
@@ -565,8 +567,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:18:26.000Z",
-      "priceCount": 7804,
+      "checkedAt": "2026-11-24T17:17:54.000Z",
+      "priceCount": 7806,
       "specialsCount": 2657
     },
     {
@@ -576,8 +578,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:21:25.000Z",
-      "priceCount": 9553,
+      "checkedAt": "2026-11-24T17:20:59.000Z",
+      "priceCount": 9556,
       "specialsCount": 3238
     },
     {
@@ -587,8 +589,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:25:55.000Z",
-      "priceCount": 10248,
+      "checkedAt": "2026-11-24T17:25:35.000Z",
+      "priceCount": 10251,
       "specialsCount": 3497
     },
     {
@@ -598,8 +600,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:26:25.000Z",
-      "priceCount": 10460,
+      "checkedAt": "2026-11-24T17:25:54.000Z",
+      "priceCount": 10462,
       "specialsCount": 3550
     },
     {
@@ -609,8 +611,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:29:20.000Z",
-      "priceCount": 10359,
+      "checkedAt": "2026-11-24T17:28:53.000Z",
+      "priceCount": 10361,
       "specialsCount": 3528
     },
     {
@@ -620,8 +622,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:29:22.000Z",
-      "priceCount": 9629,
+      "checkedAt": "2026-11-24T17:29:04.000Z",
+      "priceCount": 9632,
       "specialsCount": 3275
     },
     {
@@ -631,8 +633,8 @@ window.GROCER_WOOLWORTHS = {
       "region": "NI",
       "address": "",
       "city": "Auckland",
-      "checkedAt": "2026-11-23T17:30:58.000Z",
-      "priceCount": 10253,
+      "checkedAt": "2026-11-24T17:30:35.000Z",
+      "priceCount": 10255,
       "specialsCount": 3492
     }
   ]
