@@ -1,6 +1,6 @@
 /* A small, dated New World price import.
    Shelf prices were read from New World's public online store pages for the
-   Point Chevalier store on 2026-11-24 (the demo's New World branch now matches
+   Point Chevalier store on 2026-11-25 (the demo's New World branch now matches
    this store). Club Deal prices are excluded: where a product had a member
    price, the regular shelf price is recorded instead so the comparison stays
    like-for-like.
@@ -9,8 +9,8 @@ window.GROCER_NEWWORLD_IMPORT = {
   storeId: "newworld",
   store: "New World",
   branch: "Point Chevalier",
-  fetchedAt: "2026-11-24",
-  checkedAt: "2026-11-23T16:02:08.530Z",
+  fetchedAt: "2026-11-25",
+  checkedAt: "2026-11-24T13:35:51.410Z",
   source: "https://www.newworld.co.nz/shop/category/",
   items: {
     "milk-2l": {
