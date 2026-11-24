@@ -327,7 +327,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "phone-compact-2026-11-24",
+        () => window.TROLLEYBIRD_BUILD === "store-cards-2026-11-24",
         null,
         { timeout: 5000 }
       );
@@ -401,6 +401,17 @@ async function addStore(page, { query, brand, branch }, expectedCount) {
     { timeout: 10000 }
   );
   await page.fill("#store-search", "");
+}
+
+async function removeStore(page, row) {
+  const count = await page.locator("#store-list .store-selected").count();
+  await row.locator("[data-store-menu]").click();
+  await row.locator("[data-remove-store]").click();
+  await page.waitForFunction(
+    (n) => document.querySelectorAll("#store-list .store-selected").length < n,
+    count,
+    { timeout: 5000 }
+  );
 }
 
 async function main() {
@@ -649,7 +660,7 @@ async function main() {
     );
 
     const albanyRow = page.locator("#store-list .store-selected").filter({ hasText: "Albany" }).first();
-    await albanyRow.locator("[data-remove-store]").click();
+    await removeStore(page, albanyRow);
     await page.waitForFunction(
       () => document.querySelectorAll("#store-list .store-selected").length === 2,
       null,
@@ -1442,7 +1453,7 @@ async function main() {
       .locator("#store-list .store-selected")
       .filter({ hasText: "Ilam" })
       .first();
-    await ilamStore.locator("[data-remove-store]").click();
+    await removeStore(page, ilamStore);
     await page.waitForFunction(
       () => document.querySelectorAll("#store-list .store-selected").length === 2,
       null,
@@ -1540,8 +1551,8 @@ async function main() {
       null,
       { timeout: 10000 }
     );
-    while ((await page.locator("#store-list [data-remove-store]").count()) > 0) {
-      await page.locator("#store-list [data-remove-store]").first().click();
+    while ((await page.locator("#store-list .store-selected").count()) > 0) {
+      await removeStore(page, page.locator("#store-list .store-selected").first());
     }
     await page.waitForFunction(
       () => document.querySelectorAll("#store-list .store-selected").length === 0,
@@ -1561,7 +1572,7 @@ async function main() {
     }
     await page.locator("#store-results [data-add-store]").filter({ hasText: "Britomart" }).click();
     await page.waitForFunction(
-      () => document.querySelector("#store-list")?.innerText.includes("Weekly specials only"),
+      () => document.querySelector("#store-list")?.innerText.includes("Specials only"),
       null,
       { timeout: 5000 }
     );
@@ -1705,7 +1716,7 @@ async function main() {
       { timeout: 5000 }
     );
     await page.waitForFunction(
-      () => !/loading branch prices/i.test(document.querySelector("#store-list")?.innerText || ""),
+      () => !/loading (branch )?prices/i.test(document.querySelector("#store-list")?.innerText || ""),
       null,
       { timeout: 20000 }
     );

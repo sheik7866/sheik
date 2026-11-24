@@ -13,14 +13,14 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Keep this version in step with the build marker so a cached bundle cannot
        outlive a deployment. -->
-  <link rel="stylesheet" href="app.css?v=phone-compact-2026-11-24" />
+  <link rel="stylesheet" href="app.css?v=store-cards-2026-11-24" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
   <script src="data/stores.js" defer></script>
-  <script src="data/foursquare.js?v=phone-compact-2026-11-24" defer></script>
-  <script src="data/woolworths.js?v=phone-compact-2026-11-24" defer></script>
-  <script src="demo-sku-map.js?v=phone-compact-2026-11-24" defer></script>
+  <script src="data/foursquare.js?v=store-cards-2026-11-24" defer></script>
+  <script src="data/woolworths.js?v=store-cards-2026-11-24" defer></script>
+  <script src="demo-sku-map.js?v=store-cards-2026-11-24" defer></script>
 </head>
 <body class="app-body">
   <div class="splash" id="splash" role="status" aria-label="Loading Trolleybird">
@@ -127,6 +127,13 @@
         </div>
         <ul class="store-results" id="store-results" aria-live="polite" hidden></ul>
         <ul class="store-list" id="store-list"></ul>
+        <button class="store-add" type="button" id="store-add">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5" />
+            <path d="M12 8.5v7M8.5 12h7" />
+          </svg>
+          <span>Add another store</span>
+        </button>
         <p class="panel__foot" id="store-foot"></p>
       </section>
 
@@ -358,7 +365,7 @@
     <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
   </div>
 
-  <script src="app.js?v=phone-compact-2026-11-24" defer></script>
+  <script src="app.js?v=store-cards-2026-11-24" defer></script>
   <script src="scanner.js" defer></script>
 </body>
 </html>

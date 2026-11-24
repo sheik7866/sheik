@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "phone-compact-2026-11-24";
+window.TROLLEYBIRD_BUILD = "store-cards-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -67,6 +67,7 @@ function branchStore(store) {
     specialsEndDate: store.specialsEndDate || "",
     specialsCount: Number(store.specialsCount) || 0,
     priceCount: Number(store.priceCount) || 0,
+    checkedAt: typeof store.checkedAt === "string" ? store.checkedAt : "",
     specialsData: store.specialsOnly
       ? {
           prices: store.prices && typeof store.prices === "object" ? store.prices : {},
@@ -550,6 +551,7 @@ const el = {
   storeList: document.getElementById("store-list"),
   storeCounter: document.getElementById("store-counter"),
   storeHint: document.getElementById("store-hint"),
+  storeAdd: document.getElementById("store-add"),
   storeFoot: document.getElementById("store-foot"),
   storeSearch: document.getElementById("store-search"),
   storeResults: document.getElementById("store-results"),
@@ -2052,6 +2054,77 @@ function setTab(tab, { persist = false } = {}) {
   }
 }
 
+function storeCityLabel(store) {
+  const parts = String(store.address || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const part = parts[index].replace(/\s+\d{4}$/, "").trim();
+    if (part && !/^\d{4}$/.test(part)) return part;
+  }
+  return storeRegionLabel(store);
+}
+
+function storeProductLabel(store) {
+  if (store.specialsOnly) {
+    const count = Number(store.specialsCount) || 0;
+    return `${count.toLocaleString("en-NZ")} weekly special${count === 1 ? "" : "s"}`;
+  }
+  const count = store.priceCount || stockedLineCount(store) || 0;
+  return count ? `${count.toLocaleString("en-NZ")} products` : "Range not checked";
+}
+
+const STORE_DATE_FORMAT = new Intl.DateTimeFormat("en-NZ", {
+  day: "numeric",
+  month: "short",
+  timeZone: "Pacific/Auckland",
+});
+
+function storeUpdatedLabel(store) {
+  let raw = "";
+  if (store.specialsOnly) {
+    raw = store.specialsData?.checkedAt || store.checkedAt || "";
+  } else {
+    const cached = STORE_PRICE_CACHE.get(store.storeId);
+    raw =
+      cached?.checkedAt ||
+      (BASE_STORE_IDS.has(store.storeId)
+        ? ZONE_META[store.zone]?.checkedAt || ZONE_META[store.zone]?.fetchedAt || ""
+        : store.checkedAt || "");
+  }
+  if (!raw) return "";
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? "" : `Updated ${STORE_DATE_FORMAT.format(date)}`;
+}
+
+function storePriceBadge(store) {
+  if (store.specialsOnly) {
+    return {
+      tone: "specials",
+      label: "Specials only",
+      title: `Weekly specials only${
+        store.specialsEndDate ? ` · ends ${store.specialsEndDate}` : ""
+      } — no shelf price list`,
+    };
+  }
+  if (BASE_STORE_IDS.has(store.storeId)) {
+    return { tone: "ready", label: "Prices available", title: "" };
+  }
+  const status = STORE_PRICE_CACHE.get(store.storeId)?.status || "loading";
+  if (status === "ready") {
+    return { tone: "ready", label: "Prices available", title: "Branch prices checked" };
+  }
+  if (status === "error") {
+    return {
+      tone: "error",
+      label: "Base prices only",
+      title: "Island price list — branch prices unavailable",
+    };
+  }
+  return { tone: "loading", label: "Loading prices", title: "Loading branch prices" };
+}
+
 function renderStores() {
   const selected = state.stores.map((id) => STORE_MAP.get(id)).filter(Boolean);
   const newId = freshStoreId;
@@ -2063,22 +2136,25 @@ function renderStores() {
             : BASE_STORE_IDS.has(store.storeId)
               ? "ready"
               : STORE_PRICE_CACHE.get(store.storeId)?.status || "loading";
-          const priceNote = store.specialsOnly
-            ? `<small class="store-selected__prices">Weekly specials only${store.specialsEndDate ? ` · ends ${escapeHtml(store.specialsEndDate)}` : ""} — no shelf price list</small>`
-            : priceStatus === "loading"
-              ? `<small class="store-selected__prices">Loading branch prices…</small>`
-              : priceStatus === "error"
-                ? `<small class="store-selected__prices is-error">Island price list — branch prices unavailable</small>`
-                : "";
+          const badge = storePriceBadge(store);
+          const updated = storeUpdatedLabel(store);
+          const menuId = `store-menu-${store.storeId}`;
           return `
           <li class="store-selected${store.id === newId ? " is-new" : ""}" data-price-status="${priceStatus}">
-            <span class="store-chip__dot" style="--dot:${store.tint}"></span>
-            <span class="store-chip__body">
-              <b>${escapeHtml(store.name)}</b>
-              <small>${escapeHtml(store.branch)} · ${escapeHtml(storeRegionLabel(store))} · ${escapeHtml(storeLineLabel(store))}</small>
-              ${priceNote}
-            </span>
-            <button class="store-selected__remove" type="button" data-remove-store="${store.id}" aria-label="Remove ${escapeHtml(store.name)} ${escapeHtml(store.branch)}" title="Remove">×</button>
+            <div class="store-selected__head">
+              <span class="store-chip__dot" style="--dot:${store.tint}" aria-hidden="true"></span>
+              <b class="store-selected__name">${escapeHtml(store.name)}</b>
+              <span class="store-selected__pill is-${badge.tone}"${badge.title ? ` title="${escapeHtml(badge.title)}"` : ""}>${badge.label}</span>
+              <button class="store-selected__menu-toggle" type="button" data-store-menu="${store.id}" aria-label="Options for ${escapeHtml(store.name)} ${escapeHtml(store.branch)}" aria-expanded="false" aria-controls="${menuId}"><span aria-hidden="true">⋯</span></button>
+            </div>
+            <p class="store-selected__meta">${escapeHtml(store.branch)} · ${escapeHtml(storeCityLabel(store))}</p>
+            <p class="store-selected__stats">
+              <span>${escapeHtml(storeProductLabel(store))}</span>
+              ${updated ? `<span>${escapeHtml(updated)}</span>` : ""}
+            </p>
+            <div class="store-selected__menu" id="${menuId}" hidden>
+              <button class="store-selected__remove" type="button" data-remove-store="${store.id}">Remove store</button>
+            </div>
           </li>`;
         })
         .join("")
@@ -2086,11 +2162,11 @@ function renderStores() {
 
   freshStoreId = "";
   el.storeCounter.textContent = `${selected.length} / ${storeCap()}`;
+  el.storeHint.hidden = selected.length > 0;
   el.storeHint.textContent = selected.length
-    ? selected.length === 1
-      ? "Add another branch to compare, including another PAK'nSAVE, New World, Four Square or Woolworths."
-      : "Search to add another branch, or remove one below."
+    ? "Search to add another branch, or remove one from its options menu."
     : "Search for a PAK'nSAVE, New World, Four Square or Woolworths branch to start.";
+  el.storeAdd.hidden = selected.length === 0;
   el.storeFoot.textContent = state.pro
     ? `Pro demo: up to ${MAX_PRO_STORES} stores.`
     : `Free demo covers ${MAX_FREE_STORES} stores. Turn on Pro for ${MAX_PRO_STORES}.`;
@@ -2894,6 +2970,16 @@ function addStore(storeId) {
   toast(`${store.name} · ${store.branch} added.`);
 }
 
+function closeStoreMenus() {
+  for (const menu of el.storeList.querySelectorAll(".store-selected__menu:not([hidden])")) {
+    menu.hidden = true;
+    menu
+      .closest(".store-selected")
+      ?.querySelector("[data-store-menu]")
+      ?.setAttribute("aria-expanded", "false");
+  }
+}
+
 const removingStores = new Set();
 
 function removeStore(storeId) {
@@ -3437,14 +3523,38 @@ el.storeSearch.addEventListener("keydown", (event) => {
   addStore(first.dataset.addStore);
 });
 
+el.storeAdd.addEventListener("click", () => {
+  el.storeSearch.focus();
+});
+
 el.storeResults.addEventListener("click", (event) => {
   const add = event.target.closest("[data-add-store]");
   if (add) addStore(add.dataset.addStore);
 });
 
 el.storeList.addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-store-menu]");
+  if (toggle) {
+    const menu = toggle.closest(".store-selected")?.querySelector(".store-selected__menu");
+    if (!menu) return;
+    const opening = menu.hidden;
+    closeStoreMenus();
+    if (opening) {
+      menu.hidden = false;
+      toggle.setAttribute("aria-expanded", "true");
+    }
+    return;
+  }
   const remove = event.target.closest("[data-remove-store]");
   if (remove) removeStore(remove.dataset.removeStore);
+});
+
+el.storeList.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeStoreMenus();
+});
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".store-selected__menu, [data-store-menu]")) closeStoreMenus();
 });
 
 el.categories.addEventListener("click", (event) => {
