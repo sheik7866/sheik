@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "bottom-nav-2026-11-24";
+window.TROLLEYBIRD_BUILD = "list-badge-total-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2112,7 +2112,9 @@ function renderStoreResults() {
 
 function renderTabs() {
   const storeCount = state.stores.length;
-  const listCount = state.list.length;
+  // The badge is the basket's item total, not the number of list rows: two
+  // bottles of milk count as two items.
+  const listCount = listQuantity();
   el.tabStoreCount.textContent = String(storeCount);
   el.tabStoreCount.hidden = storeCount === 0;
   el.tabListCount.textContent = String(listCount);
