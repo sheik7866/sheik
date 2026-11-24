@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "stores-badge-loading-2026-11-24";
+window.TROLLEYBIRD_BUILD = "search-recall-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -1681,6 +1681,22 @@ const SEARCH_SUGGESTION_STOP_WORDS = new Set([
   "original",
 ]);
 
+/* Shoppers ask for things by their everyday names. Spell out the ones the
+   catalogue files under another name, so they find the shelf product instead
+   of a spelling correction for an unrelated word. */
+const SEARCH_ALIASES = new Map([
+  ["coke", "coca cola"],
+  ["cokes", "coca cola"],
+  ["coke zero", "coca cola zero"],
+  ["diet coke", "diet coca cola"],
+  ["spuds", "potatoes"],
+  ["snags", "sausages"],
+  ["gladwrap", "glad wrap"],
+  ["loo paper", "toilet paper"],
+  ["tin foil", "aluminium foil"],
+  ["cling film", "cling wrap"],
+]);
+
 function addSearchWord(counts, word, weight) {
   if (word.length < 3 || /^\d/.test(word) || SEARCH_SUGGESTION_STOP_WORDS.has(word)) return;
   counts.set(word, (counts.get(word) || 0) + weight);
@@ -1728,6 +1744,12 @@ function bestSpelling(term, vocabulary) {
     if (Math.abs(word.length - term.length) > maxDistance) continue;
     const distance = editDistance(term, word);
     if (distance < 1 || distance > maxDistance) continue;
+    // A correction should keep the opening of the word: without that guard a
+    // short term like "coke" is confidently rewritten as the unrelated "cold".
+    const sameStart = word[0] === term[0];
+    const sharesOpening =
+      word.startsWith(term) || term.startsWith(word) || word.slice(0, 3) === term.slice(0, 3);
+    if (!sameStart || (distance > 1 && !sharesOpening)) continue;
     if (
       !best ||
       (preferFrequency
@@ -1783,10 +1805,37 @@ function wordMatchesTerm(word, term) {
   return word === term || word.startsWith(term) || (term.length >= 4 && word.includes(term));
 }
 
+/* Plurals should not decide whether a product is findable: “berries” must
+   find “berry” and “tomatoes” must find “tomato”. Stems are compared exactly
+   so “peas” cannot drift into “peanut”. */
+const SEARCH_WORD_STEMS = new Map();
+
+function singularSearchWord(word) {
+  let stem = SEARCH_WORD_STEMS.get(word);
+  if (stem !== undefined) return stem;
+  stem = word;
+  if (word.length >= 4) {
+    if (word.endsWith("ies")) stem = `${word.slice(0, -3)}y`;
+    else if (/(?:ches|shes|sses|xes|zes)$/.test(word)) stem = word.slice(0, -2);
+    else if (word.endsWith("oes")) stem = word.slice(0, -2);
+    else if (word.endsWith("s") && !/(?:ss|us|is)$/.test(word)) stem = word.slice(0, -1);
+  }
+  SEARCH_WORD_STEMS.set(word, stem);
+  return stem;
+}
+
+function wordsMatchTerm(words, term) {
+  if (words.some((word) => wordMatchesTerm(word, term))) return true;
+  const stem = singularSearchWord(term);
+  return words.some((word) => word !== term && singularSearchWord(word) === stem);
+}
+
 function searchTermScore(words, term, exact, prefix, inside) {
   if (words.includes(term)) return exact;
   if (words.some((word) => word.startsWith(term))) return prefix;
   if (term.length >= 4 && words.some((word) => word.includes(term))) return inside;
+  const stem = singularSearchWord(term);
+  if (words.some((word) => word !== term && singularSearchWord(word) === stem)) return exact;
   return 0;
 }
 
@@ -1799,11 +1848,11 @@ function productMatchesSearch(fields, query) {
   if (!query.terms.length) return false;
   return query.terms.every(
     (term) =>
-      fields.nameWords.some((word) => wordMatchesTerm(word, term)) ||
-      fields.brandWords.some((word) => wordMatchesTerm(word, term)) ||
-      fields.keywordWords.some((word) => wordMatchesTerm(word, term)) ||
+      wordsMatchTerm(fields.nameWords, term) ||
+      wordsMatchTerm(fields.brandWords, term) ||
+      wordsMatchTerm(fields.keywordWords, term) ||
       fields.categoryWords.includes(term) ||
-      fields.metaWords.some((word) => wordMatchesTerm(word, term)) ||
+      wordsMatchTerm(fields.metaWords, term) ||
       (fields.code && fields.code.includes(term))
   );
 }
@@ -1867,6 +1916,14 @@ function visibleProducts() {
   const products = findMatchingProducts(query);
   let correction = null;
   if (query.active && !query.barcode && !products.length) {
+    // Everyday names win over a spelling guess: “coke” means Coca-Cola.
+    const alias = SEARCH_ALIASES.get(query.normalized);
+    if (alias) {
+      const aliasProducts = findMatchingProducts(parseProductSearch(alias));
+      if (aliasProducts.length) {
+        return { products: aliasProducts, correction: { suggestion: alias, applied: true } };
+      }
+    }
     const suggestion = suggestSearchQuery(query);
     if (suggestion) {
       const correctedProducts = findMatchingProducts(parseProductSearch(suggestion));
