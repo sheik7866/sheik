@@ -198,6 +198,15 @@ function main() {
   // specials current after the catalogue has been rebuilt.
   run("scripts/pull-foursquare-specials.mjs", {});
 
+  // Woolworths' prices come from Baskt, a third-party public feed. An outage
+  // there must not lose the PAK'nSAVE and New World refresh, so keep
+  // yesterday's Woolworths specials and report the failure instead.
+  try {
+    run("scripts/pull-woolworths-specials.mjs", {});
+  } catch (error) {
+    console.warn(`[refresh] Woolworths specials not refreshed: ${error.message}`);
+  }
+
   console.log(`\n[refresh] prices checked for ${TODAY} (Pacific/Auckland)`);
 }
 

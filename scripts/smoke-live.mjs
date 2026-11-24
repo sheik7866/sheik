@@ -320,7 +320,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "foursquare-specials-2026-11-24",
+        () => window.TROLLEYBIRD_BUILD === "woolworths-specials-2026-11-24",
         null,
         { timeout: 5000 }
       );
@@ -1627,6 +1627,153 @@ async function main() {
       `Four Square receipt should list specials only: ${fourSquareReceipt}`
     );
     await page.keyboard.press("Escape");
+
+    step("checking Woolworths' Auckland-zone specials");
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForCurrentBuild(page);
+    await page.waitForFunction(
+      () =>
+        Array.isArray(window.GROCER_WOOLWORTHS?.stores) &&
+        window.GROCER_WOOLWORTHS.stores.length === 1,
+      null,
+      { timeout: 10000 }
+    );
+    const woolworths = await page.evaluate(() => {
+      const data = window.GROCER_WOOLWORTHS;
+      const store = data.stores[0];
+      const byId = new Map(window.GROCER_CATALOGUE.items.map((row) => [row[0], row]));
+      const priced = Object.entries(store.prices)
+        .map(([id, cents]) => ({ id, cents, name: byId.get(id)?.[1] || "" }))
+        .filter((row) => row.name.length > 3)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const unpriced = window.GROCER_CATALOGUE.items
+        .map((row) => ({ id: row[0], name: row[1] }))
+        .find((row) => row.name.length > 3 && !store.prices[row.id]);
+      return {
+        zone: data.zone,
+        checkedAt: store.checkedAt,
+        count: store.specialsCount,
+        priceCount: Object.keys(store.prices).length,
+        entry: priced[0] || null,
+        unpriced,
+      };
+    });
+    assert(/auckland/i.test(woolworths.zone?.name || ""), `Woolworths zone is not Auckland: ${woolworths.zone?.name}`);
+    assert(woolworths.checkedAt, "the Woolworths feed has no check time");
+    assert(woolworths.count > 0, "Woolworths has no Auckland-zone specials");
+    assert(
+      woolworths.priceCount === woolworths.count,
+      `Woolworths prices and specials disagree: ${woolworths.priceCount} vs ${woolworths.count}`
+    );
+    assert(woolworths.entry, "no Woolworths special matches the demo catalogue");
+    console.log(
+      `[smoke] Woolworths Auckland zone: ${woolworths.count} specials, e.g. ${woolworths.entry.name}`
+    );
+
+    await page.fill("#store-search", "Woolworths");
+    await page.waitForSelector("#store-results [data-add-store]", { timeout: 5000 });
+    const woolworthsResults = normalize(
+      await page.locator("#store-results").innerText()
+    ).toLowerCase();
+    assert(woolworthsResults.includes("woolworths"), `store search is missing Woolworths: ${woolworthsResults}`);
+    assert(woolworthsResults.includes("auckland"), `store search is missing the Auckland zone: ${woolworthsResults}`);
+    await page.locator("#store-results [data-add-store]").filter({ hasText: "Woolworths" }).first().click();
+    await page.waitForFunction(
+      () => document.querySelector("#store-list")?.innerText.includes("Weekly specials only"),
+      null,
+      { timeout: 5000 }
+    );
+
+    const woolworthsPrice = money(woolworths.entry.cents);
+    await page.fill("#search", woolworths.entry.name);
+    await page.waitForSelector(`#product-grid [data-product="${woolworths.entry.id}"]`, {
+      timeout: 20000,
+    });
+    const woolworthsCard = normalize(
+      await page
+        .locator(`#product-grid li.product:has([data-product="${woolworths.entry.id}"])`)
+        .innerText()
+    ).toLowerCase();
+    assert(
+      woolworthsCard.includes(woolworthsPrice),
+      `Woolworths special price ${woolworthsPrice} is missing: ${woolworthsCard}`
+    );
+    assert(
+      woolworthsCard.includes("weekly special"),
+      `Woolworths special is not labelled: ${woolworthsCard}`
+    );
+    assert(
+      !woolworthsCard.includes("est."),
+      `Woolworths special should not be estimated: ${woolworthsCard}`
+    );
+
+    await page.locator(`#product-grid [data-product="${woolworths.entry.id}"]`).click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const woolworthsDialog = normalize(await page.locator("#product-dialog").innerText()).toLowerCase();
+    assert(
+      woolworthsDialog.includes("weekly special") &&
+        woolworthsDialog.includes("advertised specials, not shelf prices"),
+      `Woolworths dialog does not explain its special-only price: ${woolworthsDialog}`
+    );
+    assert(
+      woolworthsDialog.includes("no price history"),
+      `Woolworths should not show an estimated price history: ${woolworthsDialog}`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+
+    await page.fill("#search", woolworths.entry.name);
+    await page.waitForSelector(`#product-grid [data-add="${woolworths.entry.id}"]`, {
+      timeout: 20000,
+    });
+    await page.locator(`#product-grid [data-add="${woolworths.entry.id}"]`).click();
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 1,
+      null,
+      { timeout: 5000 }
+    );
+    const woolworthsTotals = normalize(await page.locator("#totals").innerText()).toLowerCase();
+    assert(
+      woolworthsTotals.includes("publishes weekly specials only"),
+      `Woolworths basket total does not explain the missing shelf prices: ${woolworthsTotals}`
+    );
+    assert(
+      woolworthsTotals.includes("specials only") && woolworthsTotals.includes("—"),
+      `Woolworths should not show a full basket total: ${woolworthsTotals}`
+    );
+
+    await page.click("#receipt-button");
+    await page.waitForSelector("#receipt-dialog[open]", { timeout: 5000 });
+    const woolworthsReceipt = normalize(
+      await page.locator("#receipt-body").innerText()
+    ).toLowerCase();
+    assert(
+      woolworthsReceipt.includes("specials only") &&
+        woolworthsReceipt.includes("advertised weekly specials"),
+      `Woolworths receipt should list specials only: ${woolworthsReceipt}`
+    );
+    await page.keyboard.press("Escape");
+
+    if (woolworths.unpriced) {
+      await page.fill("#search", woolworths.unpriced.name);
+      await page.waitForSelector(`#product-grid [data-product="${woolworths.unpriced.id}"]`, {
+        timeout: 20000,
+      });
+      const woolworthsUnpriced = normalize(
+        await page
+          .locator(`#product-grid li.product:has([data-product="${woolworths.unpriced.id}"])`)
+          .innerText()
+      ).toLowerCase();
+      assert(
+        woolworthsUnpriced.includes("no published price"),
+        `unpriced Woolworths product should say no published price: ${woolworthsUnpriced}`
+      );
+      assert(
+        !woolworthsUnpriced.includes("not stocked"),
+        `unpriced Woolworths product should not be called not stocked: ${woolworthsUnpriced}`
+      );
+    }
 
     assert(
       consoleErrors.length === 0,

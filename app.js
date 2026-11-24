@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "foursquare-specials-2026-11-24";
+window.TROLLEYBIRD_BUILD = "woolworths-specials-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -15,20 +15,37 @@ window.TROLLEYBIRD_BUILD = "foursquare-specials-2026-11-24";
    the demo has always priced keep their old ids so saved lists and the dated
    staple imports keep working.
 
-   Four Square publishes only weekly specials, not a shelf-price list, so its
-   four demo branches are a separate, explicitly specials-only directory. */
+   Four Square and Woolworths publish only weekly specials, not a shelf-price
+   list, so their demo branches sit in a separate, explicitly specials-only
+   directory. */
 const ANCHOR_BRANCHES = {
   "b2e98a14-c8ca-401e-99ed-edf74570c6f6": "paknsave",
   "871ff39f-99b5-4030-b035-b2dab7225082": "newworld",
 };
-const BRAND_NAMES = { pns: "Pak'nSave", nw: "New World", fsq: "Four Square" };
-const BRAND_TINTS = { pns: "#f3c623", nw: "#c22032", fsq: "#e4002b" };
+const BRAND_NAMES = {
+  pns: "Pak'nSave",
+  nw: "New World",
+  fsq: "Four Square",
+  wow: "Woolworths",
+};
+const BRAND_TINTS = { pns: "#f3c623", nw: "#c22032", fsq: "#e4002b", wow: "#178841" };
+/* Search words for each banner, so "countdown" still finds Woolworths. */
+const STORE_SEARCH_ALIASES = {
+  pns: "paknsave pak n save pns",
+  nw: "new world newworld nw",
+  fsq: "four square foursquare fsq",
+  wow: "woolworths woolworth wow countdown ww",
+};
 const FOURSQUARE_DIRECTORY = Array.isArray(window.GROCER_FOURSQUARE?.stores)
   ? window.GROCER_FOURSQUARE.stores
+  : [];
+const WOOLWORTHS_DIRECTORY = Array.isArray(window.GROCER_WOOLWORTHS?.stores)
+  ? window.GROCER_WOOLWORTHS.stores
   : [];
 const BRANCH_DIRECTORY = [
   ...(Array.isArray(window.GROCER_STORES?.stores) ? window.GROCER_STORES.stores : []),
   ...FOURSQUARE_DIRECTORY,
+  ...WOOLWORTHS_DIRECTORY,
 ];
 
 function branchStore(store) {
@@ -1204,8 +1221,8 @@ function knownUnavailable(productId, storeId) {
   const product = PRODUCT_MAP.get(productId);
   const store = STORE_MAP.get(storeId);
   if (!product || !store) return false;
-  // Four Square publishes only this week's specials, so a missing price is
-  // not evidence that the store does not stock the product.
+  // Specials-only chains publish only this week's specials, so a missing price
+  // is not evidence that the store does not stock the product.
   if (store.specialsOnly) return false;
   if (!storePricesReady(store)) return false;
   // A price you recorded in this store is evidence it had the product, even
@@ -1891,6 +1908,29 @@ function storeLabel(store) {
   return store ? `${store.name} · ${store.branch}` : "";
 }
 
+/* Specials-only chains advertise weekly specials but publish no shelf-price
+   list, so their copy names whichever chains are selected instead of assuming
+   Four Square. */
+function specialsOnlyChainLabel(stores) {
+  const names = [
+    ...new Set(stores.filter((store) => store.specialsOnly).map((store) => store.name)),
+  ];
+  if (!names.length) return "";
+  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+function specialsOnlyPublish(stores) {
+  return specialsOnlyChainLabel(stores).includes(" and ") ? "publish" : "publishes";
+}
+
+function specialsOnlyNote(stores) {
+  const label = specialsOnlyChainLabel(stores);
+  if (!label) return "";
+  return `${label} ${specialsOnlyPublish(stores)} weekly specials only, so ${
+    label.includes(" and ") ? "their stores are" : "its stores are"
+  } not included in basket totals.`;
+}
+
 function storeLineLabel(store) {
   if (store?.specialsOnly) {
     const count = store.specialsCount;
@@ -1907,9 +1947,14 @@ function noPriceLabel(stores) {
 }
 
 function noPriceRangeLabel(stores) {
-  return stores.length && stores.every((store) => store.specialsOnly)
-    ? "No published price at your Four Square stores"
-    : "Not stocked at your selected stores";
+  if (!(stores.length && stores.every((store) => store.specialsOnly))) {
+    return "Not stocked at your selected stores";
+  }
+  const label = specialsOnlyChainLabel(stores);
+  const count = stores.filter((store) => store.specialsOnly).length;
+  return label
+    ? `No published price at your ${label} store${count === 1 ? "" : "s"}`
+    : "No published price at your selected stores";
 }
 
 function normalizeStoreSearch(value) {
@@ -1923,12 +1968,7 @@ function storeSearchMatches(query) {
   const terms = normalizeStoreSearch(query).split(/\s+/).filter(Boolean);
   const first = terms[0] || "";
   return BRANCH_STORES.filter((store) => {
-    const aliases =
-      store.chain === "pns"
-        ? "paknsave pak n save pns"
-        : store.chain === "nw"
-          ? "new world newworld nw"
-          : "four square foursquare fsq";
+    const aliases = STORE_SEARCH_ALIASES[store.chain] || STORE_SEARCH_ALIASES.fsq;
     const haystack = normalizeStoreSearch(
       `${store.name} ${store.branch} ${store.address} ${storeRegionLabel(store)} ${aliases}`
     );
@@ -2046,9 +2086,9 @@ function renderStores() {
   el.storeCounter.textContent = `${selected.length} / ${storeCap()}`;
   el.storeHint.textContent = selected.length
     ? selected.length === 1
-      ? "Add another branch to compare, including another PAK'nSAVE, New World or Four Square."
+      ? "Add another branch to compare, including another PAK'nSAVE, New World, Four Square or Woolworths."
       : "Search to add another branch, or remove one below."
-    : "Search for a PAK'nSAVE, New World or Four Square branch to start.";
+    : "Search for a PAK'nSAVE, New World, Four Square or Woolworths branch to start.";
   el.storeFoot.textContent = state.pro
     ? `Pro demo: up to ${MAX_PRO_STORES} stores.`
     : `Free demo covers ${MAX_FREE_STORES} stores. Turn on Pro for ${MAX_PRO_STORES}.`;
@@ -2226,6 +2266,7 @@ function listItemDetails(row, stores, pricesLoading) {
     unit,
     missing,
     noPrice,
+    noPriceChain: specialsOnlyChainLabel(stores),
     pricePending,
     special,
     specialsOnly,
@@ -2241,7 +2282,7 @@ function listItemSearchText(item) {
 }
 
 function listItemMarkup(item) {
-  const { row, product, best, bestKind, unit, missing, noPrice, pricePending } = item;
+  const { row, product, best, bestKind, unit, missing, noPrice, noPriceChain, pricePending } = item;
   const fromPrice = best ? effectivePriceFor(row.id, best.store) : null;
   const bestKindLabel = bestKind === "special" ? "weekly special" : bestKind;
   const unitSplit = dealUnitSplit(best);
@@ -2249,7 +2290,7 @@ function listItemMarkup(item) {
     <li class="list-item" data-row="${row.id}">
       <button class="list-item__body" type="button" data-open-product="${row.id}" title="View prices for ${escapeHtml(product.name)}" aria-label="View prices for ${escapeHtml(product.name)}">
         <b>${escapeHtml(product.name)}</b>
-        <small>${escapeHtml(product.size)}${best ? ` · ${bestKindLabel} from <span class="list-item__price">${money.format(fromPrice ?? best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : noPrice ? " · no published price at Four Square" : missing ? " · not stocked at your stores" : ""}</small>
+        <small>${escapeHtml(product.size)}${best ? ` · ${bestKindLabel} from <span class="list-item__price">${money.format(fromPrice ?? best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : noPrice ? ` · no published price at ${escapeHtml(noPriceChain)}` : missing ? " · not stocked at your stores" : ""}</small>
         ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
         ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""}${unitSplit ? ` · ${escapeHtml(unitSplit)}` : ""} · save ${money.format(best.savings)}</small>` : ""}
       </button>
@@ -2385,7 +2426,7 @@ function renderTotals() {
   const specialsRows = totals.rows.filter((row) => row.specialsOnly);
   const summary = !totals.hasAvailable
     ? specialsRows.length
-      ? "Four Square publishes weekly specials only, so it isn't included in basket totals."
+      ? specialsOnlyNote(totals.rows.map((row) => row.store))
       : "No selected store has a price for every item on this list."
     : availableRows.length === 1
       ? `Only ${escapeHtml(storeLabel(totals.cheapest.store))} has a price for every item on this list.`
@@ -2446,7 +2487,7 @@ function renderTotals() {
         .join("")}
     </ul>
     <p class="totals__save">${summary}${bestDealSaving > 0.004 ? ` Includes ${money.format(bestDealSaving)} of deal savings.` : ""}</p>
-    ${specialsRows.length && totals.hasAvailable ? `<p class="totals__card">Four Square publishes weekly specials only; its stores are not included in basket totals.</p>` : ""}
+    ${specialsRows.length && totals.hasAvailable ? `<p class="totals__card">${escapeHtml(specialsOnlyNote(totals.rows.map((row) => row.store)))}</p>` : ""}
     ${assortedMarkup}
     ${cardNote ? `<p class="totals__card">${cardNote}</p>` : ""}`;
 }
@@ -2546,7 +2587,7 @@ function receiptSummaryText(groups) {
     lines.push("");
   });
   if (groups.some((group) => group.specialsOnly)) {
-    lines.push("Four Square publishes weekly specials only; its prices are not basket totals.");
+    lines.push(specialsOnlyNote(groups.map((group) => group.store)));
     lines.push("");
   } else if (groups.some((group) => !group.available)) {
     lines.push("A store missing an item is shown as not available.");
@@ -2677,9 +2718,9 @@ function renderReceipt() {
           : hasImported
             ? `Imported shelf prices dated ${importDateLabel()}. Prices without a published source are estimates from the Trolleybird interactive demo.`
             : hasSpecialsOnly
-              ? "Prices combine demo catalogue data with Four Square's advertised weekly specials."
+              ? "Prices combine demo catalogue data with advertised weekly specials from your specials-only stores."
               : "Prices are illustrative demo data from the Trolleybird interactive demo."
-      }${hasSpecialsOnly && (hasChecked || hasImported) ? " Four Square prices are weekly advertised specials only." : ""}${dealNote}</p>
+      }${hasSpecialsOnly && (hasChecked || hasImported) ? " Specials-only prices are weekly advertised specials only." : ""}${dealNote}</p>
     </div>`;
 
   el.receiptStatus.textContent = "";
@@ -3083,7 +3124,7 @@ function openBulkPrices() {
     return;
   }
   if (!stores.length) {
-    toast("Four Square publishes weekly specials only; pick a PAK'nSAVE or New World branch to record shelf prices.");
+    toast("Specials-only stores publish no shelf prices; pick a PAK'nSAVE or New World branch to record shelf prices.");
     return;
   }
   el.bulkStore.innerHTML = stores
@@ -3154,12 +3195,14 @@ function openProduct(productId) {
     (store) => !offers.some((offer) => offer.store.id === store.id)
   );
   const hasSpecialsOnlyPrice = offers.some((offer) => offer.store.specialsOnly);
-  const fourSquareOnlySelection =
+  const specialsOnlySelection =
     selectedStores().length > 0 && selectedStores().every((store) => store.specialsOnly);
   const historyStore = offers.find((offer) => !offer.store.specialsOnly) || null;
-  const catalogueSourceNote = fourSquareOnlySelection
-    ? "Four Square publishes weekly advertised specials, not shelf prices. Prices are checked from its weekly specials."
-    : `${hasSpecialsOnlyPrice ? "Four Square prices here are this week's advertised specials, not shelf prices. " : ""}Shelf prices from each branch's own price list where it differs from the island base, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "listed by both PAK'nSAVE and New World" : "listed by one of PAK'nSAVE or New World"} · stock checked per branch`;
+  const catalogueSourceNote = specialsOnlySelection
+    ? `${specialsOnlyChainLabel(selectedStores())} ${specialsOnlyPublish(
+        selectedStores()
+      )} weekly advertised specials, not shelf prices. Prices are checked from the weekly specials.`
+    : `${hasSpecialsOnlyPrice ? "Specials-only prices here are this week's advertised specials, not shelf prices. " : ""}Shelf prices from each branch's own price list where it differs from the island base, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "listed by both PAK'nSAVE and New World" : "listed by one of PAK'nSAVE or New World"} · stock checked per branch`;
   const anyEstimate = offers.some((offer) => !priceIsChecked(productId, offer.store.id));
   const hasImport = offers.some((offer) => priceKind(productId, offer.store.id) === "imported");
   const barcode = barcodeCard(product);
@@ -3235,7 +3278,7 @@ function openProduct(productId) {
                 .join("")}
             </tbody>
           </table>`
-        : `<p class="dialog__empty">${unavailable.length ? `Not stocked at ${unavailable.map((store) => escapeHtml(storeLabel(store))).join(" or ")}.` : specialsOnlySelected.length ? "Four Square publishes weekly specials only, and this product isn't in this week's specials." : "Select at least one store in the sidebar to price this product."}</p>`
+        : `<p class="dialog__empty">${unavailable.length ? `Not stocked at ${unavailable.map((store) => escapeHtml(storeLabel(store))).join(" or ")}.` : specialsOnlySelected.length ? specialsOnlyChainLabel(specialsOnlySelected) + " " + specialsOnlyPublish(specialsOnlySelected) + " weekly specials only, and this product isn't in this week's specials." : "Select at least one store in the sidebar to price this product."}</p>`
     }
 
 
@@ -3253,7 +3296,7 @@ function openProduct(productId) {
 
     ${
       specialsOnlyNoPrice.length && offers.length
-        ? `<p class="dialog__stock">Four Square publishes weekly specials only; no published price for this product there.</p>`
+        ? `<p class="dialog__stock">${escapeHtml(specialsOnlyChainLabel(specialsOnlySelected))} ${specialsOnlyPublish(specialsOnlySelected)} weekly specials only; no published price for this product there.</p>`
         : ""
     }
 
@@ -3305,8 +3348,8 @@ function openProduct(productId) {
             ? `${sparkline(historyFor(productId, historyStore.store.id, months))}
              <div class="history-labels">${historyLabels(months).map((m) => `<span>${m}</span>`).join("")}</div>
              <p class="dialog__note">Showing ${escapeHtml(storeLabel(historyStore.store))}. Prices elsewhere move differently — that's the point.</p>`
-            : `<p class="dialog__empty">Four Square publishes weekly specials only, so there is no price history.</p>`
-          : `<p class="dialog__empty">${unavailable.length ? "No price history at your selected stores." : specialsOnlySelected.length ? "Four Square publishes weekly specials only; there is no price history for this product." : "Pick a store to see its price history."}</p>`
+            : `<p class="dialog__empty">${escapeHtml(specialsOnlyChainLabel(specialsOnlySelected))} ${specialsOnlyPublish(specialsOnlySelected)} weekly specials only, so there is no price history.</p>`
+          : `<p class="dialog__empty">${unavailable.length ? "No price history at your selected stores." : specialsOnlySelected.length ? specialsOnlyChainLabel(specialsOnlySelected) + " " + specialsOnlyPublish(specialsOnlySelected) + " weekly specials only; there is no price history for this product." : "Pick a store to see its price history."}</p>`
       }
     </section>
 

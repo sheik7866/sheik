@@ -13,12 +13,13 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Keep this version in step with the build marker so a cached bundle cannot
        outlive a deployment. -->
-  <link rel="stylesheet" href="app.css?v=foursquare-specials-2026-11-24" />
+  <link rel="stylesheet" href="app.css?v=woolworths-specials-2026-11-24" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
   <script src="data/stores.js" defer></script>
-  <script src="data/foursquare.js?v=foursquare-specials-2026-11-24" defer></script>
+  <script src="data/foursquare.js?v=woolworths-specials-2026-11-24" defer></script>
+  <script src="data/woolworths.js?v=woolworths-specials-2026-11-24" defer></script>
 </head>
 <body class="app-body">
   <div class="splash" id="splash" role="status" aria-label="Loading Trolleybird">
@@ -72,8 +73,8 @@
         <p class="eyebrow"><span class="eyebrow__dot"></span>Working demo</p>
         <h1>Compare your shop.</h1>
         <p class="app-intro__lede">
-          Pick your PAK'nSAVE and New World branches, or check Four Square's weekly
-          specials, then build a shopping list and compare the basket.
+          Pick your PAK'nSAVE and New World branches, or check Four Square and
+          Woolworths weekly specials, then build a shopping list and compare the basket.
         </p>
         <details class="app-intro__about">
           <summary>About the demo data</summary>
@@ -87,10 +88,11 @@
             own product range. Multi-buy and club-member shelf tags are shown where the
             branch lists them, and basket totals pool assorted multi-buy groups across
             products plus club prices when the club-card switch is on. Four Square
-            publishes only weekly specials, so its four demo branches show those
-            advertised prices and mark everything else as having no published price;
-            they are not included in basket totals. Nothing here is live supermarket
-            pricing.
+            and Woolworths publish only weekly specials, so their demo branches show
+            those advertised prices and mark everything else as having no published
+            price; they are not included in basket totals. Woolworths prices are the
+            Auckland delivery zone's advertised specials. Nothing here is live
+            supermarket pricing.
           </p>
         </details>
       </div>
@@ -114,13 +116,13 @@
           <h2 id="stores-heading">Your stores</h2>
           <span class="counter" id="store-counter">0 / 6</span>
         </div>
-        <p class="panel__hint" id="store-hint">Search for a PAK'nSAVE, New World or Four Square branch to start.</p>
+        <p class="panel__hint" id="store-hint">Search for a PAK'nSAVE, New World, Four Square or Woolworths branch to start.</p>
         <div class="search store-search">
           <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="6" />
             <path d="m16 16 4 4" />
           </svg>
-          <input id="store-search" type="search" placeholder="Find a branch…" autocomplete="off" aria-label="Search PAK'nSAVE, New World and Four Square branches" aria-controls="store-results" />
+          <input id="store-search" type="search" placeholder="Find a branch…" autocomplete="off" aria-label="Search PAK'nSAVE, New World, Four Square and Woolworths branches" aria-controls="store-results" />
         </div>
         <ul class="store-results" id="store-results" aria-live="polite" hidden></ul>
         <ul class="store-list" id="store-list"></ul>
@@ -237,7 +239,7 @@
         <div class="totals" id="totals" aria-live="polite"></div>
         <button class="btn btn--leaf receipt-open" type="button" id="bulk-price-button" hidden>Record shelf prices</button>
         <button class="btn btn--outline receipt-open" type="button" id="receipt-button" hidden>View receipt</button>
-        <p class="demo-note" id="totals-note">Totals use estimates plus any shelf prices you've recorded or imported. Multi-buys apply at the stated quantity, with assorted offers pooled across products; turn on Club card for club prices. Four Square's weekly specials are shown per product but are not included in basket totals.</p>
+        <p class="demo-note" id="totals-note">Totals use estimates plus any shelf prices you've recorded or imported. Multi-buys apply at the stated quantity, with assorted offers pooled across products; turn on Club card for club prices. Four Square's and Woolworths' weekly specials are shown per product but are not included in basket totals.</p>
       </aside>
     </div>
   </main>
@@ -354,7 +356,7 @@
     <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
   </div>
 
-  <script src="app.js?v=foursquare-specials-2026-11-24" defer></script>
+  <script src="app.js?v=woolworths-specials-2026-11-24" defer></script>
   <script src="scanner.js" defer></script>
 </body>
 </html>

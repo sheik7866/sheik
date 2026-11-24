@@ -8,6 +8,7 @@
     "stores:pull": "node scripts/pull-stores.mjs",
     "coverage:pull": "node scripts/pull-coverage.mjs",
     "foursquare:refresh": "node scripts/pull-foursquare-specials.mjs",
+    "woolworths:refresh": "node scripts/pull-woolworths-specials.mjs",
     "gtins:pull": "node scripts/pull-gtins.mjs",
     "smoke:live": "node scripts/smoke-live.mjs"
   },
