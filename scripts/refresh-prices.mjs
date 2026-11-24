@@ -207,6 +207,10 @@ function main() {
     console.warn(`[refresh] Woolworths prices not refreshed: ${error.message}`);
   }
 
+  // A staple whose mapping no longer reaches a published Woolworths price
+  // would silently fall back to an estimate, so this failure is not tolerated.
+  run("scripts/check-demo-staples.mjs", {});
+
   console.log(`\n[refresh] prices checked for ${TODAY} (Pacific/Auckland)`);
 }
 

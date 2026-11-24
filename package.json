@@ -9,6 +9,7 @@
     "coverage:pull": "node scripts/pull-coverage.mjs",
     "foursquare:refresh": "node scripts/pull-foursquare-specials.mjs",
     "grocer:refresh": "node scripts/pull-grocer-prices.mjs",
+    "staples:check": "node scripts/check-demo-staples.mjs",
     "gtins:pull": "node scripts/pull-gtins.mjs",
     "smoke:live": "node scripts/smoke-live.mjs"
   },

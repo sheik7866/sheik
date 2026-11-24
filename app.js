@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "grocer-woolworths-2026-11-24b";
+window.TROLLEYBIRD_BUILD = "grocer-woolworths-2026-11-24c";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -214,18 +214,11 @@ for (const imp of BASE_IMPORTS) {
 }
 
 /* Which real catalogue pack each demo staple matches at each chain, so a
-   staple can be priced from any branch's island price list. */
-const DEMO_SKU_IDS = new Map();
-for (const imp of BASE_IMPORTS) {
-  const chain = imp.storeId === "paknsave" ? "pns" : imp.storeId === "newworld" ? "nw" : null;
-  if (!chain) continue;
-  for (const [demoId, item] of Object.entries(imp.items || {})) {
-    const id = skuProductId(item.sku);
-    if (!id) continue;
-    if (!DEMO_SKU_IDS.has(demoId)) DEMO_SKU_IDS.set(demoId, {});
-    if (!DEMO_SKU_IDS.get(demoId)[chain]) DEMO_SKU_IDS.get(demoId)[chain] = id;
-  }
-}
+   staple can be priced from any branch's island price list. The map lives in
+   demo-sku-map.js so the refresh check exercises the same rule. */
+const DEMO_SKU_IDS = window.DEMO_SKU_IDS || new Map();
+const demoSkuId =
+  window.demoSkuId || ((productId, chain) => DEMO_SKU_IDS.get(productId)?.[chain] || null);
 
 /* Four price lists: PAK'nSAVE and New World on the North and South Island.
    Catalogue rows are [id, name, brand, size, department, subcategory,
@@ -768,16 +761,6 @@ function roundPrice(value) {
 function checkedPrice(productId, storeId) {
   const row = state.prices && state.prices[`${productId}|${storeId}`];
   return row && Number.isFinite(row.price) && row.price > 0 ? row : null;
-}
-
-/* The curated staple imports name a Foodstuffs catalogue id per chain. The
-   Woolworths price files are keyed by those same catalogue ids (the GTIN join
-   in scripts/pull-grocer-prices.mjs), so a staple without its own Woolworths
-   mapping can reuse the PAK'nSAVE or New World id for the same physical pack. */
-function demoSkuId(productId, chain) {
-  const ids = DEMO_SKU_IDS.get(productId);
-  if (!ids) return null;
-  return ids[chain] || ids.pns || ids.nw || null;
 }
 
 /* Shelf prices imported from PAK'nSAVE on the date in the data file. They are
