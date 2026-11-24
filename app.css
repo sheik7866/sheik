@@ -3618,3 +3618,401 @@ button.grocer-item__price:disabled {
     min-height: 36px;
   }
 }
+
+/* ---------- Phone compaction: shopping list and dialogs ---------- */
+
+@media (max-width: 760px) {
+  .app-layout > .panel--list {
+    padding: 0.75rem;
+  }
+
+  .panel--list .panel__head {
+    margin-bottom: 0.35rem;
+  }
+
+  .panel--list .club-toggle {
+    margin-bottom: 0.45rem;
+    padding: 0.32rem 0.45rem;
+  }
+
+  .list-tools {
+    gap: 0.35rem;
+    margin: 0.45rem 0 0.15rem;
+    padding: 0.45rem;
+  }
+
+  .list-tools__search {
+    min-height: 40px;
+  }
+
+  .list-tools__search input {
+    height: 38px;
+  }
+
+  .list-tools__category select {
+    min-height: 40px;
+  }
+
+  .list-tools__status {
+    font-size: 0.72rem;
+  }
+
+  .list-item {
+    gap: 0.35rem;
+    padding: 0.42rem 0;
+  }
+
+  .list-item__body small {
+    line-height: 1.35;
+  }
+
+  .list-item__unit {
+    margin-top: 0.05rem;
+  }
+
+  .qty button {
+    width: 26px;
+    height: 26px;
+  }
+
+  .list-item__remove {
+    width: 28px;
+    height: 28px;
+  }
+
+  .panel--list .totals {
+    margin-top: 0.7rem;
+    padding-top: 0.65rem;
+  }
+
+  .panel--list .totals h3 {
+    margin-bottom: 0.4rem;
+  }
+
+  .panel--list .total-rows {
+    gap: 0.25rem;
+  }
+
+  .panel--list .total-row {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .panel--list .totals__save {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .panel--list .totals__groups {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.55rem 0.5rem 0.65rem;
+  }
+
+  .panel--list .receipt-open {
+    margin-top: 0.45rem;
+    padding: 0.65rem 1rem;
+    font-size: 0.84rem;
+  }
+
+  .panel--list .receipt-open + .receipt-open {
+    margin-top: 0.35rem;
+  }
+
+  .panel--list .demo-note {
+    margin-top: 0.5rem;
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+
+  .dialog__inner,
+  .receipt-dialog__inner,
+  .bulk__inner,
+  .scan__inner {
+    padding: 0.95rem;
+  }
+
+  .dialog__head,
+  .receipt-dialog__head,
+  .scan__head {
+    gap: 0.6rem;
+  }
+
+  .dialog__head h2,
+  .receipt-dialog__head h2,
+  .scan__head h2 {
+    margin-top: 0.1rem;
+    font-size: 1.22rem;
+    line-height: 1.08;
+  }
+
+  .dialog__meta {
+    margin-top: 0.18rem;
+  }
+
+  .dialog__thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-sm);
+  }
+
+  .barcode-card {
+    margin-top: 0.65rem;
+    padding: 0.55rem 0.65rem 0.45rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .barcode-card__svg {
+    max-width: 190px;
+    margin-top: 0.35rem;
+  }
+
+  .barcode-card__hint {
+    margin-top: 0.25rem;
+  }
+
+  .dialog__prices {
+    margin-top: 0.8rem;
+  }
+
+  .dialog__prices th,
+  .dialog__prices td {
+    padding: 0.42rem 0.3rem;
+  }
+
+  .dialog__prices tbody th {
+    font-size: 0.8rem;
+  }
+
+  .dialog__prices tbody th span {
+    font-size: 0.7rem;
+  }
+
+  .dialog__estimate,
+  .dialog__stock {
+    margin-top: 0.7rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .check-price {
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+  }
+
+  .check-price summary {
+    font-size: 0.84rem;
+  }
+
+  .check-price__form {
+    gap: 0.45rem;
+    margin-top: 0.6rem;
+  }
+
+  .check-price__field input,
+  .check-price__field select {
+    min-height: 40px;
+    border-radius: 10px;
+  }
+
+  .check-price__hint {
+    margin-top: 0.45rem;
+  }
+
+  .check-price__list {
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+  }
+
+  .check-price__list li {
+    padding: 0.4rem 0.5rem;
+    border-radius: 10px;
+  }
+
+  .dialog__history {
+    margin-top: 0.9rem;
+    padding-top: 0.8rem;
+  }
+
+  .dialog__history-head h3 {
+    font-size: 0.95rem;
+  }
+
+  .history-chart {
+    margin-top: 0.35rem;
+  }
+
+  .dialog__note {
+    margin-top: 0.4rem;
+  }
+
+  .dialog__actions {
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .dialog__actions .btn {
+    min-height: 44px;
+  }
+
+  .receipt-dialog__scroll {
+    margin-top: 0.75rem;
+    max-height: min(52dvh, 430px);
+  }
+
+  .receipt-paper {
+    padding: 0.85rem 0.9rem 1rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .receipt-paper__brand {
+    font-size: 1.05rem;
+  }
+
+  .receipt-item-count {
+    margin-top: 0.4rem;
+  }
+
+  .receipt-store {
+    padding: 0.8rem 0;
+  }
+
+  .receipt-lines {
+    gap: 0.28rem;
+    margin-top: 0.55rem;
+  }
+
+  .receipt-line {
+    font-size: 0.78rem;
+  }
+
+  .receipt-line__unit {
+    margin-top: 0.05rem;
+  }
+
+  .receipt-store__foot {
+    margin-top: 0.5rem;
+    padding-top: 0.4rem;
+  }
+
+  .receipt-groups {
+    border-radius: 10px;
+  }
+
+  .receipt-save {
+    margin-top: 0.75rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .receipt-note {
+    margin-top: 0.6rem;
+  }
+
+  .receipt-dialog__share {
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.7rem;
+  }
+
+  .receipt-dialog__share .btn {
+    min-height: 42px;
+  }
+
+  .bulk__intro {
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+  }
+
+  .bulk__controls {
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+  }
+
+  .bulk__rows {
+    margin-top: 0.7rem;
+    max-height: min(48dvh, 380px);
+  }
+
+  .bulk-row {
+    gap: 0.55rem;
+    padding: 0.45rem 0;
+  }
+
+  .bulk-row__input {
+    border-radius: 10px;
+  }
+
+  .bulk__actions {
+    margin-top: 0.6rem;
+  }
+
+  .bulk__actions .btn {
+    min-height: 44px;
+  }
+
+  .scan__viewport {
+    margin-top: 0.75rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .scan__hint {
+    margin-top: 0.55rem;
+  }
+
+  .scan__actions {
+    margin-top: 0.75rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .list-tools {
+    grid-template-columns: minmax(0, 1fr) minmax(118px, 0.62fr);
+    align-items: center;
+  }
+
+  .list-tools__search {
+    grid-column: 1;
+  }
+
+  .list-tools__category {
+    grid-column: 2;
+  }
+
+  .list-tools__chips,
+  .list-tools__foot,
+  .list-tools__empty {
+    grid-column: 1 / -1;
+  }
+
+  .product-dialog,
+  .receipt-dialog,
+  .bulk-dialog,
+  .scan-dialog {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 0.75rem);
+    max-height: calc(100dvh - 0.75rem);
+    margin: auto 0 0;
+    border-radius: var(--radius) var(--radius) 0 0;
+    overscroll-behavior: contain;
+  }
+
+  .dialog__inner,
+  .receipt-dialog__inner,
+  .bulk__inner,
+  .scan__inner {
+    padding: 0.95rem max(0.95rem, env(safe-area-inset-right))
+      calc(0.95rem + env(safe-area-inset-bottom)) max(0.95rem, env(safe-area-inset-left));
+  }
+}
+
+@media (max-width: 380px) {
+  .list-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .list-tools__search,
+  .list-tools__category {
+    grid-column: 1;
+  }
+}
