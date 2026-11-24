@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "list-badge-loading-2026-11-24";
+window.TROLLEYBIRD_BUILD = "stores-badge-loading-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2130,8 +2130,13 @@ function renderTabs(totals = state.list.length ? listTotals() : null) {
   const pricesLoading =
     state.list.length > 0 && selectedStores().some((store) => !storePricesReady(store));
   const loading = total == null && pricesLoading;
-  el.tabStoreCount.textContent = String(storeCount);
+  // The Stores tab owns the branch fetch, so its badge also shows the wait
+  // instead of the count it will settle back to once prices arrive.
+  const storesLoading =
+    storeCount > 0 && selectedStores().some((store) => !storePricesReady(store));
+  el.tabStoreCount.textContent = storesLoading ? "" : String(storeCount);
   el.tabStoreCount.hidden = storeCount === 0;
+  el.tabStoreCount.classList.toggle("is-loading", storesLoading);
   el.tabListCount.textContent = loading ? "" : totalText;
   el.tabListCount.hidden = !loading && total == null;
   el.tabListCount.classList.toggle("is-loading", loading);
@@ -2139,7 +2144,14 @@ function renderTabs(totals = state.list.length ? listTotals() : null) {
   // The badge sits inside the aria-hidden icon, so name the tab with its total.
   for (const button of el.tabButtons) {
     if (button.dataset.tab === "stores") {
-      button.setAttribute("aria-label", storeCount ? `Stores, ${storeCount} selected` : "Stores");
+      button.setAttribute(
+        "aria-label",
+        !storeCount
+          ? "Stores"
+          : storesLoading
+            ? `Stores, ${storeCount} selected, branch prices loading`
+            : `Stores, ${storeCount} selected`
+      );
     } else if (button.dataset.tab === "list") {
       const items = `${listCount.toLocaleString("en-NZ")} item${listCount === 1 ? "" : "s"}`;
       button.setAttribute(
