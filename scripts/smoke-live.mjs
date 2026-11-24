@@ -327,7 +327,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "search-recall-2026-11-24",
+        () => window.TROLLEYBIRD_BUILD === "ios-fixed-tabs-2026-11-24",
         null,
         { timeout: 5000 }
       );

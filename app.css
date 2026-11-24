@@ -3556,6 +3556,27 @@ button.grocer-item__price:disabled {
     scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
 
+  /* iOS 26 Safari misplaces position: fixed/sticky elements when its floating
+     toolbar or the keyboard changes the visual viewport (WebKit bug 297779).
+     Scrolling the body instead of the document keeps the fixed tab bar pinned
+     to the bottom of the screen. Guarded to iOS and dvh support so other
+     browsers keep native address-bar and scroll-restoration behaviour. */
+  @supports (-webkit-touch-callout: none) and (height: 100dvh) {
+    html {
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    .app-body {
+      height: 100dvh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+    }
+  }
+
   .app-tabs {
     position: fixed;
     right: 0;
