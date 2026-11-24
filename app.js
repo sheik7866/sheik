@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "smart-list-2026-11-24";
+window.TROLLEYBIRD_BUILD = "list-link-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -588,6 +588,7 @@ const el = {
   listProgressReset: document.getElementById("list-progress-reset"),
   shoppingPlan: document.getElementById("shopping-plan"),
   shareList: document.getElementById("share-list"),
+  copyListLink: document.getElementById("copy-list-link"),
   emptyList: document.getElementById("empty-list"),
   totals: document.getElementById("totals"),
   clearList: document.getElementById("clear-list"),
@@ -2538,6 +2539,7 @@ function renderList() {
   el.receiptButton.hidden = state.list.length === 0;
   el.bulkButton.hidden = state.list.length === 0;
   el.shareList.hidden = state.list.length === 0;
+  el.copyListLink.hidden = state.list.length === 0;
 
   if (el.listFilter) {
     if (el.listFilter.value !== listFilters.query) el.listFilter.value = listFilters.query;
@@ -3121,12 +3123,82 @@ function listSummaryText() {
   return lines.join("\n");
 }
 
+/* A shared link is the list itself: ids and quantities, ticked ids and the
+   selected stores, base64url-encoded in the hash so no server is involved.
+   Only catalogue ids are restored, never free text from the URL. */
+function encodeListPayload() {
+  const payload = {
+    v: 1,
+    l: state.list.map((row) => [row.id, row.qty]),
+    p: state.picked.filter((id) => state.list.some((row) => row.id === id)),
+    s: state.stores,
+  };
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function decodeListPayload(value) {
+  try {
+    const normalised = value.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalised.padEnd(Math.ceil(normalised.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const data = JSON.parse(new TextDecoder().decode(bytes));
+    if (!data || data.v !== 1 || !Array.isArray(data.l)) return null;
+    const seen = new Set();
+    const list = [];
+    for (const entry of data.l.slice(0, 200)) {
+      if (!Array.isArray(entry)) continue;
+      const [id, qty] = entry;
+      if (typeof id !== "string" || seen.has(id) || !PRODUCT_MAP.has(id)) continue;
+      seen.add(id);
+      list.push({ id, qty: Math.max(1, Math.min(Math.round(Number(qty) || 1), 99)) });
+    }
+    if (!list.length) return null;
+    const stores = Array.isArray(data.s)
+      ? [...new Set(data.s.filter((id) => typeof id === "string" && STORE_MAP.has(id)))]
+      : [];
+    const picked = Array.isArray(data.p)
+      ? [...new Set(data.p.filter((id) => typeof id === "string" && seen.has(id)))]
+      : [];
+    return { list, picked, stores };
+  } catch {
+    return null;
+  }
+}
+
+function listShareUrl() {
+  const url = new URL(window.location.href);
+  url.hash = `list=${encodeListPayload()}`;
+  return url.toString();
+}
+
+function applySharedListFromUrl() {
+  const match = /(?:^#|&)list=([A-Za-z0-9_-]+)/.exec(window.location.hash || "");
+  if (!match) return false;
+  const shared = decodeListPayload(match[1]);
+  if (!shared) return false;
+  state.list = shared.list;
+  state.picked = shared.picked;
+  if (shared.stores.length) state.stores = shared.stores.slice(0, storeCap());
+  saveState();
+  try {
+    history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  } catch {
+    /* Restricted history (for example file://) — the list is already loaded. */
+  }
+  return true;
+}
+
 async function shareList() {
   if (!state.list.length) return;
   const text = listSummaryText();
+  const url = listShareUrl();
   if (typeof navigator.share === "function") {
     try {
-      await navigator.share({ title: "Trolleybird shopping list", text });
+      await navigator.share({ title: "Trolleybird shopping list", text, url });
       toast("Shopping list shared.");
       return;
     } catch (error) {
@@ -3134,10 +3206,20 @@ async function shareList() {
     }
   }
   try {
-    await writeTextToClipboard(text);
+    await writeTextToClipboard(`${text}\n\nOpen this list: ${url}`);
     toast("Shopping list copied — paste it into a message.");
   } catch {
     toast("Couldn't share the list here.");
+  }
+}
+
+async function copyListLink() {
+  if (!state.list.length) return;
+  try {
+    await writeTextToClipboard(listShareUrl());
+    toast("List link copied — anyone with it can open this list.");
+  } catch {
+    toast("Couldn't copy the link here.");
   }
 }
 
@@ -4002,6 +4084,7 @@ el.offLookupButton.addEventListener("click", async () => {
 el.clearList.addEventListener("click", clearList);
 el.listProgressReset.addEventListener("click", resetPicked);
 el.shareList.addEventListener("click", shareList);
+el.copyListLink.addEventListener("click", copyListLink);
 el.listFilter.addEventListener("input", () => {
   listFilters.query = el.listFilter.value;
   renderList();
@@ -4673,9 +4756,11 @@ function renderImportBanner() {
 renderPriceFreshness();
 renderImportBanner();
 renderCoverageLine();
+const sharedListOpened = applySharedListFromUrl();
 renderAll();
-setTab(state.tab || (state.stores.length ? "catalog" : "stores"));
+setTab(sharedListOpened ? "list" : state.tab || (state.stores.length ? "catalog" : "stores"));
 for (const storeId of state.stores) void ensureStorePrices(storeId);
+if (sharedListOpened) toast("Shared shopping list opened.");
 
 /* Recheck the shelf-price age when a left-open tab comes back into view. */
 document.addEventListener("visibilitychange", () => {
