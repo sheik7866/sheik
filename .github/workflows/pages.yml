@@ -107,6 +107,11 @@ jobs:
             exit 0
           fi
           npm run coverage:pull
+      - name: Verify demo staples never fall back to an estimate
+        # Runs on every build, not just refresh days: the committed data and the
+        # staple mapping must agree before anything is published. The refresh
+        # also runs this check so a new catalogue can never commit past it.
+        run: npm run staples:check
       - name: Commit refreshed prices
         if: github.ref == 'refs/heads/main' && needs.gate.outputs.refresh == 'true'
         run: |
