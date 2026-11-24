@@ -8,8 +8,10 @@ on:
     # 11:00 or 12:00 UTC. GitHub's scheduler is best-effort and can delay a
     # slot for hours or drop it: on 24 November none of the three midnight
     # triggers ran at all. Retry every hour instead, so the first run GitHub
-    # delivers after the date rolls over does the refresh. The gate skips work
-    # once today's prices exist, which keeps the other 23 attempts cheap.
+    # delivers after the date rolls over does the refresh. The gate skips the
+    # full pull once today's Foodstuffs prices exist, and pulls just
+    # Woolworths while its source snapshot is still yesterday's, which keeps
+    # the other attempts cheap.
     - cron: "7 * * * *"
   workflow_dispatch:
 
@@ -29,6 +31,7 @@ jobs:
     outputs:
       run: ${{ steps.check.outputs.run }}
       refresh: ${{ steps.check.outputs.refresh }}
+      wow: ${{ steps.check.outputs.wow }}
     steps:
       - uses: actions/checkout@v7
       - name: Check whether to refresh and deploy
@@ -39,6 +42,14 @@ jobs:
           hour=$(TZ=Pacific/Auckland date +%-H)
           event="${{ github.event_name }}"
           attempt="${{ github.run_attempt }}"
+          # Grocer republishes Woolworths' prices around 05:00 NZ, so the
+          # midnight pull only reaches the previous day's scrape. The source's
+          # own date, not our run date, says whether today's prices are in.
+          wow_source=$(jq -r '.sourceDate // ""' data/woolworths-prices/index.json 2>/dev/null || true)
+          wow=false
+          if [ "$wow_source" != "$today" ]; then
+            wow=true
+          fi
           run=true
           refresh=false
           if [ "$event" = "schedule" ]; then
@@ -48,7 +59,7 @@ jobs:
             # keeps retries idempotent.
             if [ "$fetched" != "$today" ]; then
               refresh=true
-            else
+            elif [ "$wow" != "true" ]; then
               run=false
             fi
           elif [ "$event" = "workflow_dispatch" ] || [ "$attempt" -gt 1 ] || [ "$fetched" != "$today" ]; then
@@ -59,10 +70,13 @@ jobs:
           {
             echo "run=$run"
             echo "refresh=$refresh"
+            echo "wow=$wow"
           } >> "$GITHUB_OUTPUT"
-          echo "Event $event, attempt $attempt, Auckland hour $hour, prices dated $fetched."
+          echo "Event $event, attempt $attempt, Auckland hour $hour, prices dated $fetched, Woolworths source $wow_source."
           if [ "$refresh" = "true" ]; then
             echo "Refreshing all stores for $today."
+          elif [ "$wow" = "true" ]; then
+            echo "Foodstuffs prices are current; retrying the Woolworths snapshot for $today."
           else
             echo "Prices are current; no refresh needed."
           fi
@@ -84,6 +98,13 @@ jobs:
         run: npm run prices:refresh
         env:
           CONCURRENCY: 6
+      - name: Refresh Woolworths prices
+        # Grocer publishes the new day's Woolworths prices around 05:00 NZ, well
+        # after the midnight run, so keep pulling only Woolworths until the
+        # published snapshot is dated today. The full refresh above already
+        # pulled it once, so this fills in the rest of the morning.
+        if: github.ref == 'refs/heads/main' && needs.gate.outputs.wow == 'true' && needs.gate.outputs.refresh != 'true'
+        run: npm run grocer:refresh
       - name: Verify every store was refreshed
         if: github.ref == 'refs/heads/main' && needs.gate.outputs.refresh == 'true'
         run: |
@@ -113,7 +134,11 @@ jobs:
         # also runs this check so a new catalogue can never commit past it.
         run: npm run staples:check
       - name: Commit refreshed prices
-        if: github.ref == 'refs/heads/main' && needs.gate.outputs.refresh == 'true'
+        # A Woolworths-only retry must be committed too, or the next hourly run
+        # sees the same stale source date and pulls it again.
+        if: github.ref == 'refs/heads/main' && (needs.gate.outputs.refresh == 'true' || needs.gate.outputs.wow == 'true')
+        env:
+          FULL_REFRESH: ${{ needs.gate.outputs.refresh }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -122,7 +147,13 @@ jobs:
             echo "Prices unchanged."
             exit 0
           fi
-          git commit -m "Refresh all store prices for $(TZ=Pacific/Auckland date +%F)"
+          today=$(TZ=Pacific/Auckland date +%F)
+          if [ "$FULL_REFRESH" = "true" ]; then
+            message="Refresh all store prices for $today"
+          else
+            message="Refresh Woolworths prices for $today"
+          fi
+          git commit -m "$message"
           git push origin HEAD:main
       - name: Configure Pages
         uses: actions/configure-pages@v6
