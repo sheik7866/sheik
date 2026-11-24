@@ -2,7 +2,7 @@
 <html lang="en-NZ">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Trolleybird demo — compare your shop across stores</title>
   <meta name="description" content="Interactive demo of Trolleybird: pick your supermarkets, search a product and compare prices, price history and basket totals. Demo data only." />
   <meta name="theme-color" content="#fbf7ee" />
@@ -13,14 +13,14 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Keep this version in step with the build marker so a cached bundle cannot
        outlive a deployment. -->
-  <link rel="stylesheet" href="app.css?v=list-link-2026-11-24" />
+  <link rel="stylesheet" href="app.css?v=bottom-nav-2026-11-24" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
   <script src="data/stores.js" defer></script>
-  <script src="data/foursquare.js?v=list-link-2026-11-24" defer></script>
-  <script src="data/woolworths.js?v=list-link-2026-11-24" defer></script>
-  <script src="demo-sku-map.js?v=list-link-2026-11-24" defer></script>
+  <script src="data/foursquare.js?v=bottom-nav-2026-11-24" defer></script>
+  <script src="data/woolworths.js?v=bottom-nav-2026-11-24" defer></script>
+  <script src="demo-sku-map.js?v=bottom-nav-2026-11-24" defer></script>
 </head>
 <body class="app-body">
   <div class="splash" id="splash" role="status" aria-label="Loading Trolleybird">
@@ -101,13 +101,32 @@
 
     <nav class="app-tabs" aria-label="App sections">
       <button class="app-tab" type="button" data-tab="stores" aria-controls="panel-stores" aria-pressed="false">
-        Stores <span class="app-tab__count" id="tab-store-count" hidden>0</span>
+        <span class="app-tab__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 10h16M5 10l1.1-4.2A1 1 0 0 1 7.1 5h9.8a1 1 0 0 1 1 .8L19 10M6 10v7.5A1.5 1.5 0 0 0 7.5 19h9a1.5 1.5 0 0 0 1.5-1.5V10M10 19v-4h4v4" />
+          </svg>
+          <span class="app-tab__count" id="tab-store-count" hidden>0</span>
+        </span>
+        <span class="app-tab__label">Stores</span>
       </button>
       <button class="app-tab is-active" type="button" data-tab="catalog" aria-controls="panel-catalog" aria-pressed="true">
-        Shop
+        <span class="app-tab__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <circle cx="11" cy="11" r="6" />
+            <path d="m16 16 4 4" />
+          </svg>
+        </span>
+        <span class="app-tab__label">Shop</span>
       </button>
       <button class="app-tab" type="button" data-tab="list" aria-controls="panel-list" aria-pressed="false">
-        List <span class="app-tab__count" id="tab-list-count" hidden>0</span>
+        <span class="app-tab__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 9h16l-1.2 8.1a2 2 0 0 1-2 1.7H7.2a2 2 0 0 1-2-1.7L4 9Z" />
+            <path d="M8.5 9 10 4.5M15.5 9 14 4.5M9 13h6" />
+          </svg>
+          <span class="app-tab__count" id="tab-list-count" hidden>0</span>
+        </span>
+        <span class="app-tab__label">My List</span>
       </button>
     </nav>
 
@@ -372,7 +391,7 @@
     <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
   </div>
 
-  <script src="app.js?v=list-link-2026-11-24" defer></script>
+  <script src="app.js?v=bottom-nav-2026-11-24" defer></script>
   <script src="scanner.js" defer></script>
 </body>
 </html>
