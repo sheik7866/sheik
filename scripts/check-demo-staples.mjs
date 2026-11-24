@@ -11,13 +11,17 @@
  *   - or that id has no price while another catalogue row carrying the same
  *     GTIN is priced at that branch.
  *
+ * It also fails when a stocked branch has no price file, is missing from the
+ * last refresh, or its file carries an older checkedAt than the chain's
+ * directory/index, so a partial pull cannot leave a branch on old prices.
+ *
  * Covered chains:
  *   - Woolworths: data/woolworths.js + data/woolworths-prices/<id>.json
  *   - PAK'nSAVE and New World: data/stores.js + data/store-prices/<id>.json
  *     overrides on top of the island price lists in data/catalogue.js.
  *
  * In other words: never show an estimate where a published branch price for
- * the same product exists.
+ * the same product exists, and never ship a branch the last refresh missed.
  *
  *   node scripts/check-demo-staples.mjs
  */
@@ -126,7 +130,18 @@ function checkWoolworths() {
       note("Woolworths", `${store.branch}: missing price file ${path.relative(ROOT, file)}`);
       continue;
     }
-    const prices = JSON.parse(fs.readFileSync(file, "utf8")).prices || {};
+    const data = JSON.parse(fs.readFileSync(file, "utf8"));
+    const expected = store.checkedAt || directory.checkedAt || "";
+    if (!data.checkedAt) {
+      note("Woolworths", `Woolworths ${store.branch}: price file has no checkedAt`);
+    } else if (expected && data.checkedAt !== expected) {
+      note(
+        "Woolworths",
+        `Woolworths ${store.branch}: price file is stale ` +
+          `(${data.checkedAt} vs directory ${expected})`
+      );
+    }
+    const prices = data.prices || {};
     for (const staple of staples) {
       const appId = resolveStaple(staple.id, "wow");
       const known = evidenceIds(staple.id, "wow");
@@ -165,6 +180,39 @@ function checkFoodstuffs() {
   const files = fs
     .readdirSync(priceDir)
     .filter((file) => file.endsWith(".json") && file !== "index.json");
+
+  /* Every stocked branch except the four base stores must have been written by
+     the same refresh as the index: a branch missing from the index or carrying
+     an older checkedAt was left behind by a partial pull. */
+  const index = JSON.parse(fs.readFileSync(path.join(priceDir, "index.json"), "utf8"));
+  if (!index.stores || typeof index.stores !== "object") {
+    throw new Error("data/store-prices/index.json has no stores map");
+  }
+  const baseIds = new Set(Array.isArray(index.baseStoreIds) ? index.baseStoreIds : []);
+  for (const store of stores) {
+    if (baseIds.has(store.id)) continue;
+    const chainLabel = store.brand === "pns" ? "PAK'nSAVE" : "New World";
+    const manifest = index.stores[store.id];
+    const file = path.join(priceDir, `${store.id}.json`);
+    if (!manifest) {
+      note(chainLabel, `${chainLabel} ${store.branch}: not in the last branch-price refresh`);
+      continue;
+    }
+    if (!fs.existsSync(file)) {
+      note(chainLabel, `${chainLabel} ${store.branch}: missing branch price file`);
+      continue;
+    }
+    const data = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (!data.checkedAt) {
+      note(chainLabel, `${chainLabel} ${store.branch}: branch price file has no checkedAt`);
+    } else if (manifest.checkedAt && data.checkedAt !== manifest.checkedAt) {
+      note(
+        chainLabel,
+        `${chainLabel} ${store.branch}: branch price file is stale ` +
+          `(${data.checkedAt} vs index ${manifest.checkedAt})`
+      );
+    }
+  }
 
   for (const file of files) {
     const entry = JSON.parse(fs.readFileSync(path.join(priceDir, file), "utf8"));
@@ -212,7 +260,7 @@ if (failures.length) {
   const byChain = new Map();
   for (const failure of failures) byChain.set(failure.chain, (byChain.get(failure.chain) || 0) + 1);
   const breakdown = [...byChain].map(([chain, count]) => `${chain} ${count}`).join(", ");
-  console.error(`[staples] FAIL ${failures.length} estimate(s) hide a published branch price (${breakdown}):`);
+  console.error(`[staples] FAIL ${failures.length} problem(s) with published branch prices (${breakdown}):`);
   for (const failure of failures.slice(0, 12)) console.error(`  - ${failure.text}`);
   if (failures.length > 12) console.error(`  … and ${failures.length - 12} more`);
   process.exitCode = 1;
