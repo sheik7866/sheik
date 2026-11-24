@@ -13,7 +13,9 @@
  *
  * It also fails when a stocked branch has no price file, is missing from the
  * last refresh, or its file carries an older checkedAt than the chain's
- * directory/index, so a partial pull cannot leave a branch on old prices.
+ * directory/index, so a partial pull cannot leave a branch on old prices. A
+ * chain whose directory/index is dated before today (Pacific/Auckland) fails
+ * too: old prices must not be published, even if every branch agrees on them.
  *
  * Covered chains:
  *   - Woolworths: data/woolworths.js + data/woolworths-prices/<id>.json
@@ -106,6 +108,32 @@ function note(chain, text) {
   failures.push({ chain, text });
 }
 
+/* Branch data is dated in Pacific/Auckland, the same clock the refresh gate in
+   .github/workflows/pages.yml uses to decide whether today's prices exist. */
+function aucklandDate(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-NZ", {
+    timeZone: "Pacific/Auckland",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type) => parts.find((entry) => entry.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+const TODAY = aucklandDate();
+
+function checkDated(chain, label, fetchedAt) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fetchedAt || "")) {
+    note(chain, `${label}: no fetchedAt date`);
+  } else if (fetchedAt < TODAY) {
+    note(
+      chain,
+      `${label}: branch prices are from ${fetchedAt}, before today (${TODAY} in Pacific/Auckland)`
+    );
+  }
+}
+
 function report(chain, store, staple, knownPrice, appId) {
   note(
     chain,
@@ -123,6 +151,7 @@ function checkWoolworths() {
   if (!Array.isArray(directory?.stores) || !directory.stores.length) {
     throw new Error(`No Woolworths branches in ${directoryPath}`);
   }
+  checkDated("Woolworths", "Woolworths", directory.fetchedAt);
 
   for (const store of directory.stores) {
     const file = path.join(priceDir, `${store.id}.json`);
@@ -188,6 +217,7 @@ function checkFoodstuffs() {
   if (!index.stores || typeof index.stores !== "object") {
     throw new Error("data/store-prices/index.json has no stores map");
   }
+  checkDated("Foodstuffs", "PAK'nSAVE/New World", index.fetchedAt);
   const baseIds = new Set(Array.isArray(index.baseStoreIds) ? index.baseStoreIds : []);
   for (const store of stores) {
     if (baseIds.has(store.id)) continue;
