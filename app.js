@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "list-badge-total-2026-11-24";
+window.TROLLEYBIRD_BUILD = "list-badge-money-2026-11-24";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2110,23 +2110,39 @@ function renderStoreResults() {
       : "");
 }
 
-function renderTabs() {
+/* The plan's headline total is the number the tab badge shows: the cheapest
+   single store, or the split shop when that is the recommendation. Only a
+   complete basket gets a price, so a partial total never looks like the bill. */
+function basketTotalFor(totals = listTotals()) {
+  if (!totals) return null;
+  const plan = shoppingPlan(totals);
+  if (plan.mode === "split" && plan.split?.complete) return plan.split.total;
+  return plan.single ? plan.single.total : null;
+}
+
+function renderTabs(totals = state.list.length ? listTotals() : null) {
   const storeCount = state.stores.length;
-  // The badge is the basket's item total, not the number of list rows: two
-  // bottles of milk count as two items.
   const listCount = listQuantity();
+  const total = basketTotalFor(totals);
+  const totalText = total == null ? "" : money.format(total);
   el.tabStoreCount.textContent = String(storeCount);
   el.tabStoreCount.hidden = storeCount === 0;
-  el.tabListCount.textContent = String(listCount);
-  el.tabListCount.hidden = listCount === 0;
-  // The badge sits inside the aria-hidden icon, so name the tab with its count.
+  el.tabListCount.textContent = totalText;
+  el.tabListCount.hidden = total == null;
+  el.tabListCount.classList.toggle("is-money", total != null);
+  // The badge sits inside the aria-hidden icon, so name the tab with its total.
   for (const button of el.tabButtons) {
     if (button.dataset.tab === "stores") {
       button.setAttribute("aria-label", storeCount ? `Stores, ${storeCount} selected` : "Stores");
     } else if (button.dataset.tab === "list") {
+      const items = `${listCount.toLocaleString("en-NZ")} item${listCount === 1 ? "" : "s"}`;
       button.setAttribute(
         "aria-label",
-        listCount ? `My List, ${listCount} item${listCount === 1 ? "" : "s"}` : "My List"
+        !listCount
+          ? "My List"
+          : total != null
+            ? `My List, estimated basket total ${totalText} for ${items}`
+            : `My List, ${items}, basket total unavailable`
       );
     }
   }
@@ -2649,6 +2665,7 @@ function prunePicked() {
 function renderTotals() {
   const totals = listTotals();
   renderShoppingPlan(totals);
+  renderTabs(totals);
   if (!totals) {
     el.totals.innerHTML = `<p class="totals__empty">${state.list.length ? "Select a store to total your list." : ""}</p>`;
     return;

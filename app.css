@@ -3663,6 +3663,15 @@ button.grocer-item__price:disabled {
     color: var(--leaf-deep);
   }
 
+  /* A price is wider than a count, so give the badge a little more room and
+     tighten its type rather than let it crowd the neighbouring tab. */
+  .app-tab__count.is-money {
+    right: -0.95rem;
+    padding-inline: 0.3rem;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
   .app-layout > .panel {
     display: none;
   }
