@@ -5,14 +5,14 @@ on:
     branches: [main]
   schedule:
     # Auckland is UTC+13 in summer and UTC+12 in winter, so local midnight is
-    # 11:00 or 12:00 UTC. GitHub's scheduler is best-effort and can delay a
-    # slot for hours or drop it: on 24 November none of the three midnight
-    # triggers ran at all. Retry every hour instead, so the first run GitHub
-    # delivers after the date rolls over does the refresh. The gate skips the
-    # full pull once today's Foodstuffs prices exist, and pulls just
-    # Woolworths while its source snapshot is still yesterday's, which keeps
-    # the other attempts cheap.
-    - cron: "7 * * * *"
+    # 11:00 or 12:00 UTC. GitHub's scheduler is best-effort and drops most
+    # slots: on 25 November no scheduled run happened between 21:18 and 08:08
+    # NZ, so the midnight refresh only started eight hours late. Retry every
+    # 15 minutes, off the hour, so the first run GitHub delivers after the
+    # date rolls over does the refresh. The gate skips the full pull once
+    # today's Foodstuffs prices exist, and pulls just Woolworths while its
+    # source snapshot is still yesterday's, which keeps the retries cheap.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 
 permissions:
