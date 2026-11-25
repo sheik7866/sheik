@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "ios-fixed-tabs-2026-11-24";
+window.TROLLEYBIRD_BUILD = "shop-header-2026-11-25";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -455,6 +455,43 @@ function ensureGtins() {
 }
 
 const CATEGORIES = ["All", ...new Set(PRODUCTS.map((p) => p.category))];
+
+/* Inline aisle illustrations rather than emoji, so the tiles render the same
+   on every platform and do not depend on a colour-emoji font. */
+const CATEGORY_ICONS = {
+  dairy: `<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <rect x="12" y="3" width="8" height="4" rx="1.2" fill="#4d86c4"/>
+    <path d="M12 7h8l2.4 4.8V26a2 2 0 0 1-2 2h-8.8a2 2 0 0 1-2-2V11.8L12 7Z" fill="#fdfdfb" stroke="#c3cec7" stroke-width="1.1"/>
+    <path d="M9.6 14h12.8v7H9.6z" fill="#7db4e0"/>
+    <path d="M12.4 17.2c1.5-.9 3 .9 4.4 0s2.8.7 3.2.4" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/>
+  </svg>`,
+  meat: `<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <path d="M7.5 16.5c-.8-4.8 2.8-8.4 8.3-8.9 6.2-.6 9.7 2.6 9.7 7.6 0 5.2-3.5 8.8-9 8.8-5.2 0-8.3-2.8-9-7.5Z" fill="#c9563f" stroke="#9d3f2c" stroke-width="1.2"/>
+    <path d="M12.8 13.2c1.1 1.1 2.4 1.2 3.5 2.2" stroke="#f3d6c8" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M17.6 18.6c1 .6 2 .7 3 .4" stroke="#f3d6c8" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M10.6 18.2c.8.7 1.6.9 2.5.8" stroke="#f3d6c8" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+  produce: `<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <circle cx="11.4" cy="13.2" r="4.8" fill="#4c9a4d"/>
+    <circle cx="16" cy="9.6" r="5.4" fill="#5cae58"/>
+    <circle cx="20.6" cy="13.2" r="4.8" fill="#4c9a4d"/>
+    <path d="M16 14.5v9" stroke="#86b96b" stroke-width="4.2" stroke-linecap="round"/>
+    <path d="M14 21c1.4.3 2.4 1.6 2 3.6" stroke="#6ca75b" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+  bakery: `<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <path d="M6 17c0-4.8 4.4-8.5 10-8.5S26 12.2 26 17v6.5a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 6 23.5V17Z" fill="#d9a05b" stroke="#b57d3f" stroke-width="1.2"/>
+    <path d="M8.8 13.8c1.2-2.2 3.9-3.5 7.2-3.5s6 1.3 7.2 3.5" stroke="#f0cf9f" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="m12 18 2-2m2 2 2-2m2 2 2-2" stroke="#b57d3f" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+};
+
+/* The four aisles that earn a picture tile above the full category list. */
+const FEATURED_CATEGORIES = [
+  { label: "Dairy", category: "Fridge, Deli & Eggs", icon: CATEGORY_ICONS.dairy },
+  { label: "Meat", category: "Meat, Poultry & Seafood", icon: CATEGORY_ICONS.meat },
+  { label: "Produce", category: "Fruit & Vegetables", icon: CATEGORY_ICONS.produce },
+  { label: "Bakery", category: "Bakery", icon: CATEGORY_ICONS.bakery },
+];
 const STAPLE_IDS = new Set(DEMO_PRODUCTS.map((product) => product.id));
 const PAGE_SIZE = 60;
 let visibleLimit = PAGE_SIZE;
@@ -557,6 +594,12 @@ const el = {
   storeSearch: document.getElementById("store-search"),
   storeResults: document.getElementById("store-results"),
   search: document.getElementById("search"),
+  shopDate: document.getElementById("shop-date"),
+  shopCart: document.getElementById("shop-cart"),
+  shopCartCount: document.getElementById("shop-cart-count"),
+  categoryGrid: document.getElementById("category-grid"),
+  categoriesToggle: document.getElementById("categories-toggle"),
+  productsHeading: document.getElementById("products-heading"),
   categories: document.getElementById("categories"),
   sort: document.getElementById("product-sort"),
   resultsLine: document.getElementById("results-line"),
@@ -2198,6 +2241,16 @@ function renderTabs(totals = state.list.length ? listTotals() : null) {
   el.tabListCount.hidden = !loading && total == null;
   el.tabListCount.classList.toggle("is-loading", loading);
   el.tabListCount.classList.toggle("is-money", total != null);
+  if (el.shopCart && el.shopCartCount) {
+    el.shopCartCount.textContent = String(listCount);
+    el.shopCartCount.hidden = listCount === 0;
+    el.shopCart.setAttribute(
+      "aria-label",
+      listCount
+        ? `Open My List, ${listCount.toLocaleString("en-NZ")} item${listCount === 1 ? "" : "s"}`
+        : "Open My List, empty"
+    );
+  }
   // The badge sits inside the aria-hidden icon, so name the tab with its total.
   for (const button of el.tabButtons) {
     if (button.dataset.tab === "stores") {
@@ -2378,6 +2431,17 @@ function renderStores() {
 }
 
 function renderCategories() {
+  const featured = FEATURED_CATEGORIES.filter((entry) => CATEGORIES.includes(entry.category));
+  el.categoryGrid.innerHTML = featured
+    .map((entry) => {
+      const active = state.category === entry.category;
+      return `
+      <button class="category-tile${active ? " is-on" : ""}" type="button" data-category="${escapeHtml(entry.category)}" aria-pressed="${active}" aria-label="${active ? `Show all products instead of ${escapeHtml(entry.label)}` : `Show ${escapeHtml(entry.label)} products`}">
+        <span class="category-tile__icon" aria-hidden="true">${entry.icon}</span>
+        <span class="category-tile__label">${escapeHtml(entry.label)}</span>
+      </button>`;
+    })
+    .join("");
   el.categories.innerHTML = CATEGORIES
     .map(
       (category) => `
@@ -2470,6 +2534,15 @@ function renderProducts() {
     .join("");
 
   const searchTerm = (el.search.value || "").trim();
+  if (el.productsHeading) {
+    const featured = FEATURED_CATEGORIES.find((entry) => entry.category === state.category);
+    const headingTerm = correction?.applied ? correction.suggestion : searchTerm;
+    el.productsHeading.textContent = headingTerm
+      ? `Results for “${headingTerm.length > 28 ? `${headingTerm.slice(0, 28)}…` : headingTerm}”`
+      : state.category !== "All"
+        ? featured?.label || state.category
+        : "Popular products";
+  }
   const resultTerm = correction?.applied ? correction.suggestion : searchTerm;
   const queryLabel = resultTerm
     ? ` for “${resultTerm.length > 40 ? `${resultTerm.slice(0, 40)}…` : resultTerm}”`
@@ -3348,9 +3421,26 @@ async function shareReceiptSummary() {
   }
 }
 
+function renderShopDate() {
+  if (!el.shopDate) return;
+  try {
+    el.shopDate.textContent = new Intl.DateTimeFormat("en-NZ", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(new Date());
+  } catch {
+    el.shopDate.textContent = new Date().toLocaleDateString("en-NZ");
+  }
+}
+
 function renderAll() {
   renderStores();
-  el.search.placeholder = `Search ${PRODUCTS.length.toLocaleString("en-NZ")} products…`;
+  renderShopDate();
+  el.search.setAttribute(
+    "aria-label",
+    `Search ${PRODUCTS.length.toLocaleString("en-NZ")} products or enter a barcode`
+  );
   if (el.sort) el.sort.value = state.sort;
   renderCategories();
   renderProducts();
@@ -4260,6 +4350,39 @@ el.clubToggle.addEventListener("change", () => {
 
 for (const tab of el.tabButtons) {
   tab.addEventListener("click", () => setTab(tab.dataset.tab, { persist: true }));
+}
+
+if (el.shopCart) {
+  el.shopCart.addEventListener("click", () => {
+    setTab("list", { persist: true });
+    el.listHeading?.focus({ preventScroll: true });
+  });
+}
+
+if (el.categoryGrid) {
+  el.categoryGrid.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-category]");
+    if (!button) return;
+    const category = button.dataset.category;
+    const next = state.category === category ? "All" : category;
+    setCategory(next);
+    if (next === "All") {
+      el.categoriesToggle.focus({ preventScroll: true });
+    } else {
+      [...el.categoryGrid.querySelectorAll("[data-category]")]
+        .find((tile) => tile.dataset.category === next)
+        ?.focus({ preventScroll: true });
+    }
+  });
+}
+
+if (el.categoriesToggle) {
+  el.categoriesToggle.addEventListener("click", () => {
+    const open = el.categories.hidden;
+    el.categories.hidden = !open;
+    el.categoriesToggle.setAttribute("aria-expanded", String(open));
+    el.categoriesToggle.textContent = open ? "Show less" : "See all";
+  });
 }
 
 /* ---------- Camera scanning ---------- */

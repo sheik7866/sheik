@@ -13,14 +13,14 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Keep this version in step with the build marker so a cached bundle cannot
        outlive a deployment. -->
-  <link rel="stylesheet" href="app.css?v=ios-fixed-tabs-2026-11-24" />
+  <link rel="stylesheet" href="app.css?v=shop-header-2026-11-25" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
   <script src="data/stores.js" defer></script>
-  <script src="data/foursquare.js?v=ios-fixed-tabs-2026-11-24" defer></script>
-  <script src="data/woolworths.js?v=ios-fixed-tabs-2026-11-24" defer></script>
-  <script src="demo-sku-map.js?v=ios-fixed-tabs-2026-11-24" defer></script>
+  <script src="data/foursquare.js?v=shop-header-2026-11-25" defer></script>
+  <script src="data/woolworths.js?v=shop-header-2026-11-25" defer></script>
+  <script src="demo-sku-map.js?v=shop-header-2026-11-25" defer></script>
 </head>
 <body class="app-body">
   <div class="splash" id="splash" role="status" aria-label="Loading Trolleybird">
@@ -157,15 +157,28 @@
       </section>
 
       <section class="panel panel--catalog" id="panel-catalog" data-tab-panel="catalog" aria-labelledby="catalog-heading">
-        <div class="catalog__head">
-          <h2 id="catalog-heading" class="sr-only">Products</h2>
-          <div class="search">
+        <div class="shop-hero">
+          <div class="shop-hero__top">
+            <div class="shop-hero__intro">
+              <p class="shop-hero__date" id="shop-date"></p>
+              <h2 id="catalog-heading" class="shop-hero__title">Good shopping.</h2>
+            </div>
+            <button class="shop-hero__cart" type="button" id="shop-cart" aria-label="Open My List">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 9h16l-1.2 8.1a2 2 0 0 1-2 1.7H7.2a2 2 0 0 1-2-1.7L4 9Z" />
+                <path d="M8.5 9 10 4.5M15.5 9 14 4.5M9 13h6" />
+              </svg>
+              <span class="shop-hero__cart-count" id="shop-cart-count" hidden>0</span>
+            </button>
+          </div>
+
+          <div class="search shop-search">
             <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
               <circle cx="11" cy="11" r="6" />
               <path d="m16 16 4 4" />
             </svg>
-            <input id="search" type="search" placeholder="Search products or a barcode…" autocomplete="off" aria-label="Search products or enter a barcode" />
-            <button class="search__scan" type="button" id="scan-button" aria-haspopup="dialog">
+            <input id="search" type="search" placeholder="What are you looking for?" autocomplete="off" aria-label="Search products or enter a barcode" />
+            <button class="search__scan" type="button" id="scan-button" aria-haspopup="dialog" aria-label="Scan a barcode">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
                 <path d="M4 12h16" />
@@ -173,19 +186,29 @@
               <span>Scan</span>
             </button>
           </div>
-          <div class="catalog__filters">
-            <div class="chips" id="categories" role="group" aria-label="Filter by category"></div>
-            <label class="sort-control" for="product-sort">
-              <span class="sort-control__label">Sort</span>
-              <select id="product-sort" aria-label="Sort products" aria-describedby="sort-hint">
-                <option value="relevance">Relevance</option>
-                <option value="price">Price: low to high</option>
-                <option value="unit">Unit price: low to high</option>
-              </select>
-            </label>
-          </div>
-          <p class="sr-only" id="sort-hint">Unit prices are per 100g, 100ml or each where available.</p>
         </div>
+
+        <section class="shop-section" aria-labelledby="explore-heading">
+          <div class="shop-section__head">
+            <h3 class="shop-section__title" id="explore-heading">Explore categories</h3>
+            <button class="shop-section__link" type="button" id="categories-toggle" aria-expanded="false" aria-controls="categories">See all</button>
+          </div>
+          <div class="category-grid" id="category-grid" role="group" aria-label="Explore product categories"></div>
+          <div class="chips" id="categories" role="group" aria-label="Filter by category" hidden></div>
+        </section>
+
+        <div class="shop-section__head shop-products__head">
+          <h3 class="shop-section__title" id="products-heading">Popular products</h3>
+          <label class="sort-control" for="product-sort">
+            <span class="sort-control__label">Sort</span>
+            <select id="product-sort" aria-label="Sort products" aria-describedby="sort-hint">
+              <option value="relevance">Relevance</option>
+              <option value="price">Price: low to high</option>
+              <option value="unit">Unit price: low to high</option>
+            </select>
+          </label>
+        </div>
+        <p class="sr-only" id="sort-hint">Unit prices are per 100g, 100ml or each where available.</p>
 
         <p class="results-line" id="results-line" aria-live="polite"></p>
         <p class="search-suggestion" id="search-suggestion" aria-live="polite" hidden>
@@ -391,7 +414,7 @@
     <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
   </div>
 
-  <script src="app.js?v=ios-fixed-tabs-2026-11-24" defer></script>
+  <script src="app.js?v=shop-header-2026-11-25" defer></script>
   <script src="scanner.js" defer></script>
 </body>
 </html>
