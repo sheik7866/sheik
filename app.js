@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "shop-header-2026-11-25";
+window.TROLLEYBIRD_BUILD = "image-cards-2026-11-25";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2515,7 +2515,10 @@ function renderProducts() {
       return `
         <li class="product">
           <button class="product__open" type="button" data-product="${product.id}" aria-label="View prices for ${escapeHtml(product.name)}${escapeHtml(priceSummary)}">
-            ${product.image ? `<img class="product__thumb" src="${escapeHtml(product.image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="56" height="56" />` : ""}
+            <span class="product__media">
+              ${product.image ? `<img class="product__thumb" src="${escapeHtml(product.image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="220" height="220" />` : `<span class="product__placeholder" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17.5h22l-1.9 19.7a2.6 2.6 0 0 1-2.6 2.3H17.5a2.6 2.6 0 0 1-2.6-2.3L13 17.5Z" /><path d="M19 17.5v-2.8a5 5 0 0 1 10 0v2.8" /></svg></span>`}
+              ${bestDeal ? `<span class="product__deal" title="${escapeHtml(dealDetail(bestDeal))}">${escapeHtml(dealSummary(bestDeal))}</span>` : ""}
+            </span>
             <span class="product__body">
               <span class="product__name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
               <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
@@ -2524,11 +2527,13 @@ function renderProducts() {
               </span>
               <span class="product__range">${best ? `${prices.length} store${prices.length === 1 ? "" : "s"}${range}` : pricesLoading ? "Loading branch prices…" : stores.length ? noPriceRangeLabel(stores) : "Choose a store to price this"}</span>
               ${unit ? `<span class="product__unit">${escapeHtml(unit.display)}</span>` : ""}
-              ${bestDeal ? `<span class="product__deal" title="${escapeHtml(dealDetail(bestDeal))}">${escapeHtml(dealSummary(bestDeal))}</span>` : ""}
               ${unavailableStores.length ? `<span class="product__stock">Not at ${unavailableStores.map((store) => escapeHtml(storeLabel(store))).join(" & ")}</span>` : ""}
             </span>
           </button>
-          <button class="product__add" type="button" data-add="${product.id}" aria-label="Add ${escapeHtml(product.name)} (${escapeHtml(product.size || "size not listed")}) to list">Add to list</button>
+          <button class="product__add" type="button" data-add="${product.id}" aria-label="Add ${escapeHtml(product.name)} (${escapeHtml(product.size || "size not listed")}) to list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 6.5v11M6.5 12h11" /></svg>
+            <span>Add</span>
+          </button>
         </li>`;
     })
     .join("");
