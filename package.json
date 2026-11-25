@@ -12,7 +12,8 @@
     "staples:check": "node scripts/check-demo-staples.mjs",
     "gtins:pull": "node scripts/pull-gtins.mjs",
     "gtins:backfill": "node scripts/pull-grocer-gtins.mjs",
-    "smoke:live": "node scripts/smoke-live.mjs"
+    "smoke:live": "node scripts/smoke-live.mjs",
+    "barcode:check": "node scripts/check-barcode-margin.mjs"
   },
   "devDependencies": {
     "@duckdb/node-api": "2.0.1-r.1",
