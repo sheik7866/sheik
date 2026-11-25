@@ -10,7 +10,9 @@
   with the site's own vendored ZXing build, so a broken barcode image fails the
   post-deploy check. Products without a valid GTIN must show no barcode card.
   A backfilled pack (Purina Fancy Feast, the UPC-A 050000426942 filed without
-  its leading zero) must render and decode as EAN-13 0050000426942.
+  its leading zero) must render and decode as EAN-13 0050000426942, and a pack
+  picked out of a duplicated bakery listing (Apricot & Walnut Muffins 6pk) must
+  carry the code belonging to its own spelling rather than its twin's.
   It also checks quantity-aware multi-buy totals, limited single-item specials
   at PAK'nSAVE and New World (including units beyond their limit reverting to
   shelf price and a limit shared across two PAK'nSAVE products), the club-card
@@ -77,6 +79,12 @@ const BACKFILLED_GTIN = {
   name: "Purina Fancy Feast Adult Chunky Chicken Feast",
   search: "Purina Fancy Feast Adult Chunky Chicken",
   gtin: "0050000426942",
+};
+const DISAMBIGUATED_GTIN = {
+  sku: "5132804-EA-000",
+  name: "Apricot & Walnut Muffins 6pk",
+  search: "Apricot & Walnut Muffins",
+  gtin: "9400989067987",
 };
 const REAL_GTIN = "9300617075462";
 
@@ -335,7 +343,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "barcode-module-fit-2026-11-25",
+        () => window.TROLLEYBIRD_BUILD === "gtin-review-barcode-fit-2026-11-25",
         null,
         { timeout: 5000 }
       );
@@ -674,6 +682,21 @@ async function main() {
     assert(
       bareDigits(backfilledDecoded.text) === bareDigits(BACKFILLED_GTIN.gtin),
       `backfilled pack barcode decoded as ${backfilledDecoded.text}`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+    await page.fill("#search", "");
+
+    step(`disambiguated bakery barcode: ${DISAMBIGUATED_GTIN.name}`);
+    await searchProduct(page, { name: DISAMBIGUATED_GTIN.search, sku: DISAMBIGUATED_GTIN.sku });
+    await page.locator(`#product-grid [data-product="${DISAMBIGUATED_GTIN.sku}"]`).click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const bakeryCode = await page
+      .locator("#product-dialog [data-copy-barcode]")
+      .getAttribute("data-copy-barcode");
+    assert(
+      bakeryCode === DISAMBIGUATED_GTIN.gtin,
+      `bakery pack barcode is ${bakeryCode}, expected ${DISAMBIGUATED_GTIN.gtin}`
     );
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);

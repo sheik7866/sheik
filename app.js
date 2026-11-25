@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "barcode-module-fit-2026-11-25";
+window.TROLLEYBIRD_BUILD = "gtin-review-barcode-fit-2026-11-25";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
