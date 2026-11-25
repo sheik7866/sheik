@@ -10,8 +10,16 @@
  * A code is only copied when a catalogue row and a Grocer product agree
  * exactly on brand, product name and pack size after normalisation, when that
  * match is unique, when the Grocer product has exactly one valid barcode, and
- * when the barcode passes its GTIN check digit. Ambiguous matches stay blank
- * rather than risk printing the wrong barcode.
+ * when the barcode passes its GTIN check digit.
+ *
+ * Grocer lists some packs more than once with different barcodes: in-store
+ * bakery item numbers, and brandless rows such as the five different suppliers'
+ * punnets filed as "Strawberries 250g". Those stay blank unless the evidence
+ * singles out one row. A candidate whose code is already recorded against a
+ * differently named product is ruled out, and a candidate that repeats the
+ * catalogue's text character for character wins over one that only matches once
+ * punctuation is stripped ("Apricot & Walnut Muffins" beside "Apricot Walnut
+ * Muffins").
  *
  *   node scripts/pull-grocer-gtins.mjs
  *   CACHE=/tmp/grocer node scripts/pull-grocer-gtins.mjs
@@ -162,30 +170,76 @@ async function main() {
       product.size
     )}`;
     if (!byKey.has(key)) byKey.set(key, []);
-    byKey.get(key).push([...product.codes][0]);
+    byKey.get(key).push({
+      code: [...product.codes][0],
+      brand: product.brand,
+      name: product.name,
+      size: product.size,
+    });
   }
 
   const gtins = { ...existing };
+  const rowById = new Map(rows.map((row) => [String(row[0] || ""), row]));
+  /* Which catalogue product each known code belongs to, so a code already
+     recorded for a differently named pack can be ruled out below. */
+  const codeOwners = new Map();
+  for (const [id, code] of Object.entries(existing)) {
+    if (!codeOwners.has(code)) codeOwners.set(code, []);
+    codeOwners.get(code).push(id);
+  }
+  const keyFor = (brand, name, size) =>
+    `${normalizeText(brand)}|${normalizeText(name)}|${normalizeSize(size)}`;
+  const contradicts = (code, key, id) =>
+    (codeOwners.get(code) || []).some((ownerId) => {
+      if (ownerId === id) return false;
+      const owner = rowById.get(ownerId);
+      return owner ? keyFor(owner[2], owner[1], owner[3]) !== key : false;
+    });
+  const exactText = (value) => String(value || "").trim();
+
   let matched = 0;
+  let resolved = 0;
   let ambiguous = 0;
   for (const row of rows) {
     const id = String(row[0] || "");
     if (!id || gtins[id]) continue;
-    const key = `${normalizeText(row[2])}|${normalizeText(row[1])}|${normalizeSize(row[3])}`;
-    const codes = byKey.get(key);
-    if (!codes) continue;
-    if (codes.length !== 1) {
+    const key = keyFor(row[2], row[1], row[3]);
+    const candidates = byKey.get(key);
+    if (!candidates) continue;
+    if (candidates.length === 1) {
+      gtins[id] = candidates[0].code;
+      matched += 1;
+      continue;
+    }
+
+    const live = candidates.filter((candidate) => !contradicts(candidate.code, key, id));
+    const remaining = new Set(live.map((candidate) => candidate.code));
+    let chosen = "";
+    if (remaining.size === 1) {
+      chosen = live[0].code;
+    } else {
+      const exact = live.filter(
+        (candidate) =>
+          exactText(candidate.brand) === exactText(row[2]) &&
+          exactText(candidate.name) === exactText(row[1]) &&
+          exactText(candidate.size) === exactText(row[3])
+      );
+      if (exact.length === 1) chosen = exact[0].code;
+    }
+    if (!chosen) {
       ambiguous += 1;
       continue;
     }
-    gtins[id] = codes[0];
-    matched += 1;
+    gtins[id] = chosen;
+    resolved += 1;
   }
 
   writeOutput(gtins);
   console.log(
     `${matched.toLocaleString("en-NZ")} products matched by brand, name and size; ` +
-      `${ambiguous.toLocaleString("en-NZ")} ambiguous matches left blank; ` +
+      `${resolved} of ${(resolved + ambiguous).toLocaleString("en-NZ")} duplicate-listing ` +
+      `groups resolved by a contradictory owner or exact text; ` +
+      `${ambiguous.toLocaleString("en-NZ")} still ambiguous and left blank; ` +
       `${Object.keys(gtins).length.toLocaleString("en-NZ")} total mapped`
   );
 }
