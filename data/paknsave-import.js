@@ -1,6 +1,6 @@
 /* A small, dated PAK'nSAVE price import.
    Shelf prices were read from PAK'nSAVE's public online store pages for the
-   Mt Albert store on 2026-11-25, one category page at a time. Only products
+   Mt Albert store on 2026-11-26, one category page at a time. Only products
    that matched a demo staple like-for-like were kept, so 28 of 34 demo
    products have a real shelf price; everything else stays an estimate.
    These are one store's prices on one day: treat them as dated, not live. */
@@ -8,8 +8,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
   storeId: "paknsave",
   store: "PAK'nSAVE",
   branch: "Mt Albert",
-  fetchedAt: "2026-11-25",
-  checkedAt: "2026-11-24T13:35:51.410Z",
+  fetchedAt: "2026-11-26",
+  checkedAt: "2026-11-25T19:12:20.735Z",
   source: "https://www.paknsave.co.nz/shop/category/",
   items: {
     "milk-2l": {
@@ -169,8 +169,8 @@ window.GROCER_PAKNSAVE_IMPORT = {
     "tomatoes-kg": {
       name: "Loose Red Tomatoes",
       size: "1kg",
-      price: 1.99,
-      unit: "$1.99/1kg",
+      price: 2.99,
+      unit: "$2.99/1kg",
       sku: "5040098_kgm_000pns",
     },
     "bacon-250": {
