@@ -335,7 +335,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "gtin-backfill-2026-11-25",
+        () => window.TROLLEYBIRD_BUILD === "barcode-module-fit-2026-11-25",
         null,
         { timeout: 5000 }
       );

@@ -3019,8 +3019,7 @@ button.grocer-item__price:disabled {
 
 .barcode-card__svg {
   display: block;
-  width: 100%;
-  max-width: 280px;
+  max-width: 100%;
   height: auto;
   margin: 0.5rem auto 0;
 }
@@ -4564,7 +4563,6 @@ button.grocer-item__price:disabled {
   }
 
   .barcode-card__svg {
-    max-width: 190px;
     margin-top: 0.35rem;
   }
 

@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "gtin-backfill-2026-11-25";
+window.TROLLEYBIRD_BUILD = "barcode-module-fit-2026-11-25";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -1539,7 +1539,11 @@ function normalizeGtin(raw) {
   return Number(digits.charAt(digits.length - 1)) === check ? digits : "";
 }
 
-/* EAN-13 and EAN-8 encoding for the scannable barcode in the product dialog. */
+/* EAN-13 and EAN-8 encoding for the scannable barcode in the product dialog.
+   The symbol is laid out in whole modules with the quiet zones the standard
+   requires, so every bar is the same width at any render size. A checkout
+   scanner needs that evenness: scaling an arbitrary viewBox to fit gives it
+   bars of two and three pixels instead of identical widths. */
 const EAN13_L = [
   "0001101", "0011001", "0010011", "0111101", "0100011",
   "0110001", "0101111", "0111011", "0110111", "0001011",
@@ -1585,18 +1589,45 @@ function barcodeSvg(raw) {
     bits += "101";
   }
 
+  /* Quiet zones belong to the symbol: without clear space either side a
+     scanner cannot find the first and last bar. EAN asks for 11 modules on
+     the left and 7 on the right; 11 both sides leaves margin to spare. */
   const quiet = 11;
-  const module = 95 / bits.length;
+  const height = 72;
+  const modules = quiet + bits.length + quiet;
   const bars = [...bits]
     .map((bit, index) => {
       if (bit !== "1") return "";
       const guard = index < 3 || (index >= guardStart && index < guardEnd) || index >= bits.length - 3;
-      return `<rect x="${(quiet + index * module).toFixed(3)}" y="3" width="${module.toFixed(3)}" height="${guard ? 58 : 52}"/>`;
+      return `<rect x="${quiet + index}" y="3" width="1" height="${guard ? 58 : 52}"/>`;
     })
     .join("");
 
   const kind = ean8 ? "EAN-8" : "EAN-13";
-  return `<svg class="barcode-card__svg" viewBox="0 0 117 72" role="img" aria-label="${kind} barcode ${code}" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"><rect width="117" height="72" fill="#fff"/><g fill="#000">${bars}</g><text x="58.5" y="68" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="7" letter-spacing="1.1">${code}</text></svg>`;
+  /* Two CSS pixels per module is the base size; fitBarcodeWidths() snaps the
+     rendered width to a whole multiple of the module count so no bar lands on
+     a half pixel and every bar stays the same width. */
+  return `<svg class="barcode-card__svg" data-modules="${modules}" viewBox="0 0 ${modules} ${height}" width="${modules * 2}" height="${height * 2}" role="img" aria-label="${kind} barcode ${code}" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"><rect width="${modules}" height="${height}" fill="#fff"/><g fill="#000">${bars}</g><text x="${modules / 2}" y="68" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="7" letter-spacing="1.1">${code}</text></svg>`;
+}
+
+/* Keep the on-screen symbol readable by a checkout scanner: give it the widest
+   whole-pixel module size the card can hold, so bars stay identical in width
+   instead of being stretched to a fractional one. */
+function fitBarcodeWidths(root) {
+  const scope = root || document;
+  scope.querySelectorAll(".barcode-card__svg").forEach((svg) => {
+    const modules = Number(svg.dataset.modules || 0);
+    const card = svg.closest(".barcode-card");
+    if (!modules || !card) return;
+    const styles = getComputedStyle(card);
+    const available =
+      card.clientWidth -
+      (parseFloat(styles.paddingLeft) || 0) -
+      (parseFloat(styles.paddingRight) || 0);
+    const module = Math.max(1, Math.min(3, Math.floor(available / modules)));
+    svg.setAttribute("width", String(modules * module));
+    svg.setAttribute("height", String(72 * module));
+  });
 }
 
 /* Packs without a verified GTIN get a quiet labelled note instead of a
@@ -1618,7 +1649,7 @@ function barcodeCard(product) {
         <button class="barcode-card__copy" type="button" data-copy-barcode="${code}">Copy barcode</button>
       </div>
       ${svg}
-      <p class="barcode-card__hint">Scan with the demo scanner or any barcode app.</p>
+      <p class="barcode-card__hint">Scan with the demo scanner, a barcode app or a checkout scanner. Turn the screen brightness up if it doesn't read.</p>
       <p class="barcode-card__status" role="status" aria-live="polite"></p>
     </section>`;
 }
@@ -4058,12 +4089,16 @@ function openProduct(productId) {
     </div>`;
 
   // Re-rendering an open dialog (after saving a price) must not reopen it.
-  if (el.dialog.open) return;
+  if (el.dialog.open) {
+    fitBarcodeWidths(el.dialogContent);
+    return;
+  }
   if (typeof el.dialog.showModal === "function") {
     el.dialog.showModal();
   } else {
     el.dialog.setAttribute("open", "");
   }
+  fitBarcodeWidths(el.dialogContent);
   if (!barcode) void ensureGtins();
 }
 
@@ -4075,6 +4110,7 @@ function refreshOpenBarcode() {
   const card = barcodeCard(product);
   if (card) {
     slot.innerHTML = card;
+    fitBarcodeWidths(slot);
     return;
   }
   slot.innerHTML = barcodeNoteMarkup(
@@ -4172,6 +4208,12 @@ function hideBrokenImage(event) {
 el.productGrid.addEventListener("error", hideBrokenImage, true);
 el.listItems.addEventListener("error", hideBrokenImage, true);
 el.dialogContent.addEventListener("error", hideBrokenImage, true);
+
+/* A resized window changes the room the barcode has, so re-snap its module
+   size while the dialog is open. */
+window.addEventListener("resize", () => {
+  if (el.dialog.open) fitBarcodeWidths(el.dialogContent);
+});
 
 el.listItems.addEventListener("click", (event) => {
   const open = event.target.closest("[data-open-product]");
