@@ -2532,9 +2532,30 @@ button.grocer-item__price:disabled {
 }
 
 .dialog__barcode-note {
-  margin: 0 0 0.85rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0.85rem 0 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
   font-size: 0.72rem;
+  line-height: 1.45;
   color: var(--ink-mute);
+}
+
+.dialog__barcode-label {
+  flex: none;
+  margin-top: 0.05rem;
+  padding: 0.14rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(31, 156, 98, 0.1);
+  color: var(--leaf-deep);
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .dialog__estimate {
@@ -4549,6 +4570,11 @@ button.grocer-item__price:disabled {
 
   .barcode-card__hint {
     margin-top: 0.25rem;
+  }
+
+  .dialog__barcode-note {
+    margin-top: 0.7rem;
+    padding: 0.45rem 0.55rem;
   }
 
   .dialog__prices {

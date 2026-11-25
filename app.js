@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "list-cards-2026-11-25";
+window.TROLLEYBIRD_BUILD = "barcode-note-2026-11-25";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -1593,6 +1593,13 @@ function barcodeSvg(raw) {
 
   const kind = ean8 ? "EAN-8" : "EAN-13";
   return `<svg class="barcode-card__svg" viewBox="0 0 117 72" role="img" aria-label="${kind} barcode ${code}" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"><rect width="117" height="72" fill="#fff"/><g fill="#000">${bars}</g><text x="58.5" y="68" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="7" letter-spacing="1.1">${code}</text></svg>`;
+}
+
+/* Packs without a verified GTIN get a quiet labelled note instead of a
+   barcode card, so the empty state reads as its own row rather than a
+   continuation of the shelf-price sentence above it. */
+function barcodeNoteMarkup(message) {
+  return `<p class="dialog__barcode-note"><span class="dialog__barcode-label">Barcode</span><span>${escapeHtml(message)}</span></p>`;
 }
 
 function barcodeCard(product) {
@@ -3893,9 +3900,11 @@ function openProduct(productId) {
   const barcode = barcodeCard(product);
   const barcodeMarkup =
     barcode ||
-    (GTINS_STATE === "ready"
-      ? `<p class="dialog__barcode-note">No barcode is recorded for this pack.</p>`
-      : `<p class="dialog__barcode-note">Checking for a barcode…</p>`);
+    barcodeNoteMarkup(
+      GTINS_STATE === "ready"
+        ? "No barcode is recorded for this pack."
+        : "Checking for a barcode…"
+    );
   dialogProductId = productId;
 
   el.dialogContent.innerHTML = `
@@ -4064,13 +4073,13 @@ function refreshOpenBarcode() {
     slot.innerHTML = card;
     return;
   }
-  slot.innerHTML = `<p class="dialog__barcode-note">${
+  slot.innerHTML = barcodeNoteMarkup(
     GTINS_STATE === "error"
       ? "Barcode data couldn't be loaded. Try again in a moment."
       : GTINS_STATE === "ready"
         ? "No barcode is recorded for this pack."
         : "Checking for a barcode…"
-  }</p>`;
+  );
 }
 
 function closeDialog() {
