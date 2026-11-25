@@ -9,6 +9,8 @@
   GTINs (including the V can's 8-digit EAN-8) and   decodes the rendered images
   with the site's own vendored ZXing build, so a broken barcode image fails the
   post-deploy check. Products without a valid GTIN must show no barcode card.
+  A backfilled pack (Purina Fancy Feast, the UPC-A 050000426942 filed without
+  its leading zero) must render and decode as EAN-13 0050000426942.
   It also checks quantity-aware multi-buy totals, limited single-item specials
   at PAK'nSAVE and New World (including units beyond their limit reverting to
   shelf price and a limit shared across two PAK'nSAVE products), the club-card
@@ -69,6 +71,12 @@ const CATALOGUE_GTIN = {
   name: "V Blue Guarana Energy Drink",
   search: "V Blue Guarana",
   gtin: "94129045",
+};
+const BACKFILLED_GTIN = {
+  sku: "5010289-EA-000",
+  name: "Purina Fancy Feast Adult Chunky Chicken Feast",
+  search: "Purina Fancy Feast Adult Chunky Chicken",
+  gtin: "0050000426942",
 };
 const REAL_GTIN = "9300617075462";
 
@@ -327,7 +335,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "barcode-note-2026-11-25",
+        () => window.TROLLEYBIRD_BUILD === "gtin-backfill-2026-11-25",
         null,
         { timeout: 5000 }
       );
@@ -643,6 +651,33 @@ async function main() {
     );
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+
+    step(`backfilled UPC barcode: ${BACKFILLED_GTIN.name}`);
+    await searchProduct(page, { name: BACKFILLED_GTIN.search, sku: BACKFILLED_GTIN.sku });
+    await page.locator(`#product-grid [data-product="${BACKFILLED_GTIN.sku}"]`).click();
+    await page.waitForSelector("#product-dialog[open]", { timeout: 5000 });
+    const backfilledBarcodes = await page.locator("#product-dialog .barcode-card").count();
+    assert(
+      backfilledBarcodes === 1,
+      `backfilled pack should show one barcode card, saw ${backfilledBarcodes}`
+    );
+    const backfilledCode = await page
+      .locator("#product-dialog [data-copy-barcode]")
+      .getAttribute("data-copy-barcode");
+    assert(
+      backfilledCode === BACKFILLED_GTIN.gtin,
+      `backfilled pack barcode is ${backfilledCode}, expected ${BACKFILLED_GTIN.gtin}`
+    );
+    const backfilledDecoded = await decodeRenderedBarcode(page, "#product-dialog .barcode-card__svg");
+    // ZXing reports a leading-zero EAN-13 in its UPC-A form, so compare digits.
+    const bareDigits = (value) => String(value).replace(/^0+(?=\d)/, "");
+    assert(
+      bareDigits(backfilledDecoded.text) === bareDigits(BACKFILLED_GTIN.gtin),
+      `backfilled pack barcode decoded as ${backfilledDecoded.text}`
+    );
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#product-dialog")?.open);
+    await page.fill("#search", "");
 
     step("adding branches through the store search");
     await page.fill("#store-search", "paknsave");

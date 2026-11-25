@@ -80,6 +80,9 @@ function cleanGtin(raw) {
   let digits = String(raw || "").replace(/\D/g, "");
   if (!digits) return "";
   if (digits.length === 14) digits = digits.replace(/^0+/, "");
+  // Some imported US packs are filed as an 11-digit UPC-A with the leading
+  // zero dropped (Purina Fancy Feast 85g is 50000426942 for 050000426942).
+  if (digits.length === 11) digits = `0${digits}`;
   if (digits.length === 12) digits = `0${digits}`;
   if (digits.length !== 8 && digits.length !== 13) return "";
   if (Number(digits.at(-1)) !== checkDigit(digits.slice(0, -1))) return "";

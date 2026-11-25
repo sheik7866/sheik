@@ -11,6 +11,7 @@
     "grocer:refresh": "node scripts/pull-grocer-prices.mjs",
     "staples:check": "node scripts/check-demo-staples.mjs",
     "gtins:pull": "node scripts/pull-gtins.mjs",
+    "gtins:backfill": "node scripts/pull-grocer-gtins.mjs",
     "smoke:live": "node scripts/smoke-live.mjs"
   },
   "devDependencies": {
