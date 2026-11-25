@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "image-cards-2026-11-25";
+window.TROLLEYBIRD_BUILD = "list-cards-2026-11-25";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -2647,21 +2647,32 @@ function listItemMarkup(item) {
   const picked = state.picked.includes(row.id);
   return `
     <li class="list-item${picked ? " is-picked" : ""}" data-row="${row.id}">
-      <label class="list-item__check">
-        <input type="checkbox" data-picked="${row.id}"${picked ? " checked" : ""} aria-label="Mark ${escapeHtml(product.name)} as picked up" />
-      </label>
-      <button class="list-item__body" type="button" data-open-product="${row.id}" title="View prices for ${escapeHtml(product.name)}" aria-label="View prices for ${escapeHtml(product.name)}">
-        <b>${escapeHtml(product.name)}</b>
-        <small>${escapeHtml(product.size)}${best ? ` · ${bestKindLabel} from <span class="list-item__price">${money.format(fromPrice ?? best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : noPrice ? ` · no published price at ${escapeHtml(noPriceChain)}` : missing ? " · not stocked at your stores" : ""}</small>
-        ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
-        ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""}${unitSplit ? ` · ${escapeHtml(unitSplit)}` : ""} · save ${money.format(best.savings)}</small>` : ""}
-      </button>
-      <span class="qty">
-        <button type="button" data-step="-1" data-id="${row.id}" aria-label="Decrease quantity of ${escapeHtml(product.name)}">−</button>
-        <output aria-label="Quantity">${row.qty}</output>
-        <button type="button" data-step="1" data-id="${row.id}" aria-label="Increase quantity of ${escapeHtml(product.name)}">+</button>
-      </span>
-      <button class="list-item__remove" type="button" data-remove="${row.id}" aria-label="Remove ${escapeHtml(product.name)}">×</button>
+      <div class="list-item__top">
+        <button class="list-item__body" type="button" data-open-product="${row.id}" title="View prices for ${escapeHtml(product.name)}" aria-label="View prices for ${escapeHtml(product.name)}">
+          <span class="list-item__media">
+            <span class="list-item__placeholder" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17.5h22l-1.9 19.7a2.6 2.6 0 0 1-2.6 2.3H17.5a2.6 2.6 0 0 1-2.6-2.3L13 17.5Z" /><path d="M19 17.5v-2.8a5 5 0 0 1 10 0v2.8" /></svg></span>
+            ${product.image ? `<img class="list-item__thumb" src="${escapeHtml(product.image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="64" height="64" />` : ""}
+          </span>
+          <span class="list-item__text">
+            <b>${escapeHtml(product.name)}</b>
+            <small>${escapeHtml(product.size)}${best ? ` · ${bestKindLabel} from <span class="list-item__price">${money.format(fromPrice ?? best.shelfPrice)}</span> at ${escapeHtml(storeLabel(best.store))}` : pricePending ? " · loading prices…" : noPrice ? ` · no published price at ${escapeHtml(noPriceChain)}` : missing ? " · not stocked at your stores" : ""}</small>
+            ${unit ? `<small class="list-item__unit">${escapeHtml(unit.display)}</small>` : ""}
+            ${best?.dealApplied ? `<small class="list-item__deal">${escapeHtml(dealLabel(best.deal))} applied${best.deal.limit ? ` · ${escapeHtml(dealLimitLabel(best.deal))}` : ""}${unitSplit ? ` · ${escapeHtml(unitSplit)}` : ""} · save ${money.format(best.savings)}</small>` : ""}
+          </span>
+        </button>
+        <button class="list-item__remove" type="button" data-remove="${row.id}" aria-label="Remove ${escapeHtml(product.name)}">×</button>
+      </div>
+      <div class="list-item__foot">
+        <label class="list-item__check">
+          <input type="checkbox" data-picked="${row.id}"${picked ? " checked" : ""} aria-label="Mark ${escapeHtml(product.name)} as picked up" />
+          <span>Picked</span>
+        </label>
+        <span class="qty">
+          <button type="button" data-step="-1" data-id="${row.id}" aria-label="Decrease quantity of ${escapeHtml(product.name)}">−</button>
+          <output aria-label="Quantity">${row.qty}</output>
+          <button type="button" data-step="1" data-id="${row.id}" aria-label="Increase quantity of ${escapeHtml(product.name)}">+</button>
+        </span>
+      </div>
     </li>`;
 }
 
@@ -4146,6 +4157,7 @@ function hideBrokenImage(event) {
   if (event.target instanceof HTMLImageElement) event.target.hidden = true;
 }
 el.productGrid.addEventListener("error", hideBrokenImage, true);
+el.listItems.addEventListener("error", hideBrokenImage, true);
 el.dialogContent.addEventListener("error", hideBrokenImage, true);
 
 el.listItems.addEventListener("click", (event) => {

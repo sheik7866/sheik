@@ -5034,3 +5034,164 @@ button.grocer-item__price:disabled {
     font-size: 0.74rem;
   }
 }
+
+/* ---------- My List: image-led rows ---------- */
+
+.panel--list .list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list-item {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(21, 121, 75, 0.12);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 14px 26px -28px rgba(14, 31, 22, 0.55);
+}
+
+.list-item__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.list-item__body {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.list-item__media {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 0.3rem;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff, #fbf7ee);
+}
+
+.list-item__media > * {
+  grid-area: 1 / 1;
+}
+
+.list-item__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.list-item__placeholder {
+  width: 62%;
+  color: rgba(21, 121, 75, 0.32);
+}
+
+.list-item__placeholder svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.list-item__text {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.list-item__body b {
+  font-size: 0.82rem;
+}
+
+.list-item__body small {
+  font-size: 0.64rem;
+  line-height: 1.35;
+}
+
+.list-item__remove {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--paper-2);
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.list-item__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--line-soft);
+}
+
+.list-item__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.55rem 0.22rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.list-item__check input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--leaf);
+  cursor: pointer;
+}
+
+.list-item.is-picked .list-item__check {
+  border-color: rgba(21, 121, 75, 0.35);
+  background: var(--lime-soft);
+  color: var(--leaf-deep);
+}
+
+.list-item.is-picked .list-item__media {
+  opacity: 0.45;
+}
+
+.list-item .qty button {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+
+.list-item .qty output {
+  min-width: 24px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 760px) {
+  .list-item {
+    padding: 0.45rem;
+  }
+
+  .list-item__media {
+    width: 56px;
+    height: 56px;
+  }
+
+  .list-item .qty button {
+    width: 28px;
+    height: 28px;
+  }
+}
