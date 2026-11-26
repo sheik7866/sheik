@@ -3,17 +3,24 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-  # No schedule: trigger. GitHub's scheduler is best-effort and drops most
-  # slots: on 25 November no scheduled run landed between 21:18 and 08:08 NZ,
-  # so the midnight refresh started eight hours late, and after switching to
-  # fifteen-minute retries it delivered none at all. Instead an external cron
-  # job (cron-job.org) calls this workflow's dispatch API hourly from 11:00 to
-  # 19:00 UTC. Auckland is UTC+13 in summer and UTC+12 in winter, so that
-  # covers local midnight in both seasons (11:00 or 12:00 UTC) and keeps
-  # retrying Woolworths until Grocer republishes around 05:00 NZ. The gate
-  # keeps the extra dispatches cheap: no refresh and no build once today's
-  # prices exist. The dispatcher's fine-grained token needs Actions: read and
-  # write on this repository and lives only in the cron job, never in the repo.
+  # The deterministic trigger is the external cron job (cron-job.org) that
+  # calls this workflow's dispatch API hourly from 11:00 to 19:00 UTC. Auckland
+  # is UTC+13 in summer and UTC+12 in winter, so that covers local midnight in
+  # both seasons (11:00 or 12:00 UTC) and keeps retrying Woolworths until
+  # Grocer republishes around 05:00 NZ. The dispatcher's fine-grained token
+  # needs Actions: read and write on this repository and lives only in the cron
+  # job, never in the repo.
+  #
+  # The schedule below is only a backstop, because GitHub's scheduler is
+  # best-effort: on 25 November no scheduled run landed between 21:18 and 08:08
+  # NZ, so the midnight refresh started eight hours late, and fifteen-minute
+  # retries delivered nothing at all. It is still worth keeping, because a cron
+  # job whose token expired blocks every dispatch silently: on 27 November no
+  # dispatch ever reached GitHub and the site served 26 November prices all
+  # morning. A delivered slot here at least refreshes the day, and the gate
+  # makes every no-op trigger cost one checkout and a jq check.
+  schedule:
+    - cron: "0 11-19 * * *"
   workflow_dispatch:
     inputs:
       force:
@@ -60,8 +67,9 @@ jobs:
           run=true
           refresh=false
           if [ "$event" = "schedule" ] || [ "$event" = "workflow_dispatch" ]; then
-            # The external dispatcher is the clock now. A dispatch at 23:00 NZ
-            # (winter's 11:00 UTC) must be a no-op rather than a wasted full
+            # The external dispatcher is the clock, with the fallback schedule
+            # above delivering whatever GitHub feels like. A dispatch at 23:00
+            # NZ (winter's 11:00 UTC) must be a no-op rather than a wasted full
             # pull, so only missing prices trigger one. The fetched date keeps
             # retries idempotent, and a stale Woolworths source still triggers
             # the cheap Woolworths-only pull on the morning dispatches.
