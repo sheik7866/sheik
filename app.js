@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "gtin-review-barcode-fit-2026-11-25";
+window.TROLLEYBIRD_BUILD = "stale-price-banner-2026-11-26";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -655,6 +655,7 @@ const el = {
   bulkSave: document.getElementById("bulk-save"),
   importBanner: document.getElementById("import-banner"),
   coverageLine: document.getElementById("coverage-line"),
+  staleBanner: document.getElementById("stale-banner"),
   priceFreshness: document.getElementById("price-freshness"),
   priceFreshnessDate: document.getElementById("price-freshness-date"),
   priceFreshnessAge: document.getElementById("price-freshness-age"),
@@ -5017,11 +5018,28 @@ function daysSince(iso) {
   return Math.round((now - then) / 86400000);
 }
 
+/* The pill keeps the date visible; this banner states the consequence on the
+   days the nightly refresh has not landed. It is driven by the same Auckland
+   date comparison, so the two can never disagree. */
+function renderStaleBanner(age, long) {
+  if (!el.staleBanner) return;
+  if (typeof age !== "number" || age < 1) {
+    el.staleBanner.hidden = true;
+    return;
+  }
+  const ageText = age === 1 ? "1 day" : `${age} days`;
+  el.staleBanner.textContent =
+    `Shelf prices are from ${long} — ${ageText} old. ` +
+    `The nightly refresh has not updated them yet, so prices may have changed.`;
+  el.staleBanner.hidden = false;
+}
+
 function renderPriceFreshness() {
   if (!el.priceFreshness) return;
   const day = priceRefreshDate();
   if (!day) {
     el.priceFreshness.hidden = true;
+    if (el.staleBanner) el.staleBanner.hidden = true;
     return;
   }
   const age = daysSince(day);
@@ -5041,6 +5059,7 @@ function renderPriceFreshness() {
     ? `Shelf prices were last refreshed on ${long}, ${age === 1 ? "a day" : `${age} days`} ago. They refresh every night after midnight, NZ time.`
     : `Shelf prices were refreshed on ${long}. They refresh every night after midnight, NZ time.`;
   el.priceFreshness.hidden = false;
+  renderStaleBanner(age, long);
 }
 
 function renderImportBanner() {

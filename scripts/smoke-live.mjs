@@ -343,7 +343,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "gtin-review-barcode-fit-2026-11-25",
+        () => window.TROLLEYBIRD_BUILD === "stale-price-banner-2026-11-26",
         null,
         { timeout: 5000 }
       );

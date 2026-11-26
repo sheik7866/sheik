@@ -242,6 +242,33 @@
   display: none;
 }
 
+/* Full-width stale-data banner under the sticky bar: the pill above shows the
+   date, this states plainly that the nightly refresh has not landed. */
+.stale-banner {
+  position: relative;
+  z-index: 40;
+  margin: 0;
+  padding: 0.55rem var(--gutter);
+  border-bottom: 1px solid color-mix(in srgb, var(--tomato) 26%, var(--line));
+  background: color-mix(in srgb, var(--tomato) 11%, var(--paper));
+  color: color-mix(in srgb, var(--tomato) 80%, var(--ink));
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.stale-banner[hidden] {
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .stale-banner {
+    font-size: 0.76rem;
+  }
+}
+
 .app-bar__actions {
   display: flex;
   align-items: center;
