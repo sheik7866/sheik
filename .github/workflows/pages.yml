@@ -3,17 +3,23 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-  schedule:
-    # Auckland is UTC+13 in summer and UTC+12 in winter, so local midnight is
-    # 11:00 or 12:00 UTC. GitHub's scheduler is best-effort and drops most
-    # slots: on 25 November no scheduled run happened between 21:18 and 08:08
-    # NZ, so the midnight refresh only started eight hours late. Retry every
-    # 15 minutes, off the hour, so the first run GitHub delivers after the
-    # date rolls over does the refresh. The gate skips the full pull once
-    # today's Foodstuffs prices exist, and pulls just Woolworths while its
-    # source snapshot is still yesterday's, which keeps the retries cheap.
-    - cron: "7,22,37,52 * * * *"
+  # No schedule: trigger. GitHub's scheduler is best-effort and drops most
+  # slots: on 25 November no scheduled run landed between 21:18 and 08:08 NZ,
+  # so the midnight refresh started eight hours late, and after switching to
+  # fifteen-minute retries it delivered none at all. Instead an external cron
+  # job (cron-job.org) calls this workflow's dispatch API hourly from 11:00 to
+  # 19:00 UTC. Auckland is UTC+13 in summer and UTC+12 in winter, so that
+  # covers local midnight in both seasons (11:00 or 12:00 UTC) and keeps
+  # retrying Woolworths until Grocer republishes around 05:00 NZ. The gate
+  # keeps the extra dispatches cheap: no refresh and no build once today's
+  # prices exist. The dispatcher's fine-grained token needs Actions: read and
+  # write on this repository and lives only in the cron job, never in the repo.
   workflow_dispatch:
+    inputs:
+      force:
+        description: Refresh every store even if today's prices already exist
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -42,6 +48,7 @@ jobs:
           hour=$(TZ=Pacific/Auckland date +%-H)
           event="${{ github.event_name }}"
           attempt="${{ github.run_attempt }}"
+          force="${{ github.event.inputs.force }}"
           # Grocer republishes Woolworths' prices around 05:00 NZ, so the
           # midnight pull only reaches the previous day's scrape. The source's
           # own date, not our run date, says whether today's prices are in.
@@ -52,19 +59,20 @@ jobs:
           fi
           run=true
           refresh=false
-          if [ "$event" = "schedule" ]; then
-            # GitHub can deliver a scheduled run hours after its cron time, and
-            # can drop one entirely. Refresh whenever today's prices are
-            # missing, whatever hour the hourly retry lands; the fetched date
-            # keeps retries idempotent.
-            if [ "$fetched" != "$today" ]; then
+          if [ "$event" = "schedule" ] || [ "$event" = "workflow_dispatch" ]; then
+            # The external dispatcher is the clock now. A dispatch at 23:00 NZ
+            # (winter's 11:00 UTC) must be a no-op rather than a wasted full
+            # pull, so only missing prices trigger one. The fetched date keeps
+            # retries idempotent, and a stale Woolworths source still triggers
+            # the cheap Woolworths-only pull on the morning dispatches.
+            if [ "$fetched" != "$today" ] || [ "$force" = "true" ]; then
               refresh=true
             elif [ "$wow" != "true" ]; then
               run=false
             fi
-          elif [ "$event" = "workflow_dispatch" ] || [ "$attempt" -gt 1 ] || [ "$fetched" != "$today" ]; then
-            # A manual run, a re-run of any push, or a push while today's
-            # prices are missing must pull every store, not just redeploy.
+          elif [ "$attempt" -gt 1 ] || [ "$fetched" != "$today" ]; then
+            # A re-run of any push, or a push while today's prices are
+            # missing, must pull every store, not just redeploy.
             refresh=true
           fi
           {
@@ -123,7 +131,9 @@ jobs:
       - name: Refresh branch stock coverage
         if: github.ref == 'refs/heads/main' && needs.gate.outputs.refresh == 'true'
         run: |
-          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "$(TZ=Pacific/Auckland date +%u)" != "7" ]; then
+          # The midnight dispatcher must not pull coverage every night; only an
+          # explicit force run does it outside Sunday.
+          if [ "${{ github.event.inputs.force }}" != "true" ] && [ "$(TZ=Pacific/Auckland date +%u)" != "7" ]; then
             echo "Branch stock coverage refreshes on Sundays."
             exit 0
           fi
@@ -134,7 +144,7 @@ jobs:
         # also runs this check so a new catalogue can never commit past it.
         run: npm run staples:check
       - name: Commit refreshed prices
-        # A Woolworths-only retry must be committed too, or the next hourly run
+        # A Woolworths-only retry must be committed too, or the next dispatch
         # sees the same stale source date and pulls it again.
         if: github.ref == 'refs/heads/main' && (needs.gate.outputs.refresh == 'true' || needs.gate.outputs.wow == 'true')
         env:
