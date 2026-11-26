@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "stale-price-banner-2026-11-26";
+window.TROLLEYBIRD_BUILD = "halal-category-2026-11-26";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -458,7 +458,30 @@ function ensureGtins() {
   return promise;
 }
 
-const CATEGORIES = ["All", ...new Set(PRODUCTS.map((p) => p.category))];
+/* Halal is a dietary browse category, not a store aisle: the catalogue has no
+   halal field, so this lists products whose own name, brand or subcategory says
+   halal. It is a label match, not a certification claim. */
+const HALAL_CATEGORY = "Halal";
+const CATEGORIES = ["All", HALAL_CATEGORY, ...new Set(PRODUCTS.map((p) => p.category))];
+const HALAL_LABEL = /\b(?:halal|zabiha)\b/i;
+const HALAL_FLAGS = new WeakMap();
+
+function isHalalLabelled(product) {
+  let flag = HALAL_FLAGS.get(product);
+  if (flag === undefined) {
+    flag = HALAL_LABEL.test(
+      `${product.name} ${product.brand || ""} ${product.subcategory || ""}`
+    );
+    HALAL_FLAGS.set(product, flag);
+  }
+  return flag;
+}
+
+function productInCategory(product, category) {
+  return category === HALAL_CATEGORY
+    ? isHalalLabelled(product)
+    : product.category === category;
+}
 
 /* Inline aisle illustrations rather than emoji, so the tiles render the same
    on every platform and do not depend on a colour-emoji font. */
@@ -487,14 +510,20 @@ const CATEGORY_ICONS = {
     <path d="M8.8 13.8c1.2-2.2 3.9-3.5 7.2-3.5s6 1.3 7.2 3.5" stroke="#f0cf9f" stroke-width="1.5" stroke-linecap="round"/>
     <path d="m12 18 2-2m2 2 2-2m2 2 2-2" stroke="#b57d3f" stroke-width="1.4" stroke-linecap="round"/>
   </svg>`,
+  halal: `<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <circle cx="16" cy="16" r="12" fill="#eaf4ee" stroke="#3f7d5d" stroke-width="1.2"/>
+    <circle cx="16" cy="16" r="8.9" fill="none" stroke="#8fbfa6" stroke-width="1" stroke-dasharray="2.2 2.2"/>
+    <path d="m11.9 16.2 2.9 2.9 5.5-6.1" stroke="#15794b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
 };
 
-/* The four aisles that earn a picture tile above the full category list. */
+/* The aisles that earn a picture tile above the full category list. */
 const FEATURED_CATEGORIES = [
   { label: "Dairy", category: "Fridge, Deli & Eggs", icon: CATEGORY_ICONS.dairy },
   { label: "Meat", category: "Meat, Poultry & Seafood", icon: CATEGORY_ICONS.meat },
   { label: "Produce", category: "Fruit & Vegetables", icon: CATEGORY_ICONS.produce },
   { label: "Bakery", category: "Bakery", icon: CATEGORY_ICONS.bakery },
+  { label: "Halal", category: HALAL_CATEGORY, icon: CATEGORY_ICONS.halal },
 ];
 const STAPLE_IDS = new Set(DEMO_PRODUCTS.map((product) => product.id));
 const PAGE_SIZE = 60;
@@ -605,6 +634,7 @@ const el = {
   categoriesToggle: document.getElementById("categories-toggle"),
   productsHeading: document.getElementById("products-heading"),
   categories: document.getElementById("categories"),
+  categoryNote: document.getElementById("category-note"),
   sort: document.getElementById("product-sort"),
   resultsLine: document.getElementById("results-line"),
   showMore: document.getElementById("show-more"),
@@ -1981,7 +2011,7 @@ function productSearchScore(product, query) {
 function findMatchingProducts(query) {
   const matches = [];
   for (const product of PRODUCTS) {
-    if (state.category !== "All" && product.category !== state.category) continue;
+    if (state.category !== "All" && !productInCategory(product, state.category)) continue;
     if (!query.active) {
       matches.push({ product, score: 0 });
       continue;
@@ -2493,6 +2523,14 @@ function renderCategories() {
       </button>`
     )
     .join("");
+  if (el.categoryNote) {
+    const halal = state.category === HALAL_CATEGORY;
+    el.categoryNote.hidden = !halal;
+    if (halal) {
+      el.categoryNote.textContent =
+        "This lists products the store names as halal. Check the pack's certification mark before buying.";
+    }
+  }
 }
 
 function sortProducts(products) {

@@ -3476,8 +3476,19 @@ button.grocer-item__price:disabled {
 
 .category-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.5rem;
+}
+
+.category-note {
+  margin: 0.45rem 0 0;
+  color: var(--ink-mute);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.category-note[hidden] {
+  display: none;
 }
 
 .category-tile {
