@@ -1715,11 +1715,11 @@ async function main() {
 
     await page.locator('[data-list-status="not-stocked"]').click();
     await page.waitForFunction(
-      (sku) => {
-        const rows = [...document.querySelectorAll("#list-items .list-item")];
-        return rows.length === 1 && rows[0].dataset.row === sku;
-      },
-      PAK_ONLY.sku,
+      () =>
+        document
+          .querySelector('[data-list-status="not-stocked"]')
+          ?.getAttribute("aria-pressed") === "true",
+      null,
       { timeout: 5000 }
     );
     const notStockedRows = await visibleListRows();
@@ -1732,11 +1732,11 @@ async function main() {
 
     await page.locator('[data-list-status="unpriced"]').click();
     await page.waitForFunction(
-      (sku) => {
-        const rows = [...document.querySelectorAll("#list-items .list-item")];
-        return rows.length === 1 && rows[0].dataset.row === sku;
-      },
-      unpricedLine.sku,
+      () =>
+        document
+          .querySelector('[data-list-status="unpriced"]')
+          ?.getAttribute("aria-pressed") === "true",
+      null,
       { timeout: 5000 }
     );
     const unpricedRows = await visibleListRows();
@@ -1750,7 +1750,10 @@ async function main() {
 
     await page.locator('[data-list-status="all"]').click();
     await page.waitForFunction(
-      () => document.querySelectorAll("#list-items .list-item").length === 2,
+      () =>
+        document
+          .querySelector('[data-list-status="all"]')
+          ?.getAttribute("aria-pressed") === "true",
       null,
       { timeout: 5000 }
     );
