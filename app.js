@@ -888,11 +888,23 @@ const STORAGE_FAILURE_MESSAGE =
   "This browser can't save your changes: its storage is full or blocked. Your list still works here, but it may be lost when you reload.";
 let storageFailureActive = false;
 
+/* Saving works again: take the warning down before anything else reuses the
+   toast, and leave the live region in its normal polite state. */
+function markStorageSaved() {
+  if (!storageFailureActive) return;
+  storageFailureActive = false;
+  hideToast();
+  el.toastMessage.setAttribute("role", "status");
+  el.toastMessage.setAttribute("aria-live", "polite");
+  el.toastMessage.textContent = "";
+}
+
 function warnStorageFailure(error) {
   if (storageFailureActive) return;
   storageFailureActive = true;
-  // Assertive: losing saved work is not a routine confirmation.
-  toast(STORAGE_FAILURE_MESSAGE, { assertive: true, duration: 9000 });
+  // Sticky and assertive: the warning owns the toast until a save succeeds, so
+  // a later confirmation cannot hide that changes are not being saved.
+  toast(STORAGE_FAILURE_MESSAGE, { assertive: true, duration: 0 });
   console.warn("Trolleybird could not save this browser's state", error);
 }
 
@@ -906,7 +918,7 @@ function saveState() {
   }
   try {
     localStorage.setItem(STORAGE_KEY, payload);
-    storageFailureActive = false;
+    markStorageSaved();
     return true;
   } catch {
     // Fall through: freeing the lookup caches often makes enough room.
@@ -920,7 +932,7 @@ function saveState() {
   }
   try {
     localStorage.setItem(STORAGE_KEY, payload);
-    storageFailureActive = false;
+    markStorageSaved();
     return true;
   } catch (error) {
     warnStorageFailure(error);
@@ -3863,6 +3875,9 @@ function hideToast() {
   toastActionHandler = null;
 }
 function toast(message, { actionLabel = "", onAction = null, duration = 2400, assertive = false } = {}) {
+  // While saving is failing the warning owns the toast: a success confirmation
+  // such as "added to your list" must not hide it.
+  if (!assertive && storageFailureActive) return false;
   // A storage failure is announced assertively; ordinary confirmations stay
   // polite, so the attributes are set for every toast rather than left stale.
   el.toastMessage.setAttribute("role", assertive ? "alert" : "status");
@@ -3878,7 +3893,9 @@ function toast(message, { actionLabel = "", onAction = null, duration = 2400, as
     toastActionHandler = null;
   }
   el.toast.classList.add("is-on");
-  toastTimer = setTimeout(hideToast, duration);
+  // Duration 0 keeps the message up until it is replaced or a save succeeds.
+  toastTimer = duration > 0 ? setTimeout(hideToast, duration) : 0;
+  return true;
 }
 
 el.toastAction.addEventListener("click", () => {

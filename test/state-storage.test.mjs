@@ -313,3 +313,85 @@ test("a legacy state without live or prices still loads", () => {
   assert.deepEqual(loaded.prices, {});
   assert.deepEqual(loaded.live, []);
 });
+
+/* The warning has to outrank the confirmation that follows it: addToList()
+   saves, then toasts "… added to your list", which used to replace the alert
+   and leave the shopper unaware that nothing was being saved. */
+test("an add-to-list confirmation cannot replace the storage warning", () => {
+  const { context, storage, elementFor } = boot(baseState());
+  const message = elementFor("toast-message");
+
+  storage._state.failWrites = true;
+  context.addToList("milk-2l");
+
+  assert.match(message.textContent, /can't save your changes/i);
+  assert.equal(message.getAttribute("role"), "alert");
+  assert.equal(message.getAttribute("aria-live"), "assertive");
+  assert.ok(
+    elementFor("toast").classList.contains("is-on"),
+    "the warning must stay on screen"
+  );
+});
+
+test("an action toast such as clear-list Undo cannot replace the warning", () => {
+  const { context, storage, elementFor } = boot(
+    baseState({ list: [{ id: "milk-2l", qty: 1 }] })
+  );
+  const message = elementFor("toast-message");
+
+  storage._state.failWrites = true;
+  context.clearList();
+
+  assert.match(message.textContent, /can't save your changes/i);
+  assert.equal(message.getAttribute("role"), "alert");
+  assert.equal(
+    elementFor("toast-action").textContent,
+    "",
+    "the warning must not be swapped for the Undo action"
+  );
+});
+
+test("an ordinary toast is ignored while the warning is up", () => {
+  const { context, storage, elementFor } = boot(baseState());
+  const message = elementFor("toast-message");
+
+  storage._state.failWrites = true;
+  context.saveState();
+  const warning = message.textContent;
+
+  assert.equal(context.toast("Shopping list shared."), false);
+  assert.equal(message.textContent, warning);
+  assert.equal(message.getAttribute("role"), "alert");
+});
+
+test("a successful save clears the warning and restores normal toasts", () => {
+  const { context, storage, elementFor } = boot(baseState());
+  const message = elementFor("toast-message");
+  const toastEl = elementFor("toast");
+
+  storage._state.failWrites = true;
+  context.addToList("milk-2l");
+  assert.match(message.textContent, /can't save your changes/i);
+
+  storage._state.failWrites = false;
+  assert.equal(context.saveState(), true);
+
+  assert.equal(message.textContent, "");
+  assert.equal(message.getAttribute("role"), "status");
+  assert.equal(message.getAttribute("aria-live"), "polite");
+  assert.equal(toastEl.classList.contains("is-on"), false);
+
+  assert.equal(context.toast("Shopping list shared."), true);
+  assert.equal(message.textContent, "Shopping list shared.");
+  assert.equal(message.getAttribute("role"), "status");
+  assert.ok(toastEl.classList.contains("is-on"));
+});
+
+test("normal toasts still behave when storage works", () => {
+  const { context, elementFor } = boot(baseState());
+
+  assert.equal(context.toast("Saved."), true);
+  assert.equal(elementFor("toast-message").textContent, "Saved.");
+  assert.equal(elementFor("toast-message").getAttribute("role"), "status");
+  assert.ok(elementFor("toast").classList.contains("is-on"));
+});
