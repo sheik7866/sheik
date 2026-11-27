@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "halal-certified-brands-2026-11-27";
+window.TROLLEYBIRD_BUILD = "halal-card-badges-2026-11-27";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -469,19 +469,20 @@ const HALAL_LABEL = /\b(?:halal|zabiha)\b/i;
 
 /* Producers that publish halal certification: Tegel and Rangitikei (HCS),
    Ingham's and Brink's (FIANZ), Bostock Brothers (HCS), Turk's (halal-compliant
-   Foxton plant), and Silver Fern Farms. A Set limits a brand whose
+   Foxton plant), and Silver Fern Farms. `lines` limits a brand whose
    certification covers only part of its range: Silver Fern Farms certifies
-   its beef and lamb, not its venison. Keep the brand list in the UI note in
-   step with this table. */
+   its beef and lamb, not its venison. `reason` overrides the certifier badge
+   where no single certifier is published. Keep the brand list in the UI note
+   in step with this table. */
 const HALAL_PRODUCERS = new Map([
-  ["tegel", null],
-  ["rangitikei", null],
-  ["ingham's", null],
-  ["brink's", null],
-  ["brinks", null],
-  ["bostock brothers", null],
-  ["turk's", null],
-  ["silver fern farms", new Set(["Beef", "Lamb"])],
+  ["tegel", { certifier: "HCS" }],
+  ["rangitikei", { certifier: "HCS" }],
+  ["ingham's", { certifier: "FIANZ" }],
+  ["brink's", { certifier: "FIANZ" }],
+  ["brinks", { certifier: "FIANZ" }],
+  ["bostock brothers", { certifier: "HCS" }],
+  ["turk's", { reason: "Halal-compliant plant" }],
+  ["silver fern farms", { lines: new Set(["Beef", "Lamb"]), reason: "Beef & lamb certified" }],
 ]);
 const HALAL_FLAGS = new WeakMap();
 
@@ -496,13 +497,23 @@ function halalProducerKey(brand) {
 function isHalalProduct(product) {
   let flag = HALAL_FLAGS.get(product);
   if (flag === undefined) {
-    const lines = HALAL_PRODUCERS.get(halalProducerKey(product.brand));
+    const producer = HALAL_PRODUCERS.get(halalProducerKey(product.brand));
     flag =
       HALAL_LABEL.test(`${product.name} ${product.brand || ""} ${product.subcategory || ""}`) ||
-      (lines !== undefined && (lines === null || lines.has(product.subcategory)));
+      (producer !== undefined && (!producer.lines || producer.lines.has(product.subcategory)));
     HALAL_FLAGS.set(product, flag);
   }
   return flag;
+}
+
+/* The line under a product's meta that says why it is in the Halal view. */
+function halalReason(product) {
+  if (!isHalalProduct(product)) return "";
+  if (HALAL_LABEL.test(`${product.name} ${product.brand || ""} ${product.subcategory || ""}`)) {
+    return "Named halal on pack";
+  }
+  const producer = HALAL_PRODUCERS.get(halalProducerKey(product.brand));
+  return producer.reason || `${producer.certifier}-certified brand`;
 }
 
 function productInCategory(product, category) {
@@ -2614,6 +2625,7 @@ function renderProducts() {
       const unavailableStores = stores.filter((store) => knownUnavailable(product.id, store.id));
       const prices = stores.map((store) => effectivePriceFor(product.id, store)).filter((price) => price != null);
       const range = prices.length > 1 ? ` · ${money.format(Math.min(...prices))}–${money.format(Math.max(...prices))}` : "";
+      const halalBadge = state.category === HALAL_CATEGORY ? halalReason(product) : "";
       const priceSummary = best
         ? `, ${money.format(best.price)} at ${storeLabel(best.store)}${unit ? `, ${unit.display}` : ""}`
         : pricesLoading
@@ -2631,6 +2643,7 @@ function renderProducts() {
             <span class="product__body">
               <span class="product__name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
               <span class="product__meta">${escapeHtml(product.size)} · ${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}${product.source === "grocer" && product.stores ? ` · at ${product.stores} stores` : ""}</span>
+              ${halalBadge ? `<span class="product__halal">${escapeHtml(halalBadge)}</span>` : ""}
               <span class="product__best">
                 ${best ? `<b class="product__price">${money.format(best.price)}${bestKind === "checked" ? ' <em class="product__est is-real">checked</em>' : bestKind === "imported" ? ' <em class="product__est is-real">imported</em>' : bestKind === "special" ? ' <em class="product__est is-real">weekly special</em>' : product.estimated ? ' <em class="product__est">est.</em>' : ""}</b><small>${escapeHtml(storeLabel(best.store))}</small>` : `<b>—</b><small>${pricesLoading ? "loading prices…" : stores.length ? noPriceLabel(stores) : "no stores selected"}</small>`}
               </span>

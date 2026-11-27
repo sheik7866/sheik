@@ -1269,6 +1269,20 @@
   color: var(--ink-mute);
 }
 
+.product__halal {
+  justify-self: start;
+  margin-top: 0.18rem;
+  padding: 0.11rem 0.42rem;
+  border-radius: 999px;
+  background: rgba(21, 121, 75, 0.1);
+  color: var(--leaf-deep);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
 .product__best {
   display: flex;
   flex-wrap: wrap;
