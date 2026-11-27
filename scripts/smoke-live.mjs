@@ -343,7 +343,7 @@ async function waitForCurrentBuild(page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       await page.waitForFunction(
-        () => window.TROLLEYBIRD_BUILD === "halal-dialog-reason-2026-11-27",
+        () => window.TROLLEYBIRD_BUILD === "published-prices-only-2026-11-27",
         null,
         { timeout: 5000 }
       );

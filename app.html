@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Keep this version in step with the build marker so a cached bundle cannot
        outlive a deployment. -->
-  <link rel="stylesheet" href="app.css?v=halal-dialog-reason-2026-11-27" />
+  <link rel="stylesheet" href="app.css?v=published-prices-only-2026-11-27" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
@@ -84,8 +84,8 @@
           <p>
             Scanned barcodes match products by their real GTIN, with a fallback to Open
             Food Facts. Searches also query Grocer's public product catalogue, so names,
-            brands, sizes and store coverage are real. Prices are estimates, except the
-            PAK'nSAVE, New World and Woolworths branch prices checked every night. Every
+            brands, sizes and store coverage are real. Only published branch prices and
+            prices you record yourself are shown — never an estimated price. Every
             branch uses its own price list where it differs from the banner's island base
             list, and stockedness comes from that branch's own product range. Multi-buy
             and club-member shelf tags are shown where the branch lists them, and basket
@@ -237,8 +237,8 @@
           <p class="grocer-live__note">
             Live product data from <a href="https://grocer.nz" target="_blank" rel="noopener">grocer.nz</a>'s
             public catalogue; its published per-store price dataset supplies the
-            Woolworths branch prices. Anything else stays estimated until you record what
-            you saw on the shelf.
+            Woolworths branch prices. A product with none of those shows no price until
+            you record what you saw on the shelf.
           </p>
         </section>
         <p class="empty" id="empty-products" hidden>
@@ -300,7 +300,7 @@
         <button class="btn btn--outline receipt-open" type="button" id="receipt-button" hidden>View receipt</button>
         <button class="btn btn--outline receipt-open" type="button" id="share-list" hidden>Share list</button>
         <button class="btn btn--outline receipt-open" type="button" id="copy-list-link" hidden>Copy list link</button>
-        <p class="demo-note" id="totals-note">Totals use estimates plus any shelf prices you've recorded or imported. Multi-buys apply at the stated quantity, with assorted offers pooled across products; turn on Club card for club prices. Four Square's weekly specials are shown per product but are not included in basket totals.</p>
+        <p class="demo-note" id="totals-note">Totals use published branch prices and any shelf prices you've recorded or imported. Multi-buys apply at the stated quantity, with assorted offers pooled across products; turn on Club card for club prices. Four Square's weekly specials are shown per product but are not included in basket totals.</p>
       </aside>
     </div>
   </main>
@@ -417,7 +417,7 @@
     <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
   </div>
 
-  <script src="app.js?v=halal-dialog-reason-2026-11-27" defer></script>
+  <script src="app.js?v=published-prices-only-2026-11-27" defer></script>
   <script src="scanner.js" defer></script>
 </body>
 </html>
