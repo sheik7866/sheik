@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "halal-category-2026-11-26";
+window.TROLLEYBIRD_BUILD = "halal-certified-brands-2026-11-27";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -459,19 +459,47 @@ function ensureGtins() {
 }
 
 /* Halal is a dietary browse category, not a store aisle: the catalogue has no
-   halal field, so this lists products whose own name, brand or subcategory says
-   halal. It is a label match, not a certification claim. */
+   halal field. It lists packs that name halal, plus products from producers
+   whose own published statements certify their retail range. Certification
+   covers the plant, not the supermarket pack, so the note in the UI says to
+   check the pack or ask the butcher. */
 const HALAL_CATEGORY = "Halal";
 const CATEGORIES = ["All", HALAL_CATEGORY, ...new Set(PRODUCTS.map((p) => p.category))];
 const HALAL_LABEL = /\b(?:halal|zabiha)\b/i;
+
+/* Producers that publish halal certification: Tegel and Rangitikei (HCS),
+   Ingham's and Brink's (FIANZ), Bostock Brothers (HCS), Turk's (halal-compliant
+   Foxton plant), and Silver Fern Farms. A Set limits a brand whose
+   certification covers only part of its range: Silver Fern Farms certifies
+   its beef and lamb, not its venison. Keep the brand list in the UI note in
+   step with this table. */
+const HALAL_PRODUCERS = new Map([
+  ["tegel", null],
+  ["rangitikei", null],
+  ["ingham's", null],
+  ["brink's", null],
+  ["brinks", null],
+  ["bostock brothers", null],
+  ["turk's", null],
+  ["silver fern farms", new Set(["Beef", "Lamb"])],
+]);
 const HALAL_FLAGS = new WeakMap();
 
-function isHalalLabelled(product) {
+function halalProducerKey(brand) {
+  return String(brand || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/\s+/g, " ");
+}
+
+function isHalalProduct(product) {
   let flag = HALAL_FLAGS.get(product);
   if (flag === undefined) {
-    flag = HALAL_LABEL.test(
-      `${product.name} ${product.brand || ""} ${product.subcategory || ""}`
-    );
+    const lines = HALAL_PRODUCERS.get(halalProducerKey(product.brand));
+    flag =
+      HALAL_LABEL.test(`${product.name} ${product.brand || ""} ${product.subcategory || ""}`) ||
+      (lines !== undefined && (lines === null || lines.has(product.subcategory)));
     HALAL_FLAGS.set(product, flag);
   }
   return flag;
@@ -479,7 +507,7 @@ function isHalalLabelled(product) {
 
 function productInCategory(product, category) {
   return category === HALAL_CATEGORY
-    ? isHalalLabelled(product)
+    ? isHalalProduct(product)
     : product.category === category;
 }
 
@@ -2528,7 +2556,7 @@ function renderCategories() {
     el.categoryNote.hidden = !halal;
     if (halal) {
       el.categoryNote.textContent =
-        "This lists products the store names as halal. Check the pack's certification mark before buying.";
+        "Halal-labelled packs plus brands certified halal: Tegel and Rangitikei (HCS), Ingham's and Brink's (FIANZ), Bostock Brothers (HCS), Turk's, and Silver Fern Farms beef and lamb. Many NZ packs carry no mark, and butcher-shop meat isn't in these supermarket price lists — ask the butcher for their certificate.";
     }
   }
 }
