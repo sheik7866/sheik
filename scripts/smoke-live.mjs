@@ -6,8 +6,9 @@
   a PAK'nSAVE-only product, a New World-only product and a mixed basket must
   show "not stocked" instead of an invented price, and a chain missing an item
   must not be ranked or totalled. The list's Not stocked filter must keep
-  listing only the branch-range absences, while No price lists the packs the
-  branch stocks but has no published price for. It also verifies products show
+  listing only the branch-range absences, while No price lists the packs a
+  branch stocks but has no published price for; with two branches selected an
+  absence needs both ranges to lack the pack. It also verifies products show
   their real GTINs (including the V can's 8-digit EAN-8) and   decodes the rendered images
   with the site's own vendored ZXing build, so a broken barcode image fails the
   post-deploy check. Products without a valid GTIN must show no barcode card.
@@ -371,37 +372,55 @@ async function searchProduct(page, { name, sku }) {
 
 /* Two kinds of blank price share the shopping list: a pack the branch's own
    range says it does not stock, and one it stocks but has no published shelf
-   price for. Pick one of the latter from the deployed data so the filter test
-   always has both kinds on the list. The New World North Island base list is
-   pulled from Point Chevalier, so its nw-ni column is that branch's price and
-   there is no override file to apply. */
-async function findUnpricedLine(page) {
-  return page.evaluate(() => {
+   price for. A base branch needs no override file, because its price is the
+   catalogue's own column (Mt Albert pns-ni, Point Chevalier nw-ni). Return the
+   packs those columns do not price, with each branch's own range answer, so a
+   test can pick both kinds from the deployed data. Longest names first so the
+   catalogue search brings back the pack and little else. */
+async function findUnpricedLines(page, branches) {
+  return page.evaluate((wanted) => {
     const coverage = window.GROCER_COVERAGE;
     const catalogue = window.GROCER_CATALOGUE;
-    const store = (window.GROCER_STORES?.stores || []).find(
-      (row) => row.brand === "nw" && row.branch === "Point Chevalier"
-    );
-    const branch = store ? coverage?.branches?.[store.id] : null;
-    if (!branch?.bits || !Array.isArray(coverage.ids) || !Array.isArray(catalogue?.items)) {
-      return null;
+    const stores = window.GROCER_STORES?.stores || [];
+    if (!Array.isArray(coverage?.ids) || !Array.isArray(catalogue?.items)) return [];
+    const bitmaps = wanted.map(({ brand, branch }) => {
+      const store = stores.find((row) => row.brand === brand && row.branch === branch);
+      const entry = store ? coverage.branches?.[store.id] : null;
+      return entry?.bits ? Uint8Array.from(atob(entry.bits), (char) => char.charCodeAt(0)) : null;
+    });
+    if (bitmaps.some((bits) => !bits)) return [];
+    // Imported staples replace their catalogue row with a curated product, so
+    // a catalogue line they cover has no card in the grid to search for.
+    const curated = new Set();
+    for (const imp of [window.GROCER_PAKNSAVE_IMPORT, window.GROCER_NEWWORLD_IMPORT]) {
+      for (const item of Object.values(imp?.items || {})) {
+        const id = String(item.sku || "")
+          .replace(/(?:pns|nw)$/i, "")
+          .replace(/_/g, "-")
+          .toUpperCase();
+        if (id) curated.add(id);
+      }
     }
-    const bytes = Uint8Array.from(atob(branch.bits), (char) => char.charCodeAt(0));
     const position = new Map(
       coverage.ids.map((id, index) => [String(id).toUpperCase(), index])
     );
     const lines = [];
     for (const row of catalogue.items) {
-      const index = position.get(String(row[0]).toUpperCase());
+      const id = String(row[0]).toUpperCase();
+      if (curated.has(id)) continue;
+      const index = position.get(id);
       if (index == null) continue;
-      const stocked = (bytes[index >> 3] & (0x80 >> (index & 7))) !== 0;
-      // row[7] is the New World North Island shelf price; 0 means none.
-      if (!stocked || Number(row[7]) > 0) continue;
-      lines.push({ sku: row[0], name: row[1], size: row[3] });
+      if (wanted.some(({ priceIndex }) => Number(row[priceIndex]) > 0)) continue;
+      lines.push({
+        sku: row[0],
+        name: row[1],
+        size: row[3],
+        stocked: bitmaps.map((bits) => (bits[index >> 3] & (0x80 >> (index & 7))) !== 0),
+      });
     }
-    lines.sort((a, b) => a.name.length - b.name.length || a.name.localeCompare(b.name));
-    return lines[0] || null;
-  });
+    lines.sort((a, b) => b.name.length - a.name.length || a.name.localeCompare(b.name));
+    return lines;
+  }, branches);
 }
 
 async function decodeRenderedBarcode(page, selector) {
@@ -1656,7 +1675,10 @@ async function main() {
       { timeout: 5000 }
     );
 
-    const unpricedLine = await findUnpricedLine(page);
+    const pointChevalierLines = await findUnpricedLines(page, [
+      { brand: "nw", branch: "Point Chevalier", priceIndex: 7 },
+    ]);
+    const unpricedLine = pointChevalierLines.find((line) => line.stocked[0]) || null;
     assert(
       unpricedLine,
       "no catalogue line is stocked but unpriced at New World Point Chevalier"
@@ -1746,6 +1768,124 @@ async function main() {
         unpricedRows[0].text.includes("no published price at your stores") &&
         !unpricedRows[0].text.includes("not stocked"),
       `No price should list the stocked-but-unpriced line: ${JSON.stringify(unpricedRows)}`
+    );
+
+    await page.locator('[data-list-status="all"]').click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[data-list-status="all"]')
+          ?.getAttribute("aria-pressed") === "true",
+      null,
+      { timeout: 5000 }
+    );
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
+
+    step("checking the Not stocked chip across two branches");
+    await addStore(page, { query: "Mt Albert", brand: "Pak'nSave", branch: "Mt Albert" }, 2);
+    const twoBranches = [
+      { brand: "pns", branch: "Mt Albert", priceIndex: 6 },
+      { brand: "nw", branch: "Point Chevalier", priceIndex: 7 },
+    ];
+    const twoBranchLines = await findUnpricedLines(page, twoBranches);
+    const absentEverywhere =
+      twoBranchLines.find((line) => line.stocked.every((stocked) => !stocked)) || null;
+    const absentAtOne =
+      twoBranchLines.find(
+        (line) => line.stocked.includes(true) && line.stocked.includes(false)
+      ) || null;
+    assert(absentEverywhere, "no catalogue line is absent from both branches' ranges");
+    assert(
+      absentAtOne,
+      "no catalogue line is stocked by one branch's range and absent from the other's"
+    );
+    console.log(
+      `[smoke] absent from both ranges: ${absentEverywhere.name}; stocked at one only: ${absentAtOne.name}`
+    );
+
+    const stockNote = async (sku) => {
+      const note = page.locator(
+        `#product-grid li.product:has([data-product="${sku}"]) .product__stock`
+      );
+      return (await note.count()) ? normalize(await note.innerText()) : "";
+    };
+    const absentEverywhereNote = await stockNote(absentEverywhere.sku);
+    assert(
+      absentEverywhereNote.includes("Not at") &&
+        absentEverywhereNote.includes("Mt Albert") &&
+        absentEverywhereNote.includes("Point Chevalier"),
+      `both branches should be missing this line: ${absentEverywhereNote}`
+    );
+    await addToList(page, absentEverywhere.sku, 1);
+
+    const missingBranch = absentAtOne.stocked[0] ? "Point Chevalier" : "Mt Albert";
+    const stockingBranch = absentAtOne.stocked[0] ? "Mt Albert" : "Point Chevalier";
+    const absentAtOneNote = await stockNote(absentAtOne.sku);
+    assert(
+      absentAtOneNote.includes("Not at") &&
+        absentAtOneNote.includes(missingBranch) &&
+        !absentAtOneNote.includes(stockingBranch),
+      `only ${missingBranch} should be missing this line: ${absentAtOneNote}`
+    );
+    await addToList(page, absentAtOne.sku, 2);
+
+    const absentEverywhereText = await listText(absentEverywhere.sku);
+    const absentAtOneText = await listText(absentAtOne.sku);
+    assert(
+      absentEverywhereText.includes("not stocked at your stores"),
+      `a pack both ranges lack should be called not stocked: ${absentEverywhereText}`
+    );
+    assert(
+      absentAtOneText.includes("no published price at your stores") &&
+        !absentAtOneText.includes("not stocked"),
+      `a pack one branch stocks must not be called not stocked: ${absentAtOneText}`
+    );
+
+    const twoStoreNotStockedCount = await listChipCount("not-stocked");
+    const twoStoreUnpricedCount = await listChipCount("unpriced");
+    assert(
+      twoStoreNotStockedCount === "1" && twoStoreUnpricedCount === "1",
+      `two branches should still split the blank-price kinds: ${twoStoreNotStockedCount} not stocked, ${twoStoreUnpricedCount} no price`
+    );
+
+    await page.locator('[data-list-status="not-stocked"]').click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[data-list-status="not-stocked"]')
+          ?.getAttribute("aria-pressed") === "true",
+      null,
+      { timeout: 5000 }
+    );
+    const everyBranchRows = await visibleListRows();
+    assert(
+      everyBranchRows.length === 1 &&
+        everyBranchRows[0].id === absentEverywhere.sku &&
+        everyBranchRows[0].text.includes("not stocked at your stores"),
+      `Not stocked should need every branch to lack the pack: ${JSON.stringify(everyBranchRows)}`
+    );
+
+    await page.locator('[data-list-status="unpriced"]').click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[data-list-status="unpriced"]')
+          ?.getAttribute("aria-pressed") === "true",
+      null,
+      { timeout: 5000 }
+    );
+    const oneBranchRows = await visibleListRows();
+    assert(
+      oneBranchRows.length === 1 &&
+        oneBranchRows[0].id === absentAtOne.sku &&
+        oneBranchRows[0].text.includes("no published price at your stores") &&
+        !oneBranchRows[0].text.includes("not stocked"),
+      `No price should hold the pack one branch stocks: ${JSON.stringify(oneBranchRows)}`
     );
 
     await page.locator('[data-list-status="all"]').click();
