@@ -5,8 +5,10 @@
   It replays the per-store availability check against the deployed site:
   a PAK'nSAVE-only product, a New World-only product and a mixed basket must
   show "not stocked" instead of an invented price, and a chain missing an item
-  must not be ranked or totalled. It also verifies products show their real
-  GTINs (including the V can's 8-digit EAN-8) and   decodes the rendered images
+  must not be ranked or totalled. The list's Not stocked filter must keep
+  listing only the branch-range absences, while No price lists the packs the
+  branch stocks but has no published price for. It also verifies products show
+  their real GTINs (including the V can's 8-digit EAN-8) and   decodes the rendered images
   with the site's own vendored ZXing build, so a broken barcode image fails the
   post-deploy check. Products without a valid GTIN must show no barcode card.
   A backfilled pack (Purina Fancy Feast, the UPC-A 050000426942 filed without
@@ -365,6 +367,41 @@ async function searchProduct(page, { name, sku }) {
   await page.fill("#search", name);
   await page.waitForSelector(`#product-grid [data-add="${sku}"]`, { timeout: 20000 });
   return cardText(page, sku);
+}
+
+/* Two kinds of blank price share the shopping list: a pack the branch's own
+   range says it does not stock, and one it stocks but has no published shelf
+   price for. Pick one of the latter from the deployed data so the filter test
+   always has both kinds on the list. The New World North Island base list is
+   pulled from Point Chevalier, so its nw-ni column is that branch's price and
+   there is no override file to apply. */
+async function findUnpricedLine(page) {
+  return page.evaluate(() => {
+    const coverage = window.GROCER_COVERAGE;
+    const catalogue = window.GROCER_CATALOGUE;
+    const store = (window.GROCER_STORES?.stores || []).find(
+      (row) => row.brand === "nw" && row.branch === "Point Chevalier"
+    );
+    const branch = store ? coverage?.branches?.[store.id] : null;
+    if (!branch?.bits || !Array.isArray(coverage.ids) || !Array.isArray(catalogue?.items)) {
+      return null;
+    }
+    const bytes = Uint8Array.from(atob(branch.bits), (char) => char.charCodeAt(0));
+    const position = new Map(
+      coverage.ids.map((id, index) => [String(id).toUpperCase(), index])
+    );
+    const lines = [];
+    for (const row of catalogue.items) {
+      const index = position.get(String(row[0]).toUpperCase());
+      if (index == null) continue;
+      const stocked = (bytes[index >> 3] & (0x80 >> (index & 7))) !== 0;
+      // row[7] is the New World North Island shelf price; 0 means none.
+      if (!stocked || Number(row[7]) > 0) continue;
+      lines.push({ sku: row[0], name: row[1], size: row[3] });
+    }
+    lines.sort((a, b) => a.name.length - b.name.length || a.name.localeCompare(b.name));
+    return lines[0] || null;
+  });
 }
 
 async function decodeRenderedBarcode(page, selector) {
@@ -1599,6 +1636,130 @@ async function main() {
       `receipt should have no complete basket total: ${receipt}`
     );
     assert(/imp\./i.test(receipt), `receipt should label imported prices: ${receipt}`);
+
+    step("checking the Not stocked and No price list filters");
+    await page.click("[data-close-receipt]");
+    await page.waitForFunction(() => !document.querySelector("#receipt-dialog")?.open);
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
+    await removeStore(
+      page,
+      page.locator("#store-list .store-selected").filter({ hasText: "Mt Albert" }).first()
+    );
+    await page.waitForFunction(
+      () => document.querySelectorAll("#store-list .store-selected").length === 1,
+      null,
+      { timeout: 5000 }
+    );
+
+    const unpricedLine = await findUnpricedLine(page);
+    assert(
+      unpricedLine,
+      "no catalogue line is stocked but unpriced at New World Point Chevalier"
+    );
+    console.log(`[smoke] stocked but unpriced at Point Chevalier: ${unpricedLine.name}`);
+
+    // The product cards already separate the two blank-price cases, so they
+    // say which line belongs under which chip before the list is filtered.
+    const absenceCard = await searchProduct(page, PAK_ONLY);
+    assert(
+      absenceCard.includes("no published price") && absenceCard.includes("Not at New World"),
+      `the branch range should lack this line: ${absenceCard}`
+    );
+    await addToList(page, PAK_ONLY.sku, 1);
+
+    const unpricedCard = await searchProduct(page, unpricedLine);
+    assert(
+      unpricedCard.includes("no published price") &&
+        !/Not at (?:New World|Pak'nSave)/.test(unpricedCard),
+      `this line should be stocked but unpriced: ${unpricedCard}`
+    );
+    await addToList(page, unpricedLine.sku, 2);
+
+    const listText = async (sku) =>
+      normalize(await page.locator(`#list-items [data-row="${sku}"]`).innerText()).toLowerCase();
+    const absenceText = await listText(PAK_ONLY.sku);
+    const unpricedText = await listText(unpricedLine.sku);
+    assert(
+      absenceText.includes("not stocked at your stores"),
+      `the branch-range absence should say it is not stocked: ${absenceText}`
+    );
+    assert(
+      unpricedText.includes("no published price at your stores") &&
+        !unpricedText.includes("not stocked"),
+      `the stocked-but-unpriced line should not be called absent: ${unpricedText}`
+    );
+
+    const listChipCount = async (status) =>
+      normalize(
+        await page.locator(`[data-list-status="${status}"] [data-list-count]`).innerText()
+      );
+    const notStockedCount = await listChipCount("not-stocked");
+    const unpricedCount = await listChipCount("unpriced");
+    assert(
+      notStockedCount === "1" && unpricedCount === "1",
+      `chips should count the two blank-price kinds separately: ${notStockedCount} not stocked, ${unpricedCount} no price`
+    );
+
+    const visibleListRows = async () =>
+      page.locator("#list-items .list-item").evaluateAll((rows) =>
+        rows.map((row) => ({
+          id: row.dataset.row,
+          text: row.innerText.replace(/\s+/g, " ").trim().toLowerCase(),
+        }))
+      );
+
+    await page.locator('[data-list-status="not-stocked"]').click();
+    await page.waitForFunction(
+      (sku) => {
+        const rows = [...document.querySelectorAll("#list-items .list-item")];
+        return rows.length === 1 && rows[0].dataset.row === sku;
+      },
+      PAK_ONLY.sku,
+      { timeout: 5000 }
+    );
+    const notStockedRows = await visibleListRows();
+    assert(
+      notStockedRows.length === 1 &&
+        notStockedRows[0].id === PAK_ONLY.sku &&
+        notStockedRows[0].text.includes("not stocked at your stores"),
+      `Not stocked should list only the branch-range absence: ${JSON.stringify(notStockedRows)}`
+    );
+
+    await page.locator('[data-list-status="unpriced"]').click();
+    await page.waitForFunction(
+      (sku) => {
+        const rows = [...document.querySelectorAll("#list-items .list-item")];
+        return rows.length === 1 && rows[0].dataset.row === sku;
+      },
+      unpricedLine.sku,
+      { timeout: 5000 }
+    );
+    const unpricedRows = await visibleListRows();
+    assert(
+      unpricedRows.length === 1 &&
+        unpricedRows[0].id === unpricedLine.sku &&
+        unpricedRows[0].text.includes("no published price at your stores") &&
+        !unpricedRows[0].text.includes("not stocked"),
+      `No price should list the stocked-but-unpriced line: ${JSON.stringify(unpricedRows)}`
+    );
+
+    await page.locator('[data-list-status="all"]').click();
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 2,
+      null,
+      { timeout: 5000 }
+    );
+    await page.click("#clear-list");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#list-items .list-item").length === 0,
+      null,
+      { timeout: 5000 }
+    );
 
     step("checking Four Square's specials-only stores");
     await page.evaluate(() => localStorage.clear());
