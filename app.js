@@ -571,6 +571,11 @@ let freshStoreId = "";
 const MAX_FREE_STORES = 6;
 const MAX_PRO_STORES = 30;
 const STORAGE_KEY = "grocer-demo-v1";
+/* Discovered products are cached so a saved list and its recorded prices still
+   resolve on reload. Rows nothing refers to are capped; rows the saved list or
+   a recorded price points at are always kept, because dropping one would drop
+   the user's own data with it. */
+const LIVE_CACHE_LIMIT = 200;
 const TAB_IDS = ["stores", "catalog", "list"];
 const SORT_MODES = ["relevance", "price", "unit"];
 const LIST_FILTER_STATUSES = ["all", "special", "not-stocked", "unpriced"];
@@ -784,48 +789,64 @@ function loadState() {
     const parsed = JSON.parse(raw);
     const savedCategory = normalizeCategory(parsed.category);
 
-    // Discovered products must exist before the saved list is filtered,
-    // otherwise their basket rows would be dropped on reload.
-    const live = Array.isArray(parsed.live)
-      ? parsed.live
-          .filter(
-            (row) =>
-              row &&
-              typeof row.id === "string" &&
-              typeof row.code === "string" &&
-              typeof row.name === "string" &&
-              Number.isFinite(row.base) &&
-              row.base > 0 &&
-              CATEGORIES.includes(normalizeCategory(row.category))
-          )
-          .slice(0, 200)
-          .map((row) => ({
-            id: row.id,
-            code: row.code,
-            name: row.name,
-            size: typeof row.size === "string" ? row.size : "",
-            brand: typeof row.brand === "string" ? row.brand : "",
-            image: typeof row.image === "string" ? row.image : "",
-            source: row.source === "grocer" ? "grocer" : "off",
-            stores: Number.isFinite(row.stores) ? row.stores : 0,
-            category: normalizeCategory(row.category),
-            base: row.base,
-          }))
-      : [];
+    // The saved list and the recorded prices are the user's data, so the
+    // product metadata they point at has to survive before the list is
+    // filtered; only cache rows nothing refers to are capped.
+    const savedPrices =
+      parsed.prices && typeof parsed.prices === "object" ? parsed.prices : {};
+    const referencedIds = new Set();
+    for (const row of Array.isArray(parsed.list) ? parsed.list : []) {
+      if (row && typeof row.id === "string") referencedIds.add(row.id);
+    }
+    for (const key of Object.keys(savedPrices)) {
+      const productId = String(key).split("|")[0];
+      if (productId) referencedIds.add(productId);
+    }
+
+    const live = [];
+    let liveCacheBudget = LIVE_CACHE_LIMIT;
+    for (const row of Array.isArray(parsed.live) ? parsed.live : []) {
+      if (
+        !row ||
+        typeof row.id !== "string" ||
+        typeof row.code !== "string" ||
+        typeof row.name !== "string" ||
+        !Number.isFinite(row.base) ||
+        row.base <= 0 ||
+        !CATEGORIES.includes(normalizeCategory(row.category))
+      ) {
+        continue;
+      }
+      if (!referencedIds.has(row.id)) {
+        if (liveCacheBudget <= 0) continue;
+        liveCacheBudget -= 1;
+      }
+      live.push({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        size: typeof row.size === "string" ? row.size : "",
+        brand: typeof row.brand === "string" ? row.brand : "",
+        image: typeof row.image === "string" ? row.image : "",
+        source: row.source === "grocer" ? "grocer" : "off",
+        stores: Number.isFinite(row.stores) ? row.stores : 0,
+        category: normalizeCategory(row.category),
+        base: row.base,
+      });
+    }
     live.forEach(createLiveProduct);
 
+    // Every valid recorded price is kept: a shelf price the shopper typed is
+    // their data, not a cache to trim.
     const prices = {};
-    if (parsed.prices && typeof parsed.prices === "object") {
-      Object.keys(parsed.prices).slice(0, 500).forEach((key) => {
-        const row = parsed.prices[key];
-        const [productId, storeId] = key.split("|");
-        if (!row || !PRODUCT_MAP.has(productId) || !STORE_MAP.has(storeId)) return;
-        if (!Number.isFinite(row.price) || row.price <= 0) return;
-        prices[key] = {
-          price: Math.round(row.price * 100) / 100,
-          at: typeof row.at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.at) ? row.at : todayIso(),
-        };
-      });
+    for (const [key, row] of Object.entries(savedPrices)) {
+      const [productId, storeId] = key.split("|");
+      if (!row || !PRODUCT_MAP.has(productId) || !STORE_MAP.has(storeId)) continue;
+      if (!Number.isFinite(row.price) || row.price <= 0) continue;
+      prices[key] = {
+        price: Math.round(row.price * 100) / 100,
+        at: typeof row.at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.at) ? row.at : todayIso(),
+      };
     }
 
     const savedStores = Array.isArray(parsed.stores)
@@ -860,11 +881,50 @@ function loadState() {
 
 let state = loadState();
 
+/* Caches for remote lookups. They are disposable, so a failed save drops them
+   to make room for the shopping list and the prices the shopper recorded. */
+const DISPOSABLE_STORAGE_KEYS = [OFF_CACHE_KEY, GROCER_CACHE_KEY];
+const STORAGE_FAILURE_MESSAGE =
+  "This browser can't save your changes: its storage is full or blocked. Your list still works here, but it may be lost when you reload.";
+let storageFailureActive = false;
+
+function warnStorageFailure(error) {
+  if (storageFailureActive) return;
+  storageFailureActive = true;
+  // Assertive: losing saved work is not a routine confirmation.
+  toast(STORAGE_FAILURE_MESSAGE, { assertive: true, duration: 9000 });
+  console.warn("Trolleybird could not save this browser's state", error);
+}
+
 function saveState() {
+  let payload;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    payload = JSON.stringify(state);
+  } catch (error) {
+    warnStorageFailure(error);
+    return false;
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, payload);
+    storageFailureActive = false;
+    return true;
   } catch {
-    /* storage may be unavailable — the demo still works for this session */
+    // Fall through: freeing the lookup caches often makes enough room.
+  }
+  for (const key of DISPOSABLE_STORAGE_KEYS) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* removing a cache cannot make things worse */
+    }
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, payload);
+    storageFailureActive = false;
+    return true;
+  } catch (error) {
+    warnStorageFailure(error);
+    return false;
   }
 }
 
@@ -3802,7 +3862,11 @@ function hideToast() {
   el.toastAction.hidden = true;
   toastActionHandler = null;
 }
-function toast(message, { actionLabel = "", onAction = null, duration = 2400 } = {}) {
+function toast(message, { actionLabel = "", onAction = null, duration = 2400, assertive = false } = {}) {
+  // A storage failure is announced assertively; ordinary confirmations stay
+  // polite, so the attributes are set for every toast rather than left stale.
+  el.toastMessage.setAttribute("role", assertive ? "alert" : "status");
+  el.toastMessage.setAttribute("aria-live", assertive ? "assertive" : "polite");
   el.toastMessage.textContent = message;
   clearTimeout(toastTimer);
   if (actionLabel && typeof onAction === "function") {

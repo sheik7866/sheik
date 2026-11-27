@@ -2,6 +2,7 @@
   "name": "trolleybird-demo",
   "private": true,
   "scripts": {
+    "test": "node --test test/*.test.mjs",
     "prices:refresh": "node scripts/refresh-prices.mjs",
     "prices:pull:all": "node scripts/pull-all-store-prices.mjs",
     "prices:build:stores": "node scripts/build-store-price-data.mjs",
