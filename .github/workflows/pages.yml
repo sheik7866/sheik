@@ -107,6 +107,14 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - name: Check JavaScript syntax
+        # Neither this nor the unit tests need npm install, so a broken commit
+        # fails here instead of after the 300-minute price refresh.
+        run: |
+          node --check app.js
+          node --check scanner.js
+      - name: Run unit tests
+        run: npm test
       - name: Install dependencies
         run: npm ci
       - name: Refresh every store's prices
@@ -173,6 +181,46 @@ jobs:
           fi
           git commit -m "$message"
           git push origin HEAD:main
+      - name: Stage the published site
+        # Publish only what the browser loads. Test suites, pipeline scripts and
+        # package metadata stay in the repository, not on the web.
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp -R app.html app.css app.js scanner.js styles.css index.html \
+                demo-sku-map.js .nojekyll data vendor _site/
+          echo "Staged $(find _site -type f | wc -l) files, $(du -sh _site | cut -f1)."
+      - name: Verify the staged site
+        # A new asset missing from the copy above, or a dev file that slips in,
+        # fails here instead of publishing a broken or bloated site.
+        run: |
+          # vendor/zxing.min.js is loaded by scanner.js, not by the HTML, so the
+          # shipped assets are listed here as well as the referenced ones below.
+          for required in app.html app.css app.js scanner.js styles.css \
+                          index.html demo-sku-map.js .nojekyll data \
+                          data/catalogue.js data/store-prices \
+                          data/woolworths-prices vendor/zxing.min.js; do
+            if [ ! -e "_site/$required" ]; then
+              echo "::error::_site is missing $required; add it to the staging step."
+              exit 1
+            fi
+          done
+          for unwanted in test scripts package.json package-lock.json node_modules; do
+            if [ -e "_site/$unwanted" ]; then
+              echo "::error::The published site must not contain $unwanted."
+              exit 1
+            fi
+          done
+          missing=0
+          while read -r ref; do
+            path="${ref%%\?*}"
+            case "$path" in http*|data:*|'#'*|"") continue ;; esac
+            if [ ! -f "_site/$path" ]; then
+              echo "::error::_site is missing $path, which the pages reference."
+              missing=1
+            fi
+          done < <(grep -ohE '(src|href)="[^"]+"' app.html index.html | sed -E 's/^(src|href)="//; s/"$//')
+          exit "$missing"
       - name: Configure Pages
         uses: actions/configure-pages@v6
         with:
@@ -180,7 +228,7 @@ jobs:
       - name: Upload site
         uses: actions/upload-pages-artifact@v5
         with:
-          path: .
+          path: _site
 
   deploy:
     needs: build
