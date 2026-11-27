@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "halal-card-badges-2026-11-27";
+window.TROLLEYBIRD_BUILD = "halal-dialog-reason-2026-11-27";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -4012,6 +4012,7 @@ function openProduct(productId) {
     : `${hasSpecialsOnlyPrice ? "Specials-only prices here are this week's advertised specials, not shelf prices. " : ""}Shelf prices from each branch's own price list where it differs from the island base, imported on ${CATALOGUE ? shortDate(CATALOGUE.fetchedAt) : ""} · ${product.stores === 2 ? "listed by both PAK'nSAVE and New World" : "listed by one of PAK'nSAVE or New World"} · stock checked per branch`;
   const anyEstimate = offers.some((offer) => !priceIsChecked(productId, offer.store.id));
   const hasImport = offers.some((offer) => priceKind(productId, offer.store.id) === "imported");
+  const halalNote = halalReason(product);
   const barcode = barcodeCard(product);
   const barcodeMarkup =
     barcode ||
@@ -4028,6 +4029,7 @@ function openProduct(productId) {
         <p class="dialog__eyebrow">${escapeHtml(product.category)}</p>
         <h2 id="dialog-title">${escapeHtml(product.name)}</h2>
         <p class="dialog__meta">${product.brand ? `${escapeHtml(product.brand)} · ` : ""}${escapeHtml(product.size || "size not listed")}${product.source === "grocer" ? " · Grocer catalogue" : product.code ? ` · Barcode ${product.code}` : ""}</p>
+        ${halalNote ? `<p class="dialog__halal">${escapeHtml(halalNote)}</p>` : ""}
         ${
           product.source === "grocer"
             ? `<p class="dialog__source">Real product data from <a href="https://grocer.nz" target="_blank" rel="noopener">Grocer's catalogue</a>${product.stores ? ` · stocked at ${product.stores} stores` : ""}</p>`
