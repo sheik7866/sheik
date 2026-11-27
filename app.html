@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Keep this version in step with the build marker so a cached bundle cannot
        outlive a deployment. -->
-  <link rel="stylesheet" href="app.css?v=published-prices-only-2026-11-27" />
+  <link rel="stylesheet" href="app.css?v=stock-vs-unpriced-2026-11-27" />
   <script src="data/paknsave-import.js" defer></script>
   <script src="data/newworld-import.js" defer></script>
   <script src="data/catalogue.js" defer></script>
@@ -275,7 +275,8 @@
           <div class="list-tools__chips" id="list-status-filters" role="group" aria-label="Filter list items by status">
             <button class="list-filter-chip" type="button" data-list-status="all" aria-pressed="true">All <span data-list-count="all">0</span></button>
             <button class="list-filter-chip" type="button" data-list-status="special" aria-pressed="false">Specials <span data-list-count="special">0</span></button>
-            <button class="list-filter-chip" type="button" data-list-status="missing" aria-pressed="false">Not stocked <span data-list-count="missing">0</span></button>
+            <button class="list-filter-chip" type="button" data-list-status="not-stocked" aria-pressed="false" title="Not in your stores' published range">Not stocked <span data-list-count="not-stocked">0</span></button>
+            <button class="list-filter-chip" type="button" data-list-status="unpriced" aria-pressed="false" title="No published price at your stores">No price <span data-list-count="unpriced">0</span></button>
           </div>
           <div class="list-tools__foot">
             <p class="list-tools__status" id="list-filter-status" aria-live="polite"></p>
@@ -417,7 +418,7 @@
     <button class="toast__action" type="button" id="toast-action" hidden>Undo</button>
   </div>
 
-  <script src="app.js?v=published-prices-only-2026-11-27" defer></script>
+  <script src="app.js?v=stock-vs-unpriced-2026-11-27" defer></script>
   <script src="scanner.js" defer></script>
 </body>
 </html>

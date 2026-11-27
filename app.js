@@ -5,7 +5,7 @@
 
 /* The live smoke test waits for this marker so a just-deployed page cannot
    pass (or fail) against a cached copy of the previous app bundle. */
-window.TROLLEYBIRD_BUILD = "published-prices-only-2026-11-27";
+window.TROLLEYBIRD_BUILD = "stock-vs-unpriced-2026-11-27";
 
 /* Every PAK'nSAVE and New World branch, from the stores' public locators
    (scripts/pull-stores.mjs). Branches fall back to their banner's North or
@@ -573,7 +573,7 @@ const MAX_PRO_STORES = 30;
 const STORAGE_KEY = "grocer-demo-v1";
 const TAB_IDS = ["stores", "catalog", "list"];
 const SORT_MODES = ["relevance", "price", "unit"];
-const LIST_FILTER_STATUSES = ["all", "special", "missing"];
+const LIST_FILTER_STATUSES = ["all", "special", "not-stocked", "unpriced"];
 const listFilters = { query: "", category: "all", status: "all" };
 
 /* Real product identity comes from Open Food Facts (open database, no key).
@@ -2735,6 +2735,9 @@ function listItemDetails(row, stores, pricesLoading) {
   const noPrice = stores.length > 0 && !best && !pricesLoading && specialsOnly;
   const missing = stores.length > 0 && !best && !pricesLoading && !noPrice;
   const notStocked = missing && stores.every((store) => knownUnavailable(row.id, store.id));
+  // A missing price is only "not stocked" when the branch range says so;
+  // everything else is merely unpriced and must not be called absent.
+  const unpriced = missing && !notStocked;
   const special = stores.some(
     (store) => storeDealFor(row.id, store) || priceKind(row.id, store.id) === "special"
   );
@@ -2747,6 +2750,7 @@ function listItemDetails(row, stores, pricesLoading) {
     unit,
     missing,
     notStocked,
+    unpriced,
     noPrice,
     noPriceChain: specialsOnlyChainLabel(stores),
     pricePending,
@@ -2827,7 +2831,7 @@ function renderList() {
   if (listFilters.category !== "all" && !categories.has(listFilters.category)) {
     listFilters.category = "all";
   }
-  if (listFilters.status === "missing" && !stores.length) {
+  if ((listFilters.status === "not-stocked" || listFilters.status === "unpriced") && !stores.length) {
     listFilters.status = "all";
   }
   if (!LIST_FILTER_STATUSES.includes(listFilters.status)) listFilters.status = "all";
@@ -2838,7 +2842,8 @@ function renderList() {
       return false;
     }
     if (listFilters.status === "special" && !item.special) return false;
-    if (listFilters.status === "missing" && !item.missing) return false;
+    if (listFilters.status === "not-stocked" && !item.notStocked) return false;
+    if (listFilters.status === "unpriced" && !item.unpriced) return false;
     if (terms.length) {
       const haystack = listItemSearchText(item);
       if (!terms.every((term) => haystack.includes(term))) return false;
@@ -2850,7 +2855,8 @@ function renderList() {
   const counts = {
     all: items.length,
     special: items.filter((item) => item.special).length,
-    missing: items.filter((item) => item.missing).length,
+    "not-stocked": items.filter((item) => item.notStocked).length,
+    unpriced: items.filter((item) => item.unpriced).length,
   };
 
   el.listItems.innerHTML = filtered.map(listItemMarkup).join("");
@@ -2907,7 +2913,7 @@ function renderList() {
     const active = listFilters.status === status;
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-pressed", String(active));
-    button.hidden = status === "missing" && !stores.length;
+    button.hidden = (status === "not-stocked" || status === "unpriced") && !stores.length;
     button.disabled = status !== "all" && counts[status] === 0 && !active;
   }
 
