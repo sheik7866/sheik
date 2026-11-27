@@ -1,349 +1,349 @@
 {
-  "fetchedAt": "2026-11-27",
-  "sourceCheckedAt": "2026-11-26T17:27:16.000Z",
-  "sourceDate": "2026-11-27",
+  "fetchedAt": "2026-11-28",
+  "sourceCheckedAt": "2026-11-27T17:25:41.000Z",
+  "sourceDate": "2026-11-28",
   "stores": [
     {
       "id": 8,
       "branch": "Auckland Airport",
-      "checkedAt": "2026-11-26T16:04:14.000Z",
-      "priceCount": 8591
+      "checkedAt": "2026-11-27T16:04:02.000Z",
+      "priceCount": 8513
     },
     {
       "id": 9,
       "branch": "Auckland City",
-      "checkedAt": "2026-11-26T16:04:38.000Z",
-      "priceCount": 10494
+      "checkedAt": "2026-11-27T16:04:36.000Z",
+      "priceCount": 10397
     },
     {
       "id": 15,
       "branch": "Beachlands",
-      "checkedAt": "2026-11-26T16:08:58.000Z",
-      "priceCount": 10532
+      "checkedAt": "2026-11-27T16:08:39.000Z",
+      "priceCount": 10418
     },
     {
       "id": 18,
       "branch": "Birkenhead",
-      "checkedAt": "2026-11-26T16:10:44.000Z",
-      "priceCount": 10935
+      "checkedAt": "2026-11-27T16:10:26.000Z",
+      "priceCount": 10838
     },
     {
       "id": 21,
       "branch": "Botany Downs",
-      "checkedAt": "2026-11-26T16:11:33.000Z",
-      "priceCount": 10779
+      "checkedAt": "2026-11-27T16:11:09.000Z",
+      "priceCount": 10680
     },
     {
       "id": 24,
       "branch": "Browns Bay",
-      "checkedAt": "2026-11-26T16:12:19.000Z",
-      "priceCount": 10908
+      "checkedAt": "2026-11-27T16:12:08.000Z",
+      "priceCount": 10805
     },
     {
       "id": 45,
       "branch": "Glenfield",
-      "checkedAt": "2026-11-26T16:23:43.000Z",
-      "priceCount": 10702
+      "checkedAt": "2026-11-27T16:23:03.000Z",
+      "priceCount": 10600
     },
     {
       "id": 47,
       "branch": "Greenlane",
-      "checkedAt": "2026-11-26T16:24:29.000Z",
-      "priceCount": 11037
+      "checkedAt": "2026-11-27T16:23:57.000Z",
+      "priceCount": 10928
     },
     {
       "id": 50,
       "branch": "Grey Lynn",
-      "checkedAt": "2026-11-26T16:25:17.000Z",
-      "priceCount": 10759
+      "checkedAt": "2026-11-27T16:24:50.000Z",
+      "priceCount": 10633
     },
     {
       "id": 56,
       "branch": "Helensville",
-      "checkedAt": "2026-11-26T16:27:57.000Z",
-      "priceCount": 7325
+      "checkedAt": "2026-11-27T16:27:32.000Z",
+      "priceCount": 7204
     },
     {
       "id": 57,
       "branch": "Henderson",
-      "checkedAt": "2026-11-26T16:28:44.000Z",
-      "priceCount": 9857
+      "checkedAt": "2026-11-27T16:29:01.000Z",
+      "priceCount": 9765
     },
     {
       "id": 58,
       "branch": "Highland Park",
-      "checkedAt": "2026-11-26T16:29:31.000Z",
-      "priceCount": 10816
+      "checkedAt": "2026-11-27T16:29:49.000Z",
+      "priceCount": 10724
     },
     {
       "id": 59,
       "branch": "Hobsonville",
-      "checkedAt": "2026-11-26T16:29:32.000Z",
-      "priceCount": 9797
+      "checkedAt": "2026-11-27T16:29:47.000Z",
+      "priceCount": 9690
     },
     {
       "id": 61,
       "branch": "Howick",
-      "checkedAt": "2026-11-26T16:30:44.000Z",
-      "priceCount": 8928
+      "checkedAt": "2026-11-27T16:31:00.000Z",
+      "priceCount": 8822
     },
     {
       "id": 70,
       "branch": "Kelston",
-      "checkedAt": "2026-11-26T16:34:06.000Z",
-      "priceCount": 9835
+      "checkedAt": "2026-11-27T16:34:22.000Z",
+      "priceCount": 9734
     },
     {
       "id": 77,
       "branch": "Lynfield",
-      "checkedAt": "2026-11-26T16:37:21.000Z",
-      "priceCount": 10593
+      "checkedAt": "2026-11-27T16:37:27.000Z",
+      "priceCount": 10489
     },
     {
       "id": 78,
       "branch": "Lynnmall",
-      "checkedAt": "2026-11-26T16:38:06.000Z",
-      "priceCount": 10486
+      "checkedAt": "2026-11-27T16:38:09.000Z",
+      "priceCount": 10389
     },
     {
       "id": 81,
       "branch": "Mairangi Bay",
-      "checkedAt": "2026-11-26T16:38:28.000Z",
-      "priceCount": 7716
+      "checkedAt": "2026-11-27T16:38:33.000Z",
+      "priceCount": 7621
     },
     {
       "id": 82,
       "branch": "Mangere East",
-      "checkedAt": "2026-11-26T16:39:03.000Z",
-      "priceCount": 7001
+      "checkedAt": "2026-11-27T16:39:10.000Z",
+      "priceCount": 6929
     },
     {
       "id": 84,
       "branch": "Manukau",
-      "checkedAt": "2026-11-26T16:39:30.000Z",
-      "priceCount": 10324
+      "checkedAt": "2026-11-27T16:39:38.000Z",
+      "priceCount": 10236
     },
     {
       "id": 85,
       "branch": "Manukau City Mall",
-      "checkedAt": "2026-11-26T16:39:45.000Z",
-      "priceCount": 9671
+      "checkedAt": "2026-11-27T16:39:51.000Z",
+      "priceCount": 9587
     },
     {
       "id": 86,
       "branch": "Manurewa",
-      "checkedAt": "2026-11-26T16:40:21.000Z",
-      "priceCount": 9639
+      "checkedAt": "2026-11-27T16:40:28.000Z",
+      "priceCount": 9555
     },
     {
       "id": 90,
       "branch": "Meadowbank",
-      "checkedAt": "2026-11-26T16:41:52.000Z",
-      "priceCount": 10890
+      "checkedAt": "2026-11-27T16:41:58.000Z",
+      "priceCount": 10789
     },
     {
       "id": 91,
       "branch": "Meadowlands",
-      "checkedAt": "2026-11-26T16:42:18.000Z",
-      "priceCount": 10392
+      "checkedAt": "2026-11-27T16:42:17.000Z",
+      "priceCount": 10289
     },
     {
       "id": 300323,
       "branch": "Metro Albert Street",
-      "checkedAt": "2026-11-26T16:42:40.000Z",
-      "priceCount": 10889
+      "checkedAt": "2026-11-27T16:42:38.000Z",
+      "priceCount": 10755
     },
     {
       "id": 10,
       "branch": "Metro Auckland Victoria Street West",
-      "checkedAt": "2026-11-26T16:43:06.000Z",
-      "priceCount": 9820
+      "checkedAt": "2026-11-27T16:43:14.000Z",
+      "priceCount": 9693
     },
     {
       "id": 300325,
       "branch": "Metro Halsey Street",
-      "checkedAt": "2026-11-26T16:43:49.000Z",
-      "priceCount": 10889
+      "checkedAt": "2026-11-27T16:43:42.000Z",
+      "priceCount": 10755
     },
     {
       "id": 300326,
       "branch": "Metro Herne Bay",
-      "checkedAt": "2026-11-26T16:44:08.000Z",
-      "priceCount": 10889
+      "checkedAt": "2026-11-27T16:44:02.000Z",
+      "priceCount": 10755
     },
     {
       "id": 92,
       "branch": "Milford",
-      "checkedAt": "2026-11-26T16:44:35.000Z",
-      "priceCount": 10791
+      "checkedAt": "2026-11-27T16:44:48.000Z",
+      "priceCount": 10674
     },
     {
       "id": 97,
       "branch": "Mount Eden",
-      "checkedAt": "2026-11-26T16:46:50.000Z",
-      "priceCount": 10987
+      "checkedAt": "2026-11-27T16:46:57.000Z",
+      "priceCount": 10874
     },
     {
       "id": 98,
       "branch": "Mount Roskill",
-      "checkedAt": "2026-11-26T16:47:28.000Z",
-      "priceCount": 10784
+      "checkedAt": "2026-11-27T16:47:43.000Z",
+      "priceCount": 10681
     },
     {
       "id": 99,
       "branch": "Mount Wellington",
-      "checkedAt": "2026-11-26T16:47:56.000Z",
-      "priceCount": 10541
+      "checkedAt": "2026-11-27T16:48:00.000Z",
+      "priceCount": 10441
     },
     {
       "id": 104,
       "branch": "Newmarket",
-      "checkedAt": "2026-11-26T16:50:49.000Z",
-      "priceCount": 10772
+      "checkedAt": "2026-11-27T16:50:48.000Z",
+      "priceCount": 10659
     },
     {
       "id": 106,
       "branch": "Northcote",
-      "checkedAt": "2026-11-26T16:51:42.000Z",
-      "priceCount": 10073
+      "checkedAt": "2026-11-27T16:51:48.000Z",
+      "priceCount": 9983
     },
     {
       "id": 108,
       "branch": "Northwest",
-      "checkedAt": "2026-11-26T16:52:16.000Z",
-      "priceCount": 10152
+      "checkedAt": "2026-11-27T16:52:14.000Z",
+      "priceCount": 10044
     },
     {
       "id": 110,
       "branch": "Onehunga",
-      "checkedAt": "2026-11-26T16:53:20.000Z",
-      "priceCount": 7391
+      "checkedAt": "2026-11-27T16:53:15.000Z",
+      "priceCount": 7310
     },
     {
       "id": 111,
       "branch": "Orewa",
-      "checkedAt": "2026-11-26T16:53:48.000Z",
-      "priceCount": 10625
+      "checkedAt": "2026-11-27T16:53:42.000Z",
+      "priceCount": 10524
     },
     {
       "id": 116,
       "branch": "Pakuranga",
-      "checkedAt": "2026-11-26T16:55:00.000Z",
-      "priceCount": 9046
+      "checkedAt": "2026-11-27T16:54:52.000Z",
+      "priceCount": 8963
     },
     {
       "id": 118,
       "branch": "Papakura",
-      "checkedAt": "2026-11-26T16:56:25.000Z",
-      "priceCount": 9865
+      "checkedAt": "2026-11-27T16:56:18.000Z",
+      "priceCount": 9786
     },
     {
       "id": 120,
       "branch": "Papatoetoe",
-      "checkedAt": "2026-11-26T16:56:42.000Z",
-      "priceCount": 8296
+      "checkedAt": "2026-11-27T16:56:37.000Z",
+      "priceCount": 8220
     },
     {
       "id": 124,
       "branch": "Ponsonby",
-      "checkedAt": "2026-11-26T16:59:20.000Z",
-      "priceCount": 10915
+      "checkedAt": "2026-11-27T16:59:07.000Z",
+      "priceCount": 10808
     },
     {
       "id": 126,
       "branch": "Pt Chevalier",
-      "checkedAt": "2026-11-26T16:59:45.000Z",
-      "priceCount": 10440
+      "checkedAt": "2026-11-27T16:59:41.000Z",
+      "priceCount": 10299
     },
     {
       "id": 127,
       "branch": "Pukekohe",
-      "checkedAt": "2026-11-26T17:00:45.000Z",
-      "priceCount": 10397
+      "checkedAt": "2026-11-27T17:00:25.000Z",
+      "priceCount": 10283
     },
     {
       "id": 128,
       "branch": "Pukekohe South",
-      "checkedAt": "2026-11-26T17:01:09.000Z",
-      "priceCount": 10922
+      "checkedAt": "2026-11-27T17:01:05.000Z",
+      "priceCount": 10822
     },
     {
       "id": 141,
       "branch": "Silverdale",
-      "checkedAt": "2026-11-26T17:06:50.000Z",
-      "priceCount": 10839
+      "checkedAt": "2026-11-27T17:06:35.000Z",
+      "priceCount": 10731
     },
     {
       "id": 145,
       "branch": "St Johns",
-      "checkedAt": "2026-11-26T17:09:46.000Z",
-      "priceCount": 10915
+      "checkedAt": "2026-11-27T17:08:45.000Z",
+      "priceCount": 10804
     },
     {
       "id": 146,
       "branch": "St Lukes",
-      "checkedAt": "2026-11-26T17:09:45.000Z",
-      "priceCount": 10520
+      "checkedAt": "2026-11-27T17:08:58.000Z",
+      "priceCount": 10431
     },
     {
       "id": 149,
       "branch": "Sunnynook",
-      "checkedAt": "2026-11-26T17:11:17.000Z",
-      "priceCount": 10067
+      "checkedAt": "2026-11-27T17:10:21.000Z",
+      "priceCount": 9969
     },
     {
       "id": 150,
       "branch": "Takanini",
-      "checkedAt": "2026-11-26T17:11:34.000Z",
-      "priceCount": 10601
+      "checkedAt": "2026-11-27T17:10:45.000Z",
+      "priceCount": 10508
     },
     {
       "id": 151,
       "branch": "Takapuna",
-      "checkedAt": "2026-11-26T17:12:38.000Z",
-      "priceCount": 10860
+      "checkedAt": "2026-11-27T17:11:23.000Z",
+      "priceCount": 10750
     },
     {
       "id": 157,
       "branch": "Te Atatu South",
-      "checkedAt": "2026-11-26T17:15:02.000Z",
-      "priceCount": 8076
+      "checkedAt": "2026-11-27T17:13:57.000Z",
+      "priceCount": 8002
     },
     {
       "id": 163,
       "branch": "Three Kings",
-      "checkedAt": "2026-11-26T17:18:00.000Z",
-      "priceCount": 9875
+      "checkedAt": "2026-11-27T17:16:46.000Z",
+      "priceCount": 9772
     },
     {
       "id": 172,
       "branch": "Waiata Shores",
-      "checkedAt": "2026-11-26T17:22:27.000Z",
-      "priceCount": 10585
+      "checkedAt": "2026-11-27T17:21:05.000Z",
+      "priceCount": 10479
     },
     {
       "id": 155089,
       "branch": "Waiheke Island",
-      "checkedAt": "2026-11-26T17:22:47.000Z",
-      "priceCount": 10822
+      "checkedAt": "2026-11-27T17:21:20.000Z",
+      "priceCount": 10723
     },
     {
       "id": 181,
       "branch": "Warkworth",
-      "checkedAt": "2026-11-26T17:25:43.000Z",
-      "priceCount": 10713
+      "checkedAt": "2026-11-27T17:24:09.000Z",
+      "priceCount": 10607
     },
     {
       "id": 182,
       "branch": "Westgate",
-      "checkedAt": "2026-11-26T17:25:43.000Z",
-      "priceCount": 9966
+      "checkedAt": "2026-11-27T17:24:10.000Z",
+      "priceCount": 9870
     },
     {
       "id": 185,
       "branch": "Whangaparaoa",
-      "checkedAt": "2026-11-26T17:27:16.000Z",
-      "priceCount": 10603
+      "checkedAt": "2026-11-27T17:25:41.000Z",
+      "priceCount": 10499
     }
   ]
 }
