@@ -1814,6 +1814,7 @@ async function main() {
       );
       return (await note.count()) ? normalize(await note.innerText()) : "";
     };
+    await searchProduct(page, absentEverywhere);
     const absentEverywhereNote = await stockNote(absentEverywhere.sku);
     assert(
       absentEverywhereNote.includes("Not at") &&
@@ -1825,6 +1826,7 @@ async function main() {
 
     const missingBranch = absentAtOne.stocked[0] ? "Point Chevalier" : "Mt Albert";
     const stockingBranch = absentAtOne.stocked[0] ? "Mt Albert" : "Point Chevalier";
+    await searchProduct(page, absentAtOne);
     const absentAtOneNote = await stockNote(absentAtOne.sku);
     assert(
       absentAtOneNote.includes("Not at") &&
