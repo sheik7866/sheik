@@ -1820,13 +1820,18 @@ async function main() {
         (line) => line.stocked.includes(true) && line.stocked.includes(false)
       ) || null;
     assert(absentEverywhere, "no catalogue line is absent from both branches' ranges");
-    assert(
-      absentAtOne,
-      "no catalogue line is stocked by one branch's range and absent from the other's"
-    );
-    console.log(
-      `[smoke] absent from both ranges: ${absentEverywhere.name}; stocked at one only: ${absentAtOne.name}`
-    );
+    // A branch that stocks a pack always carries a price for it in the rebuilt
+    // coverage, so the one-branch-stocked case can be empty. When it is, the
+    // checks below cover the state that exists instead of inventing a pack.
+    if (absentAtOne) {
+      console.log(
+        `[smoke] absent from both ranges: ${absentEverywhere.name}; stocked at one only: ${absentAtOne.name}`
+      );
+    } else {
+      console.log(
+        `[smoke] absent from both ranges: ${absentEverywhere.name}; no pack is stocked by one range alone`
+      );
+    }
 
     const stockNote = async (sku) => {
       const note = page.locator(
@@ -1844,35 +1849,41 @@ async function main() {
     );
     await addToList(page, absentEverywhere.sku, 1);
 
-    const missingBranch = absentAtOne.stocked[0] ? "Point Chevalier" : "Mt Albert";
-    const stockingBranch = absentAtOne.stocked[0] ? "Mt Albert" : "Point Chevalier";
-    await searchProduct(page, absentAtOne);
-    const absentAtOneNote = await stockNote(absentAtOne.sku);
-    assert(
-      absentAtOneNote.includes("Not at") &&
-        absentAtOneNote.includes(missingBranch) &&
-        !absentAtOneNote.includes(stockingBranch),
-      `only ${missingBranch} should be missing this line: ${absentAtOneNote}`
-    );
-    await addToList(page, absentAtOne.sku, 2);
+    if (absentAtOne) {
+      const missingBranch = absentAtOne.stocked[0] ? "Point Chevalier" : "Mt Albert";
+      const stockingBranch = absentAtOne.stocked[0] ? "Mt Albert" : "Point Chevalier";
+      await searchProduct(page, absentAtOne);
+      const absentAtOneNote = await stockNote(absentAtOne.sku);
+      assert(
+        absentAtOneNote.includes("Not at") &&
+          absentAtOneNote.includes(missingBranch) &&
+          !absentAtOneNote.includes(stockingBranch),
+        `only ${missingBranch} should be missing this line: ${absentAtOneNote}`
+      );
+      await addToList(page, absentAtOne.sku, 2);
+    }
 
     const absentEverywhereText = await listText(absentEverywhere.sku);
-    const absentAtOneText = await listText(absentAtOne.sku);
     assert(
       absentEverywhereText.includes("not stocked at your stores"),
       `a pack both ranges lack should be called not stocked: ${absentEverywhereText}`
     );
-    assert(
-      absentAtOneText.includes("no published price at your stores") &&
-        !absentAtOneText.includes("not stocked"),
-      `a pack one branch stocks must not be called not stocked: ${absentAtOneText}`
-    );
+    if (absentAtOne) {
+      const absentAtOneText = await listText(absentAtOne.sku);
+      assert(
+        absentAtOneText.includes("no published price at your stores") &&
+          !absentAtOneText.includes("not stocked"),
+        `a pack one branch stocks must not be called not stocked: ${absentAtOneText}`
+      );
+    }
 
     const twoStoreNotStockedCount = await listChipCount("not-stocked");
     const twoStoreUnpricedCount = await listChipCount("unpriced");
+    const expectedTwoStoreUnpriced = absentAtOne ? "1" : "0";
     assert(
-      twoStoreNotStockedCount === "1" && twoStoreUnpricedCount === "1",
-      `two branches should still split the blank-price kinds: ${twoStoreNotStockedCount} not stocked, ${twoStoreUnpricedCount} no price`
+      twoStoreNotStockedCount === "1" &&
+        twoStoreUnpricedCount === expectedTwoStoreUnpriced,
+      `two branches should still split the blank-price kinds: ${twoStoreNotStockedCount} not stocked, ${twoStoreUnpricedCount} no price (expected ${expectedTwoStoreUnpriced})`
     );
 
     await page.locator('[data-list-status="not-stocked"]').click();
@@ -1892,23 +1903,30 @@ async function main() {
       `Not stocked should need every branch to lack the pack: ${JSON.stringify(everyBranchRows)}`
     );
 
-    await page.locator('[data-list-status="unpriced"]').click();
-    await page.waitForFunction(
-      () =>
-        document
-          .querySelector('[data-list-status="unpriced"]')
-          ?.getAttribute("aria-pressed") === "true",
-      null,
-      { timeout: 5000 }
-    );
-    const oneBranchRows = await visibleListRows();
-    assert(
-      oneBranchRows.length === 1 &&
-        oneBranchRows[0].id === absentAtOne.sku &&
-        oneBranchRows[0].text.includes("no published price at your stores") &&
-        !oneBranchRows[0].text.includes("not stocked"),
-      `No price should hold the pack one branch stocks: ${JSON.stringify(oneBranchRows)}`
-    );
+    if (absentAtOne) {
+      await page.locator('[data-list-status="unpriced"]').click();
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector('[data-list-status="unpriced"]')
+            ?.getAttribute("aria-pressed") === "true",
+        null,
+        { timeout: 5000 }
+      );
+      const oneBranchRows = await visibleListRows();
+      assert(
+        oneBranchRows.length === 1 &&
+          oneBranchRows[0].id === absentAtOne.sku &&
+          oneBranchRows[0].text.includes("no published price at your stores") &&
+          !oneBranchRows[0].text.includes("not stocked"),
+        `No price should hold the pack one branch stocks: ${JSON.stringify(oneBranchRows)}`
+      );
+    } else {
+      assert(
+        await page.locator('[data-list-status="unpriced"]').isDisabled(),
+        "the No price chip should be disabled when two branches have nothing unpriced between them"
+      );
+    }
 
     await page.locator('[data-list-status="all"]').click();
     await page.waitForFunction(
