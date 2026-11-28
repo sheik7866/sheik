@@ -1,0 +1,89 @@
+name: Keep prices fresh
+
+# The hourly refresh clock lives outside this repository: the cron-job.org job
+# that calls the deploy workflow's dispatch API. That arrangement has failed
+# twice. A cron token can expire and block every dispatch without an error
+# appearing anywhere, and GitHub's own schedule is only best-effort, so whole
+# days can pass with no trigger at all. When both miss, nothing runs and
+# nothing fails: the site just keeps serving yesterday's prices in silence.
+#
+# This keeper is a second clock, owned by the repository. It compares the dates
+# in the committed data with today in Auckland and dispatches the deploy
+# workflow when they disagree. workflow_dispatch is the one event GITHUB_TOKEN
+# is allowed to start another workflow with, so the repository can heal a dead
+# outside clock without another token, secret or service.
+on:
+  schedule:
+    # Every fifteen minutes across the window that matters. Auckland midnight
+    # falls at 11:00 UTC in summer and 12:00 in winter, and Grocer republishes
+    # Woolworths around 05:00 NZ (17:00 UTC). The offsets keep these slots
+    # clear of the deploy workflow's own hourly schedule.
+    - cron: "7,22,37,52 10-20 * * *"
+  # A manual nudge, for example straight after the outside clock is repaired.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Required to dispatch the deploy workflow with gh.
+  actions: write
+
+concurrency:
+  group: keep-prices-fresh
+  cancel-in-progress: false
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check whether today's prices are published
+        id: check
+        run: |
+          # An unreadable file counts as missing rather than crashing the
+          # keeper, so a damaged commit still asks for a refresh.
+          fetched=$(jq -r '.fetchedAt // ""' data/store-prices/index.json 2>/dev/null || true)
+          wow_source=$(jq -r '.sourceDate // ""' data/woolworths-prices/index.json 2>/dev/null || true)
+          today=$(TZ=Pacific/Auckland date +%F)
+          stale=false
+          if [ "$fetched" != "$today" ] || [ "$wow_source" != "$today" ]; then
+            stale=true
+          fi
+          echo "stale=$stale" >> "$GITHUB_OUTPUT"
+          echo "Auckland $today: store prices dated ${fetched:-none}, Woolworths source ${wow_source:-none}."
+
+      - name: Dispatch the deploy workflow when prices are stale
+        if: steps.check.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The deploy workflow holds the pages concurrency group, so a
+          # dispatch during a running refresh would queue a second full scrape
+          # behind it rather than help. Wait for whatever is in flight.
+          runs=$(gh run list --workflow=pages.yml --limit 20 --json status,createdAt)
+          busy=$(echo "$runs" | jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')
+          if [ "$busy" -gt 0 ]; then
+            echo "A deploy run is already queued or running; leaving it to finish."
+            exit 0
+          fi
+          # Space the retries. A refresh that keeps failing should be retried,
+          # but not in a tight loop that hammers the stores' APIs.
+          latest=$(echo "$runs" | jq -r '.[0].createdAt // ""')
+          if [ -n "$latest" ]; then
+            age=$(( $(date -u +%s) - $(date -u -d "$latest" +%s) ))
+            if [ "$age" -lt 1500 ]; then
+              echo "The last deploy run started ${age}s ago; retrying at most every 25 minutes."
+              exit 0
+            fi
+          fi
+          # No force input: the deploy workflow's gate already refreshes when
+          # the fetched date is not today, and it still keeps the branch stock
+          # coverage pull to Sundays.
+          # Annotate a refused dispatch instead of letting the exit status be
+          # lost; a keeper that cannot start the refresh must fail loudly, since
+          # silence is the failure this workflow exists to end.
+          if ! gh workflow run pages.yml --ref main; then
+            echo "::error::Could not dispatch the deploy workflow. Check that this workflow still has actions: write."
+            exit 1
+          fi
+          echo "Dispatched the deploy workflow: prices are not dated $(TZ=Pacific/Auckland date +%F)."

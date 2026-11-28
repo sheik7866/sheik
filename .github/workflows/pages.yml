@@ -19,6 +19,10 @@ on:
   # dispatch ever reached GitHub and the site served 26 November prices all
   # morning. A delivered slot here at least refreshes the day, and the gate
   # makes every no-op trigger cost one checkout and a jq check.
+  #
+  # keep-prices-fresh.yml watches the same two dates and dispatches this
+  # workflow when they are out of date, so either clock can heal the other and
+  # a dead outside clock no longer freezes prices without a sound.
   schedule:
     - cron: "0 11-19 * * *"
   workflow_dispatch:
