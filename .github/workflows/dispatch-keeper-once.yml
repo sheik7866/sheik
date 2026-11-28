@@ -1,0 +1,38 @@
+name: Dispatch the keeper once
+
+# One-shot proof harness. The keeper's manual entry point needs Actions write
+# credentials, which this workspace does not have, so this branch's push does
+# the dispatch with the repository token instead (workflow_dispatch is the one
+# event GITHUB_TOKEN may start a workflow with). It lives only on this
+# throwaway branch; main never sees it.
+on:
+  push:
+    branches: [keeper-proof]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for the deploy workflow to be idle, then dispatch the keeper
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 40); do
+            busy=$(gh run list --workflow=pages.yml --limit 10 --json status \
+              --jq '[.[] | select(.status=="queued" or .status=="in_progress")] | length')
+            if [ "$busy" -eq 0 ]; then
+              echo "deploy workflow is idle after $i checks."
+              break
+            fi
+            echo "a deploy run is still in flight ($i); waiting."
+            sleep 15
+          done
+          gh workflow run keep-prices-fresh.yml --ref main -f force=true
+          sleep 10
+          gh run list --workflow=keep-prices-fresh.yml --limit 1 \
+            --json databaseId,event,status,headSha
