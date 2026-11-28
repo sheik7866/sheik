@@ -9,7 +9,7 @@ window.GROCER_PAKNSAVE_IMPORT = {
   store: "PAK'nSAVE",
   branch: "Mt Albert",
   fetchedAt: "2026-11-28",
-  checkedAt: "2026-11-27T19:56:10.056Z",
+  checkedAt: "2026-11-28T06:16:27.468Z",
   source: "https://www.paknsave.co.nz/shop/category/",
   items: {
     "milk-2l": {

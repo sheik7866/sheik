@@ -4,7 +4,7 @@
    Do not edit by hand — re-run the script instead. */
 window.GROCER_FOURSQUARE = {
   "fetchedAt": "2026-11-28",
-  "checkedAt": "2026-11-27T20:23:24.648Z",
+  "checkedAt": "2026-11-28T06:43:17.235Z",
   "source": "Four Square store finder and weekly specials",
   "note": "Four Square publishes weekly specials, not everyday shelf prices. Anything not in this file has no published Four Square price.",
   "stores": [
@@ -20,7 +20,7 @@ window.GROCER_FOURSQUARE = {
       "longitude": 174.7677305423276,
       "url": "https://www.foursquare.co.nz/upper-north-island/auckland/britomart",
       "specialsOnly": true,
-      "checkedAt": "2026-11-27T20:23:20.568Z",
+      "checkedAt": "2026-11-28T06:43:13.169Z",
       "specialsEndDate": "29 Nov 2026",
       "specialsCount": 47,
       "prices": {
@@ -303,7 +303,7 @@ window.GROCER_FOURSQUARE = {
       "longitude": 174.7598,
       "url": "https://www.foursquare.co.nz/upper-north-island/auckland/eden-terrace",
       "specialsOnly": true,
-      "checkedAt": "2026-11-27T20:23:22.059Z",
+      "checkedAt": "2026-11-28T06:43:14.406Z",
       "specialsEndDate": "29 Nov 2026",
       "specialsCount": 47,
       "prices": {
@@ -586,7 +586,7 @@ window.GROCER_FOURSQUARE = {
       "longitude": 174.784427,
       "url": "https://www.foursquare.co.nz/upper-north-island/auckland/onehunga",
       "specialsOnly": true,
-      "checkedAt": "2026-11-27T20:23:23.008Z",
+      "checkedAt": "2026-11-28T06:43:15.884Z",
       "specialsEndDate": "29 Nov 2026",
       "specialsCount": 47,
       "prices": {
@@ -869,7 +869,7 @@ window.GROCER_FOURSQUARE = {
       "longitude": 174.809678,
       "url": "https://www.foursquare.co.nz/upper-north-island/auckland/ellerslie",
       "specialsOnly": true,
-      "checkedAt": "2026-11-27T20:23:24.648Z",
+      "checkedAt": "2026-11-28T06:43:17.235Z",
       "specialsEndDate": "29 Nov 2026",
       "specialsCount": 47,
       "prices": {
