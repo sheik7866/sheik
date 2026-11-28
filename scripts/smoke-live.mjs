@@ -1763,17 +1763,17 @@ async function main() {
       `Not stocked should list only the branch-range absence: ${JSON.stringify(notStockedRows)}`
     );
 
-    await page.locator('[data-list-status="unpriced"]').click();
-    await page.waitForFunction(
-      () =>
-        document
-          .querySelector('[data-list-status="unpriced"]')
-          ?.getAttribute("aria-pressed") === "true",
-      null,
-      { timeout: 5000 }
-    );
-    const unpricedRows = await visibleListRows();
     if (unpricedLine) {
+      await page.locator('[data-list-status="unpriced"]').click();
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector('[data-list-status="unpriced"]')
+            ?.getAttribute("aria-pressed") === "true",
+        null,
+        { timeout: 5000 }
+      );
+      const unpricedRows = await visibleListRows();
       assert(
         unpricedRows.length === 1 &&
           unpricedRows[0].id === unpricedLine.sku &&
@@ -1782,9 +1782,11 @@ async function main() {
         `No price should list the stocked-but-unpriced line: ${JSON.stringify(unpricedRows)}`
       );
     } else {
+      // With nothing to list the chip is disabled, so there is no filter to
+      // open; the disabled empty state is the correct behaviour here.
       assert(
-        unpricedRows.length === 0,
-        `No price should list nothing when the branch stocks no unpriced line: ${JSON.stringify(unpricedRows)}`
+        await page.locator('[data-list-status="unpriced"]').isDisabled(),
+        "the No price chip should be disabled when it has nothing to list"
       );
     }
 
