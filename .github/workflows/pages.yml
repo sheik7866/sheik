@@ -261,7 +261,21 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run live availability and barcode smoke test
+        id: smoke
+        # The first attempt can lose a race with Pages propagation or with the
+        # outside image CDN the product cards load from. The retry below keeps
+        # that from turning into a red deploy, and the job still fails if the
+        # retry fails too, so a real regression is never waved through.
+        continue-on-error: true
         run: npm run smoke:live
+        env:
+          SMOKE_URL: ${{ needs.deploy.outputs.page_url }}
+      - name: Retry the smoke test once after a pause
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          echo "First smoke attempt failed; waiting a minute for the deployment and CDN to settle."
+          sleep 60
+          npm run smoke:live
         env:
           SMOKE_URL: ${{ needs.deploy.outputs.page_url }}
       - name: Publish smoke failure details
